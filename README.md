@@ -87,6 +87,7 @@ license/attribution is preserved unmodified in its own header comment in
 | Dino Game | tiny-handheld project (original) | None specified | [tiny-handheld](https://github.com/Yevgeniy-Olexandrenko/tiny-handheld) |
 | SnakeGame85 | terezaza | GPLv3 | [SnakeGame85](https://github.com/terezaza/SnakeGame85) |
 | Jump Slime | Kondolab (近藤さんちの研究室) | None specified | [note.com/kondolab](https://note.com/kondolab/n/ndc93ac31e555) |
+| TinyRoG | Kondolab (近藤さんちの研究室) | None specified | [note.com/kondolab](https://note.com/kondolab/n/n1806e4234495) |
 
 ## Optimizations
 

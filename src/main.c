@@ -63,6 +63,7 @@
 #include "games/gameDinoGame.c"
 #include "games/gameSnakeGame85.c"
 #include "games/gameJumpSlime.c"
+#include "games/gameTinyRoG.c"
 
 #include "menuGameList.c"
 

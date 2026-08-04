@@ -151,4 +151,9 @@ void addGames()
     // path anywhere in this port), so NULL here is confirmed correct, not
     // an oversight.
     addGame( "JUMP SLIME", "KONDOLAB", &gameJumpSlime_init, &gameJumpSlime_update, NULL );
+    // TinyRoG: gameTinyRoG_update() calls trogRenderStage()/trogRenderCave()
+    // unconditionally at the end of every single state branch (no dirty-
+    // flag/skip-redraw path anywhere in this port), so NULL here is
+    // confirmed correct, not an oversight.
+    addGame( "TINYROG", "KONDOLAB", &gameTinyRoG_init, &gameTinyRoG_update, NULL );
 }

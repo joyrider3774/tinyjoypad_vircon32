@@ -111,7 +111,8 @@ future porting pass doesn't need to re-download anything:
     (https://note.com/kondolab/n/n1806e4234495, published 2025-08-23
     14:09), which gives the game its real name "TinyRoG" and the source
     download `sample3.zip`, plus an embedded Wokwi simulator (noted by
-    the author as slower than real hardware).
+    the author as slower than real hardware). **Ported** as
+    `src/games/gameTinyRoG.c` - see Status below for the full writeup.
 
 Most of the Daniel-C `tinyJoypadShim`-lineage titles and all three Obono
 `TinyJoypadWorks` games in this folder are shipped now (22 games total -
@@ -1211,17 +1212,17 @@ file - both `sdl3`/`sdl2` rebuilt clean.
 ## Status (as of this session)
 
 Shipped and visually verified (WebGL emulator + a Puppeteer screenshot
-harness - see below): the shim architecture, the menu, and 35 full games
+harness - see below): the shim architecture, the menu, and 36 full games
 (NumberPlace, Tiny Invaders, 2048, HollowSeeker, Tiny Pinball, Tiny
 Pacman, Tiny Bomber, Tiny Doc, Tiny Bert, Tiny Tris, Tiny Arkanoid, Tiny
 Trick, Tiny Minez, Tiny Missile, Tiny Bike, Tiny Arena, Tiny Gilbert,
 Tiny Pipe, Tiny Morpion, Tiny Plaque, Tiny SQuest, Tiny DDug, Tiny
 Lander, Wren Rollercoaster, Frogger, Bat Bonanza, Stacker, UFO, Tiny
 Dungeon, Oroboros, Run Dude Run, Four in a Row, Dino Game, SnakeGame85,
-Jump Slime). Every game from the project's original scope shipped with
-Tiny Dungeon (see its own writeup below for what's still not
-independently re-verified about it specifically) - Oroboros, Run Dude
-Run, Four in a Row, and Dino Game were this project's first four
+Jump Slime, TinyRoG). Every game from the project's original scope
+shipped with Tiny Dungeon (see its own writeup below for what's still
+not independently re-verified about it specifically) - Oroboros, Run
+Dude Run, Four in a Row, and Dino Game were this project's first four
 additions *beyond* that original scope, found via a follow-up GitHub/web
 search for TinyJoypad-compatible games not already catalogued (see
 "Beyond the original scope" below for the full survey and what else it
@@ -1237,9 +1238,11 @@ AI-assisted ATtiny85 games by a Japanese creator (近藤さんちの研究室 /
 fetched via WebFetch to identify each game's real title/description/
 source link (see `more games/`'s own catalog entry below for the full
 triage of all 3). Jump Slime was picked as the simplest/lowest-risk of
-the three to port first; TinY Fi and TinyRoG remain triaged but not yet
-ported. The beyond-scope backlog is empty again unless a future search
-or link turns up something new.
+the three to port first; TinyRoG (the roguelike, second of the three)
+followed in the same session - see its own writeup below. TinY Fi (the
+fighting game) remains triaged but not yet ported. The beyond-scope
+backlog is empty again unless a future search or link turns up
+something new.
 
 - `src/machineDependent.h` + `src/portVircon32.c` - the `md_*` primitives
   (video/input/audio) plus the atlas texture setup and the top-level
@@ -5437,6 +5440,138 @@ of scope).
   Menu thumbnail added to `assets/thumbnails2.png`'s cell 2 (third cell of
   its 4x2 grid) - no atlas growth needed. Verified via screenshot that it
   displays correctly alongside its neighbors.
+- `src/games/gameTinyRoG.c` - TinyRoG (`more games/sample/Cave11Item/
+  Cave11Item.ino`, second of the 3 AI-assisted original ATtiny85 games in
+  `more games/sample/` - see that folder's own catalog entry above for
+  identification/triage, and Jump Slime's own writeup for the shared-
+  driver-lineage finding common to all 3). Author: 近藤さんちの研究室
+  ("Kondo-san's Laboratory"), note.com handle "kondolab" - credited
+  "KONDOLAB" in the menu, same treatment as Jump Slime (a known author,
+  an unstated license - see Licensing below).
+
+  A roguelike RPG: explore a procedurally-generated maze each floor, grab
+  the key to reveal the stairs, fight or dodge wandering monsters,
+  occasionally find a healing item box, reach floor 30 to win. Picked
+  over TinY Fi (the fighting game, still unported) specifically because
+  TinY Fi's own render dispatch is a dense, easy-to-mistranscribe tangle
+  of per-animation-state, per-layer sprite calls with many small magic
+  pixel offsets, whereas this game's own complexity is concentrated in
+  self-contained algorithmic logic (maze generation, tile-based movement/
+  combat) rather than a sprawling render table - and its own `tinyDraw()`
+  already precomputes enemy screen positions once per frame
+  (`calcEnmDraw()`) rather than per pixel, a sign the original AI-
+  assisted code was already somewhat performance-conscious.
+
+  `#include "ELECTROLIB.h"` directly (same as every Daniel-C-lineage game
+  in this project), confirming the shared-driver-lineage finding from
+  Jump Slime's own port applies here too - no new shim needed. Every
+  ternary expression, `switch` statement, and `enum` was converted to
+  plain if/else-if chains and `#define` constants, matching this
+  project's own standing caution around those 3 constructs. Upstream's
+  own debounce mechanism (`lastBtnAState`/`DEBOUNCE`, a real blocking
+  `_delay_ms(30)`) was dropped for a single shared edge-detect flag,
+  matching every other port here. `random(n)`/`random(min,max)` calls are
+  routed through the shared `arand()` helper (a `trogRandRange(min,max)`
+  wrapper for the two-argument form) rather than raw `rand()%n`;
+  `randomSeed()` has no equivalent call (Vircon32's `rand()` isn't
+  seedable the same way), matching Wren Rollercoaster's own precedent - a
+  minor accepted deviation (maze layouts won't be bit-identical to a real
+  device's own specific seed).
+
+  `dig()`'s own local maze-carving stack (`stack_x`/`stack_y`) is a
+  variable-length array upstream, sized at runtime from a macro based on
+  the current stage's own maze dimensions - not something this project's
+  dialect has ever been confirmed to support, so ported as fixed-size
+  globals sized to the true worst case instead
+  (`((17+1)/2)*((11+1)/2)=54`, the maximum possible `TILES_W`/`TILES_H`).
+  Safe because `dig()`'s own algorithm only ever pushes a given odd-
+  coordinate cell onto the stack once (it's marked carved immediately
+  when pushed, so no future search path can ever find it as a wall and
+  push it again), so 54 is a true upper bound on stack depth at any
+  moment, matching upstream's own comment explaining the same reasoning
+  for its dynamically-sized version.
+
+  Every sprite/font/stage-data table was byte-diff-verified against the
+  original source via a small Python script before ever building -
+  caught one real transcription error this way (`trogMiniTitle`'s own
+  "Next" glyph data: `0x18`/`0x30` mistakenly hand-converted to decimal
+  as `18`/`30` instead of the correct `24`/`48`), fixed before the first
+  build attempt - the same "byte-diff transcribed tables" discipline
+  reinforced hard by SnakeGame85's own corrupted-bitmap bug earlier this
+  session.
+
+  **A real bug in this port's own death-screen wait logic, caught by
+  direct code inspection while answering a user question** ("what
+  happens if you die? does it stay on the die screen?"): upstream's own
+  `if(cnt>=WATE_GAMEOVER)cnt=WATE_GAMEOVER;` clamp is unconditional inside
+  `GAME_STAGE` - it locks `cnt` at 50 while on *any* GAME_STAGE screen
+  (title, floor-transition, death, ending alike), and it's the *fire-
+  press* branch, not the clamp itself, that actually restricts the real
+  effect to the death/ending screens (only reacting to `cnt==50` when
+  `nowHp==0` or the floor was cleared). An earlier draft of this port
+  added an extra, upstream-doesn't-have-it condition,
+  `trogNowStageNo >= TROG_WAIT_GAMEOVER &&`, before the clamp - since
+  `nowStageNo` is normally 1-30 (far below 50), that condition was almost
+  always false, so `trogCnt` would just keep cycling 0-99 forever instead
+  of locking at 50 on the DIE screen - meaning a fire press there would
+  only actually register on the rare frame where `trogCnt` happened to
+  land on exactly 50 (about 1 frame in 100), making the death screen feel
+  "stuck" almost all of the time even though it was nominally still
+  responsive. Fixed by removing the erroneous extra condition, matching
+  upstream's own unconditional clamp exactly. Verified end-to-end via a
+  temporary debug hook (forcing 1 HP and an immediate enemy attack
+  windup, since the attack-countdown itself ticks down in real time
+  regardless of player input, while enemy *pathing* is turn-gated on the
+  player's own successful moves - a real structural distinction in this
+  game worth remembering for any future work here) - confirmed the full
+  cycle (DIE screen -> lock expires -> fire press moves to Title -> fire
+  press again begins a fresh floor) all work correctly; the hook was
+  fully removed once confirmed.
+
+  **A real CPU-budget concern found via the perf overlay before ever
+  shipping** (a lesson from Jump Slime's own port applied proactively
+  here first): even with a player/enemy-attack-icon overlay already
+  composited once per page from the start (matching Jump Slime's own
+  fix, not retrofitted), gameplay still read a pegged 100%. Root cause
+  was the map-tile renderer (`makeTile()` upstream) being called once per
+  *pixel* (1024/frame) - not the O(pixels x objects) shape from Jump
+  Slime (this function only ever resolves the *one* tile under a given
+  pixel, not every tile on the map), but a related "recompute what
+  hasn't changed" waste: 8 *consecutive* screen columns always belong to
+  the same 8x8 tile, so the same "which sprite bytes apply here" lookup
+  was being redone up to 8 times in a row for an identical result. First
+  fix attempt added a small per-tile cache (`trogResolveTileBytes()`,
+  matching Tiny DDug's/Tiny Doc's own "cache what doesn't change every
+  pixel" lesson) - measured no real improvement (still a pegged 100%),
+  since the *call itself* (parameter passing, the cache-hit comparison)
+  still happened on all 1024 pixels regardless of whether the cache hit.
+  Fixed properly by restructuring the same way as Jump Slime's own blocks
+  fix: composite the whole page row by walking *tiles* (at most 17 per
+  row) instead of *pixels* (always 128) into a shared row buffer,
+  preserving the cached per-tile lookup *and* the exact same sub-page
+  shift-amount conditions the original per-pixel version used. Verified
+  via the perf overlay: CPU dropped from a pegged 100% to a steady 60%,
+  with rendering confirmed pixel-identical (same maze, same enemy/key/
+  stairs icons, same HUD) before and after.
+
+  A 30fps whole-function tick-skip was added afterward at direct user
+  request ("limit fps to 30"), matching Jump Slime's own precedent
+  exactly - upstream has no genuine real-time throttle at all (same "no
+  timing model whatsoever" category). Every existing frame-counted
+  constant in the file (`trogCnt`'s own 0-99 cycle and its
+  `TROG_WAIT_GAMEOVER`=50 clamp, the enemy attack-windup countdown
+  starting at 7, `TROG_WAIT_FLM`=3) was deliberately left unrescaled -
+  they simply now take twice as long in real time. Verified via
+  screenshot that movement/rendering still work correctly at the
+  throttled rate, CPU unchanged at ~60%.
+
+  Menu thumbnail added to `assets/thumbnails2.png`'s cell 3 (fourth/last
+  cell of its 4x2 grid - the atlas is now completely full again, the
+  same situation the original 4x8 grid reached before Dino Game forced a
+  second texture; a third texture would be needed for any further
+  addition beyond this one). Verified via screenshot that it displays
+  correctly and Jump Slime's own neighboring thumbnail (cell 2) is
+  untouched.
 
 ## Licensing
 
@@ -5508,7 +5643,8 @@ anywhere on the author's own article pages for this game's own code
 confirmed GPLv3 there). Listed as "None specified" in the README for
 licensing purposes only - unlike Four in a Row/Dino Game/SnakeGame85,
 this is a case of a known author with an unstated license, not an
-unknown author.
+unknown author. TinyRoG shares this exact same situation (same author,
+same "None specified" license treatment) - see its own writeup above.
 Attribution (corrected mid-session after checking each `.ino`'s own
 header comment directly, rather than trusting this file's earlier,
 imprecise "Lorandil" shorthand): Tiny Pinball/Pacman/Bomber/Doc/Bert/
