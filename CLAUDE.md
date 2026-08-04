@@ -49,6 +49,44 @@ future porting pass doesn't need to re-download anything:
   `Test_ATtiny`) are either duplicates of games already collected above or
   not games (a Morse practice tool, a hardware test sketch) - skip those,
   they add nothing new.
+  - **Re-verified directly against source (not just by genre) on direct
+    user request**, since an earlier pass had excluded `SpaceAttackAttiny`/
+    `Tetris_Multi_Button`/`UFO_Breakout_Arduino`'s own Breakout half purely
+    because they share a genre with an already-shipped game, without
+    actually diffing the code - the user specifically pushed back on that
+    reasoning. Direct diffs/reads confirmed: `tinyarkanoid`/`tinybomber`/
+    `tinygilbert`/`tinypacman`/`tinyPinball` really are older, pre-
+    `FastTinyDriver` revisions of Daniel C's own already-shipped
+    tinyjoypad.com games (same variable names/physics, small mechanical
+    diffs only - confirmed via `diff`); `Tiny_space_invaders` really is an
+    earlier ~v3.1-equivalent revision of Daniel Champagne's own "Tiny
+    Invaders" (481 lines, a 158-line diff against the `tiny-handheld`
+    bundle's own v3.1 copy vs. a 1370-line diff against the shipped v4.2) -
+    genuinely the predecessor of what's already shipped, not a lookalike.
+    But `SpaceAttackAttiny` ("SpaceAttack" by Andy Jackson - mothership
+    bonus enemy, EEPROM highscore, its own distinct sprite/scoring code,
+    confirmed via direct read to share nothing but genre with Tiny
+    Invaders), `Tetris_Multi_Button` (Andy Jackson's own Tetris clone,
+    "essentially a clone of TinyTetris by Anthony Russell...rewritten from
+    scratch" per its own header - confirmed distinct from Daniel C's Tiny
+    Tris), and `UFO_Breakout_Arduino`'s own `playBreakout()` half (Ilya
+    Titov's own Breakout clone - a `row[3][16]` block grid + `hdir`/`vdir`
+    ball-direction model, confirmed structurally distinct from Tiny
+    Arkanoid via direct read) were all wrongly excluded on genre-
+    similarity alone - real, distinct, unported games. (This same file's
+    own `playUFO()` half *was* correctly identified as a duplicate - a
+    34-line diff against the already-shipped `UFO_Stacker_Attiny` copy
+    confirmed it's the same game, just missing a small fire-debounce fix
+    the shipped copy has - only `playBreakout()` is new.)
+    `SpaceAttackAttiny2but` is confirmed (via a 119-line, all-comment/
+    control-mapping diff) to be a 2-button-hardware control variant of
+    the same `SpaceAttackAttiny` game, not a separate title - only the
+    non-`2but` version (using TinyJoypad's own real dedicated fire button,
+    matching this project's own established preference for the native
+    control mapping when multiple hardware-target variants exist) needs
+    porting. All three real finds - SpaceAttack, Tetris Multi-Button, and
+    Breakout - are now in scope; see Status below for their own
+    writeups as each is ported.
 - Deliberately **not** fetched: tinyjoypad.com's separate Arduboy and
   ESP8285 platform pages, which mostly re-list the same games above but
   also include 3 Arduboy-exclusive titles (`Ardumania`, `Nohzdyve`,
@@ -1213,38 +1251,45 @@ file - both `sdl3`/`sdl2` rebuilt clean.
 ## Status (as of this session)
 
 Shipped and visually verified (WebGL emulator + a Puppeteer screenshot
-harness - see below): the shim architecture, the menu, and 37 full games
+harness - see below): the shim architecture, the menu, and 38 full games
 (NumberPlace, Tiny Invaders, 2048, HollowSeeker, Tiny Pinball, Tiny
 Pacman, Tiny Bomber, Tiny Doc, Tiny Bert, Tiny Tris, Tiny Arkanoid, Tiny
 Trick, Tiny Minez, Tiny Missile, Tiny Bike, Tiny Arena, Tiny Gilbert,
 Tiny Pipe, Tiny Morpion, Tiny Plaque, Tiny SQuest, Tiny DDug, Tiny
 Lander, Wren Rollercoaster, Frogger, Bat Bonanza, Stacker, UFO, Tiny
 Dungeon, Oroboros, Run Dude Run, Four in a Row, Dino Game, SnakeGame85,
-Jump Slime, TinyRoG, TinY Fi). Every game from the project's original scope
-shipped with Tiny Dungeon (see its own writeup below for what's still
-not independently re-verified about it specifically) - Oroboros, Run
-Dude Run, Four in a Row, and Dino Game were this project's first four
-additions *beyond* that original scope, found via a follow-up GitHub/web
-search for TinyJoypad-compatible games not already catalogued (see
-"Beyond the original scope" below for the full survey and what else it
-turned up) - Dino Game was the last known candidate from *that* survey,
-but a fifth beyond-scope addition, SnakeGame85, was found afterward via
-a direct link the user supplied (github.com/terezaza/SnakeGame85, not
-part of the earlier systematic search) and shipped the same session -
-see its own writeup below. A sixth addition, Jump Slime, came from a
-completely different discovery channel again: the user placed a
-`more games/sample/` folder directly into the repo containing 3 original
-AI-assisted ATtiny85 games by a Japanese creator (近藤さんちの研究室 /
-"kondolab"), with a `source.txt` listing the author's note.com articles -
-fetched via WebFetch to identify each game's real title/description/
-source link (see `more games/`'s own catalog entry below for the full
-triage of all 3). Jump Slime was picked as the simplest/lowest-risk of
-the three to port first; TinyRoG (the roguelike, second of the three)
-followed in the same session, and TinY Fi (the fighting game, third and
-last of the three) followed in a later session - see its own writeup
-below. The `more games/sample/` batch, and with it the beyond-scope
-backlog, is now empty again unless a future search or link turns up
-something new.
+Jump Slime, TinyRoG, TinY Fi, Breakout). Every game from the project's
+original scope shipped with Tiny Dungeon (see its own writeup below for
+what's still not independently re-verified about it specifically) -
+Oroboros, Run Dude Run, Four in a Row, and Dino Game were this project's
+first four additions *beyond* that original scope, found via a follow-up
+GitHub/web search for TinyJoypad-compatible games not already catalogued
+(see "Beyond the original scope" below for the full survey and what else
+it turned up) - Dino Game was the last known candidate from *that*
+survey, but a fifth beyond-scope addition, SnakeGame85, was found
+afterward via a direct link the user supplied
+(github.com/terezaza/SnakeGame85, not part of the earlier systematic
+search) and shipped the same session - see its own writeup below. A
+sixth addition, Jump Slime, came from a completely different discovery
+channel again: the user placed a `more games/sample/` folder directly
+into the repo containing 3 original AI-assisted ATtiny85 games by a
+Japanese creator (近藤さんちの研究室 / "kondolab"), with a `source.txt`
+listing the author's note.com articles - fetched via WebFetch to
+identify each game's real title/description/source link (see `more
+games/`'s own catalog entry below for the full triage of all 3). Jump
+Slime was picked as the simplest/lowest-risk of the three to port first;
+TinyRoG (the roguelike, second of the three) followed in the same
+session, and TinY Fi (the fighting game, third and last of the three)
+followed in a later session - see its own writeup below. The `more
+games/sample/` batch, and with it that particular beyond-scope backlog,
+closed out there - but a later direct user request to re-check `more
+games/gametiny/` (this project's *other* beyond-scope source, previously
+believed fully triaged) against actual source code rather than genre
+similarity turned up 3 more genuine, previously-missed games -
+SpaceAttack, Tetris Multi-Button, and Breakout (see that folder's own
+catalog entry above for the full re-verification) - Breakout was ported
+first (see its own writeup below); SpaceAttack and Tetris Multi-Button
+remain open candidates for a future session.
 
 - `src/machineDependent.h` + `src/portVircon32.c` - the `md_*` primitives
   (video/input/audio) plus the atlas texture setup and the top-level
@@ -5691,6 +5736,134 @@ of scope).
   addition. No further atlas growth or third texture needed - 3 cells
   (5,6,7) remain free for future games.
 
+- `src/games/gameBreakout.c` - Breakout (Ilya Titov, non-commercial-with-
+  attribution; ATtiny-Joypad port by Billy Cheung, 2018; combined with
+  Ilya Titov's own UFO into one cartridge by Andy Jackson, 2018 -
+  credited "ILYA TITOV" in the menu, same treatment as UFO/Oroboros/Run
+  Dude Run's own credit). A classic paddle-and-ball brick breaker: a
+  3-row x 16-column block grid, a bouncing ball, and a paddle moved
+  left/right. First of the 3 games found via the `more games/gametiny/`
+  re-verification (see that folder's own catalog entry and this file's
+  own Status intro above for the full story - the user directly pushed
+  back on the earlier "same genre as Tiny Arkanoid, skip it" reasoning
+  and asked for a real code-level check) - picked to port first among the
+  3 newly-found candidates (SpaceAttack, Tetris Multi-Button, Breakout)
+  since it's the smallest genuinely-new slice of code (`UFO_Breakout_
+  Arduino.ino`'s own `playUFO()` half is a confirmed duplicate of the
+  already-shipped UFO, so only `playBreakout()` plus shared boilerplate
+  needed porting) with the simplest structure (no C++ classes, no `goto`
+  loops beyond one bounded collision-recheck).
+
+  From `more games/gametiny/UFO_Breakout_Arduino/` - a genuinely
+  **combined cartridge** (its own boot-time prompt lets the player choose
+  UFO or Breakout), the same shape as `UFO_Stacker_Attiny` (already split
+  into this project's own standalone UFO/Stacker entries) - split the
+  same way, as its own standalone menu entry rather than replicating the
+  in-cartridge sub-menu. Not `tinyJoypadShim`/`obonoCoreShim` lineage by
+  name, but needed no new shim - the same A0 left/right analog thresholds
+  as every other game in this family map straight onto
+  `isLeftPressed()`/`isRightPressed()`. This game's own `font6x8AJ.h` was
+  byte-diffed directly against the already-shipped Stacker copy (a
+  5-line, comment-only diff) rather than assumed identical from the
+  filename alone (the lesson from Frogger's own differently-remapped copy
+  of a same-named file) - confirmed genuinely byte-identical, so the same
+  360-value table/remap formula/credit strings are reused, each game
+  still keeping its own self-contained copy per this project's standing
+  practice.
+
+  **A genuine, load-bearing upstream timing quirk, found by tracing the
+  control flow rather than assumed**: upstream's own `lastFrame` (a
+  `millis()`-based "don't run the frame-action block more than once every
+  10ms" gate) is set exactly once, right before the outer
+  `while(stopAnimate==0){ delay(40); while(1==1){...} }` loop begins, and
+  is never reassigned anywhere inside either loop - since the inner
+  `while(1==1)` only ever exits via the same `stopAnimate=1; break;` that
+  also ends the outer loop, `delay(40)` only ever executes once, and
+  `if(lastFrame+10<millis())` becomes permanently true after the first
+  10ms and stays that way for the rest of the game. This isn't a bug
+  worth "fixing" back to a real 10ms gate (that would just reintroduce
+  behavior the original author never actually shipped or tested) - ported
+  as observed: the frame-action block (paddle-hit/game-over check, the
+  block-reset-at-score-48 check, the block-collision-detection loop) runs
+  unconditionally every tick, same as the ball's own unconditional wall-
+  bounce movement check that precedes it. With no other genuine real-time
+  throttle left anywhere in the function (the "no timing model whatsoever
+  upstream" category), this runs at the engine's native tick rate with
+  each tick corresponding to one iteration of upstream's own uncapped
+  inner loop - ball/paddle speed is a best-effort approximation with no
+  real-hardware reference to calibrate against, the same open-ended
+  caveat as this project's other "no genuine rate to match" ports.
+
+  Two genuine upstream quirks preserved rather than "corrected": the
+  paddle's own draw loop (`for(pw=1;pw<platformWidth;pw++)`) sends
+  exactly 15 bytes starting at column `player`, not 16 - the paddle is
+  visually 15px wide despite `platformWidth=16` driving every collision/
+  movement-clamp calculation, ported literally since "fixing" it would
+  change the real shipped hit-box-vs-visual-width relationship. And the
+  ball's own byte computation (`1<<((bally%8)+1)`) can produce bit 8 when
+  `bally%8==7` - on real AVR `uint8_t` this silently truncates to 0 (the
+  ball is invisible for that one specific sub-page row, harmless since
+  nothing else depends on it), but Vircon32 `int`s don't truncate -
+  masked with `&0xFF` at the exact site, the same byte-truncation fix
+  class as this whole project's very first documented bug.
+
+  Sound: the game-over sweep (`for(i=0;i<1000;i+=50)beep(50,i)`) and new-
+  high sweep (`for(i=700;i>200;i-=50)beep(30,i)`) are, byte-for-byte, the
+  same loop shape already fixed for Stacker's own identical sweeps (same
+  author/boilerplate lineage) - reused via the same frame-stepped
+  sequencer approach and the same derived note tables rather than re-
+  deriving them from scratch. `collision()`'s own `beep(30,300)` can in
+  principle fire more than once in a single tick if the block-collision
+  loop re-triggers immediately (a ball corner clipping two blocks in the
+  same step) - Vircon32's audio channel has no queue, so a same-tick
+  double call would only ever be audible as the last one - left as-is
+  rather than built into a full sequencer, a deliberate, considered call
+  given how rare (at most 2 calls) this specific case is, unlike this
+  project's other found sound-burst bugs (computed sweeps firing tens to
+  hundreds of calls every single tick).
+
+  EEPROM high-score persistence dropped (session-only), matching every
+  other port's precedent - the "hold fire ~2s to mute/unmute" gesture is
+  kept (in-memory flag, same shape as Stacker/UFO's own); the combined-
+  cartridge-specific "hold fire+up/down at boot to reset both games' high
+  scores" gesture doesn't apply to a standalone menu entry and is dropped
+  outright, matching Stacker's own precedent exactly.
+
+  A 40fps whole-tick throttle was added at direct user request (first
+  requested as 30fps, then corrected to 40fps) - upstream has no genuine
+  real-time throttle at all (see this file's own header comment on the
+  broken/always-true `lastFrame` gate). Since 60 does not divide evenly
+  by 40, a plain integer tick-skip counter (`60/40`, which truncates to 1
+  and would silently produce 60fps instead) doesn't work - used the same
+  Bresenham-style accumulator this project first needed for Tiny
+  Gilbert's own 40fps target (`brkTickAccum += 40; if >= 60 then -= 60
+  and run one tick`), producing exactly 40 ticks per 60 real frames long
+  term rather than a truncated approximation. `brkWaitFrames` (the only
+  frame-counted constant in the file) was deliberately left unrescaled,
+  matching this project's own standing "one accumulator, no dual
+  bookkeeping" practice.
+
+  Verified via Puppeteer throughout development: the attract screen
+  ("BREAKOUT" title, both credit-line font substitutions rendering
+  correctly, the mute toggle), active gameplay (paddle movement, ball
+  bouncing off walls, blocks being destroyed one at a time), and -
+  reached naturally during an autoplay soak test, not specifically forced
+  - a complete game-over-to-new-high-score-to-attract cycle, confirming
+  the whole state machine and note sequencer work correctly end-to-end
+  without needing a dedicated debug hook. Re-verified after the 40fps
+  accumulator throttle was added: gameplay still renders and transitions
+  correctly (a second autoplay run reached game over again cleanly).
+  Measured via the perf overlay during normal play: 39% CPU gameplay,
+  66% attract screen (the attract screen's own text/credit rendering is
+  not gated by row/call-site the way several other games' own attract
+  screens eventually needed - both readings are comfortably under budget
+  as shipped, so no optimization pass was needed this time). The full-
+  grid-cleared block-reset (`score%48==0`) was not independently
+  witnessed this session - would require destroying all 48 blocks in one
+  playthrough - but the logic is a direct, unmodified port of upstream's
+  own check, run every tick exactly like everything else in the frame-
+  action block.
+
 ## Licensing
 
 Tiny Invaders v4.2 is GPLv3 (its `tinyJoypadUtils`/driver lineage). Since a
@@ -5724,7 +5897,16 @@ credited in the menu as "ILYA TITOV" accordingly, not Jackson. Oroboros
 and Run Dude Run (see "Beyond the original scope" above) share this same
 license family and are also Ilya Titov's own, sourced directly from his
 own `webboggles/AttinyArcade` repo rather than a combined-cartridge
-mirror. Four in a Row and Dino Game are the two exceptions to every
+mirror. Breakout (see the `more games/gametiny/` re-verification above)
+is Ilya Titov's own too, credited the same way - unlike Oroboros/Run
+Dude Run its own port was sourced from the `UFO_Breakout_Arduino`
+combined-cartridge copy (Andy Jackson's own UFO+Breakout pairing) rather
+than `webboggles/AttinyArcade` directly, though a standalone copy was
+separately confirmed to exist there too
+(`sketches/attiny_breakout_vcc_gnd_scl_sda/`) and is what the README's
+own source link points to, matching Oroboros/Run Dude Run/UFO's own
+precedent of citing the canonical repo over a combined-cartridge mirror
+when both exist. Four in a Row and Dino Game are the two exceptions to every
 license-family grouping above - neither's own source carries an author
 name or a license statement at all (neither is present in
 `webboggles/AttinyArcade` either, only in

@@ -161,4 +161,5 @@ void addGames()
     // path anywhere in this port), so NULL here is confirmed correct, not
     // an oversight.
     addGame( "TINY FI", "KONDOLAB", &gameTinYFi_init, &gameTinYFi_update, NULL );
+    addGame( "BREAKOUT", "ILYA TITOV", &gameBreakout_init, &gameBreakout_update, &gameBreakout_forceRedraw );
 }
