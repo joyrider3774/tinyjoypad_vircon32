@@ -67,6 +67,7 @@
 #include "games/gameTinYFi.c"
 #include "games/gameBreakout.c"
 #include "games/gameSpaceAttack.c"
+#include "games/gameFallingBlocks.c"
 
 #include "menuGameList.c"
 

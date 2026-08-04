@@ -163,4 +163,12 @@ void addGames()
     addGame( "TINY FI", "KONDOLAB", &gameTinYFi_init, &gameTinYFi_update, NULL );
     addGame( "BREAKOUT", "ILYA TITOV", &gameBreakout_init, &gameBreakout_update, &gameBreakout_forceRedraw );
     addGame( "SPACE ATTACK", "ANDY JACKSON", &gameSpaceAttack_init, &gameSpaceAttack_update, &gameSpaceAttack_forceRedraw );
+    // Menu title deliberately avoids the trademarked falling-block puzzle
+    // genre name this game is a clone of - the game's own attract screen
+    // originally spelled it out via a plain font-rendered string (not
+    // baked bitmap data), so that string was also changed in the source
+    // (see gameFallingBlocks.c) rather than left as shipped. The menu
+    // entry and every mention in this project's own documentation use
+    // "Falling Blocks" instead, at direct user request.
+    addGame( "FALLING BLOCKS", "ANDY JACKSON", &gameFallingBlocks_init, &gameFallingBlocks_update, &gameFallingBlocks_forceRedraw );
 }

@@ -1,6 +1,6 @@
 # TinyJoypad → Vircon32
 
-A single [Vircon32](https://www.vircon32.com/) cartridge that ports **39
+A single [Vircon32](https://www.vircon32.com/) cartridge that ports **40
 games** originally written for the [TinyJoypad](https://www.tinyjoypad.com/)
 ATtiny85 + SSD1306 128x64 OLED handheld onto Vircon32's 640x360 GPU, behind
 one shared game-select menu. Vircon32's GPU is a texture-region blitter with
@@ -91,6 +91,7 @@ license/attribution is preserved unmodified in its own header comment in
 | TinY Fi | Kondolab (近藤さんちの研究室) | None specified | [note.com/kondolab](https://note.com/kondolab/n/n2c96413eaa23) |
 | Breakout | Ilya Titov | Non-commercial, with attribution | [AttinyArcade](https://github.com/webboggles/AttinyArcade) |
 | Space Attack | Andy Jackson | Non-commercial, with attribution | [Attiny-Arduino-Games](https://github.com/andyhighnumber/Attiny-Arduino-Games) |
+| Falling Blocks | Andy Jackson | Non-commercial, with attribution | [Attiny-Arduino-Games](https://github.com/andyhighnumber/Attiny-Arduino-Games) |
 
 ## Optimizations
 

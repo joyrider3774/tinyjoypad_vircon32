@@ -17,9 +17,9 @@
 // shipped UFO (a 34-line, all-whitespace/debounce-only diff confirms it's
 // the same game, not a separate port) and is not touched here.
 //
-// This game, along with SpaceAttack and Tetris Multi-Button (Andy Jackson's
-// own, not Anthony Russell's TinyTetris, and definitely not Daniel C's Tiny
-// Tris), was originally skipped from this project's `more games/gametiny/`
+// This game, along with SpaceAttack and Falling Blocks (Andy Jackson's own
+// falling-block puzzle clone, not Daniel C's Tiny Tris), was originally
+// skipped from this project's `more games/gametiny/`
 // survey purely because it shares a genre with an already-shipped game
 // (Tiny Arkanoid) - the user directly pushed back on that reasoning and
 // asked for a real code-level check rather than a genre-level one. Direct

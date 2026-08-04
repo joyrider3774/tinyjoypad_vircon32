@@ -42,51 +42,58 @@ future porting pass doesn't need to re-download anything:
   tinyjoypad.com), cloned whole for its **unique** games not found
   anywhere on tinyjoypad.com itself: `BatBonanzaAttinyArcade`,
   `Frogger_Attiny_Arcade`, `SpaceAttackAttiny` (+ a `SpaceAttackAttiny2but`
-  variant), `Tetris_Multi_Button`, `UFO_Breakout_Arduino`,
-  `UFO_Stacker_Attiny`, `WrenRollercoasterAttinyArcade`. Its other
-  subfolders (`tinyarkanoid`, `tinybomber`, `tinygilbert`, `tinypacman`,
-  `tinyPinball`, `Tiny_space_invaders`, `MorseAttinyArcade`,
-  `Test_ATtiny`) are either duplicates of games already collected above or
-  not games (a Morse practice tool, a hardware test sketch) - skip those,
-  they add nothing new.
+  variant), the multi-button falling-block puzzle game's own upstream
+  folder, `UFO_Breakout_Arduino`, `UFO_Stacker_Attiny`,
+  `WrenRollercoasterAttinyArcade`. Its other subfolders (`tinyarkanoid`,
+  `tinybomber`, `tinygilbert`, `tinypacman`, `tinyPinball`,
+  `Tiny_space_invaders`, `MorseAttinyArcade`, `Test_ATtiny`) are either
+  duplicates of games already collected above or not games (a Morse
+  practice tool, a hardware test sketch) - skip those, they add nothing
+  new.
   - **Re-verified directly against source (not just by genre) on direct
     user request**, since an earlier pass had excluded `SpaceAttackAttiny`/
-    `Tetris_Multi_Button`/`UFO_Breakout_Arduino`'s own Breakout half purely
-    because they share a genre with an already-shipped game, without
-    actually diffing the code - the user specifically pushed back on that
-    reasoning. Direct diffs/reads confirmed: `tinyarkanoid`/`tinybomber`/
-    `tinygilbert`/`tinypacman`/`tinyPinball` really are older, pre-
-    `FastTinyDriver` revisions of Daniel C's own already-shipped
-    tinyjoypad.com games (same variable names/physics, small mechanical
-    diffs only - confirmed via `diff`); `Tiny_space_invaders` really is an
-    earlier ~v3.1-equivalent revision of Daniel Champagne's own "Tiny
-    Invaders" (481 lines, a 158-line diff against the `tiny-handheld`
-    bundle's own v3.1 copy vs. a 1370-line diff against the shipped v4.2) -
-    genuinely the predecessor of what's already shipped, not a lookalike.
-    But `SpaceAttackAttiny` ("SpaceAttack" by Andy Jackson - mothership
-    bonus enemy, EEPROM highscore, its own distinct sprite/scoring code,
-    confirmed via direct read to share nothing but genre with Tiny
-    Invaders), `Tetris_Multi_Button` (Andy Jackson's own Tetris clone,
-    "essentially a clone of TinyTetris by Anthony Russell...rewritten from
-    scratch" per its own header - confirmed distinct from Daniel C's Tiny
-    Tris), and `UFO_Breakout_Arduino`'s own `playBreakout()` half (Ilya
-    Titov's own Breakout clone - a `row[3][16]` block grid + `hdir`/`vdir`
-    ball-direction model, confirmed structurally distinct from Tiny
-    Arkanoid via direct read) were all wrongly excluded on genre-
-    similarity alone - real, distinct, unported games. (This same file's
-    own `playUFO()` half *was* correctly identified as a duplicate - a
-    34-line diff against the already-shipped `UFO_Stacker_Attiny` copy
-    confirmed it's the same game, just missing a small fire-debounce fix
-    the shipped copy has - only `playBreakout()` is new.)
-    `SpaceAttackAttiny2but` is confirmed (via a 119-line, all-comment/
-    control-mapping diff) to be a 2-button-hardware control variant of
-    the same `SpaceAttackAttiny` game, not a separate title - only the
-    non-`2but` version (using TinyJoypad's own real dedicated fire button,
-    matching this project's own established preference for the native
-    control mapping when multiple hardware-target variants exist) needs
-    porting. All three real finds - SpaceAttack, Tetris Multi-Button, and
-    Breakout - are now in scope; see Status below for their own
-    writeups as each is ported.
+    the falling-block game's own folder/`UFO_Breakout_Arduino`'s own
+    Breakout half purely because they share a genre with an already-
+    shipped game, without actually diffing the code - the user
+    specifically pushed back on that reasoning. Direct diffs/reads
+    confirmed: `tinyarkanoid`/`tinybomber`/`tinygilbert`/`tinypacman`/
+    `tinyPinball` really are older, pre-`FastTinyDriver` revisions of
+    Daniel C's own already-shipped tinyjoypad.com games (same variable
+    names/physics, small mechanical diffs only - confirmed via `diff`);
+    `Tiny_space_invaders` really is an earlier ~v3.1-equivalent revision
+    of Daniel Champagne's own "Tiny Invaders" (481 lines, a 158-line diff
+    against the `tiny-handheld` bundle's own v3.1 copy vs. a 1370-line
+    diff against the shipped v4.2) - genuinely the predecessor of what's
+    already shipped, not a lookalike. But `SpaceAttackAttiny` ("SpaceAttack"
+    by Andy Jackson - mothership bonus enemy, EEPROM highscore, its own
+    distinct sprite/scoring code, confirmed via direct read to share
+    nothing but genre with Tiny Invaders), the falling-block game's own
+    folder (Andy Jackson's own falling-block puzzle clone, "essentially a
+    clone of [a well-known falling-block puzzle game named after a Russian
+    word for "seven"] by Anthony Russell...rewritten from scratch" per its
+    own header - confirmed distinct from Daniel C's Tiny Tris), and
+    `UFO_Breakout_Arduino`'s own `playBreakout()` half (Ilya Titov's own
+    Breakout clone - a `row[3][16]` block grid + `hdir`/`vdir` ball-
+    direction model, confirmed structurally distinct from Tiny Arkanoid via
+    direct read) were all wrongly excluded on genre-similarity alone -
+    real, distinct, unported games. (This same file's own `playUFO()` half
+    *was* correctly identified as a duplicate - a 34-line diff against the
+    already-shipped `UFO_Stacker_Attiny` copy confirmed it's the same
+    game, just missing a small fire-debounce fix the shipped copy has -
+    only `playBreakout()` is new.) `SpaceAttackAttiny2but` is confirmed
+    (via a 119-line, all-comment/control-mapping diff) to be a 2-button-
+    hardware control variant of the same `SpaceAttackAttiny` game, not a
+    separate title - only the non-`2but` version (using TinyJoypad's own
+    real dedicated fire button, matching this project's own established
+    preference for the native control mapping when multiple hardware-
+    target variants exist) needs porting. All three real finds -
+    SpaceAttack, the falling-block game (credited in the menu as "FALLING
+    BLOCKS" - deliberately not naming the genre it's a clone of anywhere
+    in this project's own menu or documentation, since that name is a
+    registered trademark; the game's own title *screen* still shows it,
+    baked into the original ROM's own decorative logo/text data, not
+    something this project chose to display), and Breakout - are now in
+    scope; see Status below for their own writeups as each is ported.
 - Deliberately **not** fetched: tinyjoypad.com's separate Arduboy and
   ESP8285 platform pages, which mostly re-list the same games above but
   also include 3 Arduboy-exclusive titles (`Ardumania`, `Nohzdyve`,
@@ -1251,14 +1258,17 @@ file - both `sdl3`/`sdl2` rebuilt clean.
 ## Status (as of this session)
 
 Shipped and visually verified (WebGL emulator + a Puppeteer screenshot
-harness - see below): the shim architecture, the menu, and 39 full games
+harness - see below): the shim architecture, the menu, and 40 full games
 (NumberPlace, Tiny Invaders, 2048, HollowSeeker, Tiny Pinball, Tiny
 Pacman, Tiny Bomber, Tiny Doc, Tiny Bert, Tiny Tris, Tiny Arkanoid, Tiny
 Trick, Tiny Minez, Tiny Missile, Tiny Bike, Tiny Arena, Tiny Gilbert,
 Tiny Pipe, Tiny Morpion, Tiny Plaque, Tiny SQuest, Tiny DDug, Tiny
 Lander, Wren Rollercoaster, Frogger, Bat Bonanza, Stacker, UFO, Tiny
 Dungeon, Oroboros, Run Dude Run, Four in a Row, Dino Game, SnakeGame85,
-Jump Slime, TinyRoG, TinY Fi, Breakout, Space Attack). Every game from
+Jump Slime, TinyRoG, TinY Fi, Breakout, Space Attack, Falling Blocks -
+this last one's own menu name deliberately avoids naming the falling-
+block puzzle genre it's a clone of, a registered trademark - see its own
+writeup below for the full naming rationale). Every game from
 the project's original scope shipped with Tiny Dungeon (see its own
 writeup below for what's still not independently re-verified about it
 specifically) - Oroboros, Run Dude Run, Four in a Row, and Dino Game
@@ -1286,12 +1296,13 @@ closed out there - but a later direct user request to re-check `more
 games/gametiny/` (this project's *other* beyond-scope source, previously
 believed fully triaged) against actual source code rather than genre
 similarity turned up 3 more genuine, previously-missed games -
-SpaceAttack, Tetris Multi-Button, and Breakout (see that folder's own
-catalog entry above for the full re-verification). Breakout was ported
-first, Space Attack (a genuine Andy Jackson-family game, not a Tiny
-Invaders lookalike despite the shared genre) followed in the same
-session - see each game's own writeup below. Tetris Multi-Button remains
-the one open candidate from that batch for a future session.
+SpaceAttack, the falling-block puzzle game credited in this project's own
+menu as "Falling Blocks", and Breakout (see that folder's own catalog
+entry above for the full re-verification). Breakout was ported first,
+Space Attack (a genuine Andy Jackson-family game, not a Tiny Invaders
+lookalike despite the shared genre) followed in the same session, and
+Falling Blocks (the last of the three) followed in a later session - see
+each game's own writeup below.
 
 - `src/machineDependent.h` + `src/portVircon32.c` - the `md_*` primitives
   (video/input/audio) plus the atlas texture setup and the top-level
@@ -1804,7 +1815,7 @@ the one open candidate from that batch for a future session.
      regression: measure before concluding an optimization helped, even
      when the reasoning behind it is sound.
 - `src/games/gameTinyTris.c` - Tiny Tris (Daniel C, GPLv3). Fourth Tier-2
-  game (a Tetris clone) - button mapping and structure again closely mirror
+  game (a falling-block puzzle clone) - button mapping and structure again closely mirror
   the other Daniel-C games (analog-axis-plus-discrete-pin, same author's
   generic `blitzSprite`/`RecupeLineY`/`RecupeDecalageY` primitives, no
   `arand()` fix needed since `PSEUDO_RND_TTRIS` is upstream's own rotating
@@ -4817,8 +4828,8 @@ different games), **Four in a Row** (unattributed in its own source), and
 **Dino Game** (an original creation of the tiny-handheld repo itself, not
 a port - uses a different SSD1306 library than every other game here,
 so would need its own driver work rather than being a drop-in). Also
-found several genre-duplicates of already-shipped games (ATtiny Tetris
-Gold, an AttinyArcade Pacman, HIDIOT 2048, Breakout) - left unported,
+found several genre-duplicates of already-shipped games (an ATtiny
+falling-block puzzle game, an AttinyArcade Pacman, HIDIOT 2048, Breakout) - left unported,
 matching this project's own established "skip duplicate genres, not
 just duplicate files" precedent (e.g. SpaceAttackAttiny vs. Tiny
 Invaders) - and two MAKERbuino-platform ports (different hardware, out
@@ -4970,9 +4981,10 @@ of scope).
 - `src/games/gameFourInRow.c` - Four in a Row (Connect 4). From
   `more games/tiny-handheld/software/games/attiny-arcade/four-in-row/` -
   the third beyond-scope addition, and the first one with **no author
-  name anywhere in its own source** ("connect 4 engine with custom
-  functions / ported to ATTiny85 hardware....see pockeTETRIS" is the
-  entire header comment) - not present in `webboggles/AttinyArcade`
+  name anywhere in its own source** (a brief "connect 4 engine with
+  custom functions, ported to ATTiny85 hardware" note plus a reference to
+  another, unrelated pocket-game product is the entire header comment) -
+  not present in `webboggles/AttinyArcade`
   either, so unlike Oroboros/Run Dude Run there's no Ilya Titov credit to
   give here; menu credits it "UNKNOWN" and the README lists its license
   as "None specified" rather than guessing. Genuine #AttinyArcade
@@ -5749,7 +5761,7 @@ of scope).
   own Status intro above for the full story - the user directly pushed
   back on the earlier "same genre as Tiny Arkanoid, skip it" reasoning
   and asked for a real code-level check) - picked to port first among the
-  3 newly-found candidates (SpaceAttack, Tetris Multi-Button, Breakout)
+  3 newly-found candidates (SpaceAttack, Falling Blocks, Breakout)
   since it's the smallest genuinely-new slice of code (`UFO_Breakout_
   Arduino.ino`'s own `playUFO()` half is a confirmed duplicate of the
   already-shipped UFO, so only `playBreakout()` plus shared boilerplate
@@ -5992,6 +6004,185 @@ of scope).
   over sequence - all three reuse logic paths that are otherwise direct,
   unmodified, already-scrutinized ports of upstream's own code, so risk
   is low, but worth a direct check if anything looks off.
+- `src/games/gameFallingBlocks.c` - a falling-block puzzle clone (upstream
+  folder is the "multi-button" variant catalogued in `more games/gametiny/`
+  above; Andy Jackson, non-commercial-with-or-without-attribution;
+  ATtiny-Joypad port by Billy Cheung, 2018 - credited "ANDY JACKSON" in
+  the menu). Last of the 3 games found via the `more games/gametiny/`
+  re-verification (see that folder's own catalog entry and this file's
+  own Status intro above). Upstream's own header comment describes it as
+  "essentially a clone of [the well-known falling-block puzzle game
+  already referenced in this file's own `more games/gametiny/` catalog
+  entry above] by Anthony Russell, with some additional features"
+  (Highscore, an optional Ghost/
+  Shadow piece, and a Hard/Challenge mode that seeds the board with junk
+  at the start). Confirmed via direct reading to be a genuinely distinct
+  codebase from Daniel C's own Tiny Tris (different author, different
+  from-scratch rendering/engine code, different data representation),
+  sharing nothing with it but the genre itself.
+
+  **Deliberately named/credited without the trademarked genre name it's a
+  clone of, anywhere in this project's own menu, documentation, or even
+  its own attract-screen text** - that genre name is a registered
+  trademark, and the user was explicit that it may not appear in the menu
+  or in any markdown file. Checked whether the genre name shown on the
+  attract screen was baked pixel/bitmap data (which would have had to
+  stay as shipped) or a plain font-rendered string - it turned out to be
+  a literal `tetCharByte("...", 6, 1, 64, ...)` string call, genuinely
+  different from the separate decorative brick/diamond logo graphic next
+  to it (`tetBrickLogo`, real bitmap data that doesn't spell out any word
+  at all) - so it was simply changed to "BLOCKS" in the source, at direct
+  user request, rather than needing to stay as shipped. The file itself
+  was renamed from an initial working filename (also containing the
+  trademarked genre word) to `gameFallingBlocks.c` (with every entry-point
+  function renamed to `gameFallingBlocks_init/update/forceRedraw`
+  throughout, `main.c`'s own `#include` updated to match) once the user
+  asked for the C file itself to be renamed too - the internal `tet`
+  prefix on every other identifier was left alone (a short abbreviation,
+  not the trademarked word itself spelled out), since internal
+  identifiers aren't user-facing either way.
+
+  Not `tinyJoypadShim`/`obonoCoreShim` lineage by name, and genuinely more
+  structurally different from every other `gametiny`/Andy-Jackson-family
+  port so far - needed no new shim (same A0/A3 500-750/750-950 analog
+  thresholds as every other game in this family), but its own rendering
+  model is unique in this project: **the OLED is driven sideways**. Every
+  other TinyJoypad game treats the 128 physical columns as the visual
+  width and the 8 pages as the visual height; this game's own
+  `ssd1306_char_f8x8()`/`drawScreen()` instead treat physical *pages* as
+  the board's column axis and physical *columns* as the board's row axis
+  (each board row is 6 physical columns wide; each on-screen text
+  character occupies one whole physical page). Ported by building the
+  per-(physColumn,physPage) query function directly around this rotated
+  mapping (`tetReaderForPage()` maps a physical page to the logical board
+  column it displays, each page showing 2 overlapping logical columns),
+  rather than trying to "un-rotate" it into a more conventional layout -
+  safer than second-guessing a coordinate scheme this intertwined with
+  the game's own data layout.
+
+  `blockArray[10][3]`/`ghostArray[10][3]` are byte-packed bitfields
+  upstream (24 rows packed 8-per-byte, addressed via shift/mask trickery)
+  - a real RAM-saving trick with no benefit on Vircon32. Tracing the exact
+  shift arithmetic for row 23 (the top spawn-buffer row) revealed it only
+  stays safe on AVR because of two AVR-specific narrow-type behaviors
+  already documented elsewhere in this project as not portable (a
+  `uint8_t & (1<<8)` always being 0, and AVR-GCC's variable-shift-count
+  codegen saturating to 0 past the operand width) - ported instead as a
+  plain `bool[10][24]` grid with the identical read/write interface,
+  correct by construction, avoiding the whole shift-arithmetic hazard
+  rather than working around it.
+
+  Upstream's own real per-piece drop timer (a genuine, real-time-based
+  rate: `(millis()-moveTime) >= DROPDELAY-level*LEVELFACTOR`) was
+  converted to a frame-counted `tetDropFrames` derived directly from the
+  same formula. `handleInput()`'s own busy-wait-for-release debounce
+  (a real-hardware noisy-button workaround Vircon32's clean digital reads
+  don't need) was dropped for plain edge-detected presses, matching this
+  project's established simplification for every other `gametiny` port's
+  real-hardware debounce code. The line-clear-and-shift scan is a direct
+  1:1 translation of upstream's own algorithm (already correctly handles
+  multiple simultaneous full rows via its own re-check-same-index
+  behavior); upstream's own brief per-row visual flash before each row's
+  shift is resolved instantly in the same tick instead, a deliberate
+  effort/fidelity tradeoff for a ~30ms cosmetic detail, matching this
+  project's own precedent for comparably brief purely-decorative
+  flourishes elsewhere (e.g. Space Attack's own dropped slide-in
+  animation). Two multi-`Sound()`-call bursts (the line-clear "happy
+  sound" and the game-over sweep) were converted to small frame-stepped
+  sequencers from the start, matching this project's now-standard fix for
+  Vircon32's queueless audio channel - the game-over sweep is byte-for-
+  byte the same loop shape already fixed for Stacker/Breakout/Space
+  Attack's own identical cues (same author/boilerplate lineage), reused
+  via the same derived note table.
+
+  **A real, pre-existing upstream bug, confirmed independently via a
+  small script before ever building anything**: this game's own
+  `font8x8AJ.h` is a "hacked" 51-glyph subset with 4 deliberately-
+  relabeled slots (typing 'b'/'f'/'g'/'h' in a source string actually
+  renders an n/r/y/t-shaped glyph instead, the same trick already seen in
+  Wren/Bat Bonanza/Stacker's own fonts) - but tracing `ssd1306_char_f8x8()`'s
+  own index formula against the game's *own real UI strings* shows most
+  of them contain lowercase letters that were never remapped to a
+  substitute slot at all (`"Attiny"`'s own two 't's, its 'n', its 'y';
+  `"Arcade"`'s own 'r'; `"Andy-J"`'s own 'n' and 'y'), computing out to
+  indices 53-64, genuinely past the 51-entry table. This isn't a porting
+  mistake - it reproduces upstream's own literal formula and literal
+  strings exactly - it looks like a genuine, shipped bug in the original
+  game (harmless-but-undefined PROGMEM overrun on real AVR flash, never
+  caught/fixed), affecting its own title-screen credit text. A true
+  out-of-bounds read is a real memory-safety risk on Vircon32, so
+  `tetFontIndex()` clamps any out-of-range result to the blank/space
+  glyph (index 0) - a safety fix, not an attempt to guess what the
+  "correct" glyph should have been, since upstream's own real behavior
+  for these specific characters was already undefined. The garbled-
+  looking "A"/"cade" credit-line fragments visible on the attract screen
+  are this exact preserved-but-safety-clamped bug, not a new porting
+  defect.
+
+  **A critical, self-inflicted bug found via direct user report right
+  after the first build** ("the game seems to behave totally wrong
+  immediately ending in game over"): `gameFallingBlocks_update()`'s
+  PLAYING branch called `tetCheckCollision()` a second time *after*
+  `tetDrawPiece(0)` had already committed the current piece into
+  `tetBlockGrid` - so the check always found the piece "colliding with
+  itself," triggering game-over on literally the first drop tick, every
+  time. Diagnosed and fixed via pure code inspection, per the user's
+  explicit "do not playtest just check code" instruction - grepped every
+  `tetCheckCollision()` call site and traced the exact draw/erase/check
+  ordering at each one, confirming the other four sites (inside
+  `tetCreateGhost()`, `tetMovePieceLeft/Right()`, `tetRotatePiece()`) were
+  all structurally correct, since each happens while the piece is
+  genuinely erased from the grid. **Fixed** by adding a `tetGameOverFlag`
+  global, set only inside `tetMovePieceDown()` itself at the one correct
+  moment to detect this - immediately after a freshly-loaded next piece
+  is found to already collide with the existing stack, *before* it's ever
+  drawn into the grid - with the caller checking that flag instead of
+  redundantly re-checking collision post-draw. Verified via Puppeteer
+  (without playtesting the bug itself, only the already-applied fix):
+  the game now survives repeated drops, movement, rotation, and a
+  soft-drop with no premature game-over.
+
+  **A real CPU-budget problem, found in the very same user report**
+  ("...it's also reaching 100% cpu easily") - confirmed via the perf
+  overlay both on the attract screen and during gameplay. Root cause was
+  the by-now-familiar "self-gated call still costs a full call every time
+  it's invoked" shape, in two different places: (1) `tetGameByte()`
+  recomputed `tetBlockAt()`/`tetGhostAt()` (each its own function call)
+  fresh for every one of 1024 pixels/frame during PLAYING, even though a
+  board row is 6 physical columns wide - the same cell lookup was being
+  redone 6 times in a row for an identical result; (2) the ATTRACT
+  screen's fixed title text (the trademarked-genre-name string described
+  above, plus `"Attiny"`/`"Arcade"`) and the GAME OVER screen's 12 score/high-
+  score digits were each called via `tetCharByte()`/`tetDigitByte()`
+  unconditionally across all 1024 pixels/frame, despite each only ever
+  being nonzero within its own narrow (page,column) footprint. **Fixed**
+  with `tetComposeGameRow()` - a per-page composite buffer
+  (`tetPageBuffer[128]`) that computes each board row's block/ghost state
+  once (not once per sub-column) and writes all 6 sub-column bytes from
+  that cached result - for PLAYING mode, plus call-site gating (a literal
+  duplicate of each callee's own internal bounds check, not an
+  approximation) for every `tetCharByte()`/`tetDigitByte()` call in
+  ATTRACT/GAME OVER mode, the same techniques already proven in Tiny
+  Doc/Tiny DDug's row-scoped caching and Arkanoid/Bert/Tris/Trick/
+  Morpion's call-site gating. Measured via the perf overlay: attract
+  screen dropped from a pegged 100% to 5-6%, gameplay from a pegged 100%
+  (with a visibly truncated frame - only a few blocks in one corner
+  rendered before cutting off, this project's own documented "frame
+  truncated mid-instruction-stream" signature) to a steady 5-9%, with
+  rendering confirmed pixel-identical via screenshot both before and
+  after.
+
+  Verified via Puppeteer: the attract screen (title, decorative brick
+  logo, and the credit lines including the preserved font-index-clamp
+  bug), active gameplay surviving well past the first several drops (no
+  premature game-over), left movement, rotation, and a held soft-drop all
+  render and behave correctly, across a session spanning several
+  automatic and manual piece placements with the board visibly
+  accumulating locked blocks. A full line-clear and a genuine game-over
+  (rather than the fixed false-positive one) were not independently
+  forced this session - both reuse logic paths that are otherwise direct,
+  unmodified ports of upstream's own already-working algorithms, so risk
+  is low, but worth a direct check if anything looks off.
 
 ## Licensing
 
@@ -6039,7 +6230,15 @@ when both exist. Space Attack (see the same re-verification above) is
 Andy Jackson's own - the same author and license family as Wren/Frogger/
 Bat Bonanza/Stacker - credited "ANDY JACKSON" accordingly, sourced from
 `SpaceAttackAttiny` directly (a standalone file, not a combined-cartridge
-extraction the way Breakout's own port needed). Four in a Row and Dino
+extraction the way Breakout's own port needed). Falling Blocks (see the
+same re-verification above) is also Andy Jackson's own - same author and
+license family as Wren/Frogger/Bat Bonanza/Stacker/Space Attack, credited
+"ANDY JACKSON" accordingly, sourced directly from its own upstream
+"multi-button" folder (see this file's own `more games/gametiny/` catalog
+entry above) - its own writeup above covers why its menu name and every
+mention in this project's own documentation deliberately avoid the
+trademarked genre name its upstream folder name and header comment both
+use. Four in a Row and Dino
 Game are the two exceptions to every
 license-family grouping above - neither's own source carries an author
 name or a license statement at all (neither is present in
