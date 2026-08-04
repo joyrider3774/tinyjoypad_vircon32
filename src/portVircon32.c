@@ -576,6 +576,19 @@ void main()
             {
                 currentGameIndex = chosen;
                 md_armInputFireGate();
+
+                // Clear to black once, immediately on selection and before
+                // the chosen game's own init() runs any of its own code -
+                // some games' init() doesn't necessarily draw a full frame
+                // of its own right away (state setup only, first real draw
+                // deferred to the next update() call), and Vircon32's
+                // screen persists between frames exactly like real SSD1306
+                // VRAM does when nothing redraws it - without this, the
+                // last menu frame would otherwise still be sitting on
+                // screen for that one gap tick instead of a clean black
+                // transition.
+                md_beginFrame();
+
                 menu_getGame( chosen )->init();
             }
         }
