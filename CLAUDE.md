@@ -56,6 +56,62 @@ future porting pass doesn't need to re-download anything:
   originally written for Arduboy's beefier hardware (real buttons, more
   RAM/flash) rather than ATtiny85's analog-ladder input and 512B RAM, so
   out of scope for this pass. Revisit only if asked.
+- `sample` - 3 original ATtiny85/Tiny Joypad games by 近藤さんちの研究室
+  ("Kondo-san's Laboratory", note.com handle `kondolab`), placed into this
+  folder directly by the user (not git-cloned/downloaded by this session) -
+  a `source.txt` in the folder lists the author's note.com profile plus 4
+  article URLs, fetched via WebFetch to identify each game's real title/
+  description/source-download link rather than guessing from the raw
+  folder names. All three are built with heavy Google Gemini AI assistance
+  (each article documents this explicitly, including the author's own
+  "rules for creating games with AI" - e.g. "have multiple AI chatrooms
+  verify code, since AI tends to validate its own work optimistically
+  without rigorous checking"), and none states an explicit license for the
+  game's own code (no MIT/GPL/"free to use" text found on any of the 3
+  article pages - only the referenced `gametiny`/`ssd1306xled` libraries
+  are confirmed GPLv3) - treat as "None specified" per this project's own
+  precedent for Four in a Row/Dino Game/SnakeGame85 unless a clearer
+  statement turns up later.
+  - `attiny85AIjump5`/`attiny85AIjump6` - **"JUMP SLIME"** (folder name
+    "AIjump" is the user's own local naming, not the author's title) - a
+    jump-action platformer starring a slime, article:
+    https://note.com/kondolab/n/ndc93ac31e555 (published 2025-07-06),
+    source download `sample.zip` linked from that article. The two
+    folders are NOT different games - `jump6`'s `.ino` is a strict
+    superset of `jump5`'s (confirmed via a line-ending-normalized diff,
+    since `jump6` is saved with CRLF line endings and `jump5` with LF,
+    which made a naive `diff` initially look like every line changed);
+    `jump6` just adds a 5th stage (`stage5_blocks`/`stage5_enemies` and
+    their wiring into the existing per-stage tables) on top of `jump5`'s
+    otherwise-identical code, and its file timestamp (2025-07-18) is 11
+    days later than `jump5`'s (2025-07-07) - a later revision, not a
+    separate title. **Ported** (from `jump6`) as `src/games/gameJumpSlime.c`
+    - see Status below for the full writeup.
+  - `attiny85Bttle13Boss` - **"TinY Fi"** (folder name "Bttle13Boss" is
+    again the user's own local naming) - a fighting game across 6 stages
+    against enemies/bosses, described by the author as "a simple fighting
+    game mixed with belt-scroll action" (memory-constrained by the
+    ATtiny85's 8KB flash) with punch/kick/uppercut/jump/jump-kick moves,
+    article: https://note.com/kondolab/n/n2c96413eaa23 (published
+    2025-11-03), source download `sample4.zip` linked from that article,
+    also playable via an embedded Wokwi simulator
+    (https://wokwi.com/projects/446512906551374849).
+  - `Cave11Item` - **"TinyRoG"** (folder name references its own
+    `CAVEDATA.h`/cave theme, not the author's title) - a roguelike RPG
+    with procedurally-generated mazes across 30 floors
+    (`CLEAR_FLOOR 30` in the port's own source confirms this against the
+    article's own "30 floors of increasing difficulty" description),
+    enemy encounters, and turn-based combat, aiming for "different
+    gameplay each time" (inspired by Torneko's Great Adventure, i.e. a
+    Mystery-Dungeon-style roguelike). Two articles cover this game: a
+    concept/part-1 piece, "Google Gemini と「100回遊べるRPG」製作"
+    (https://note.com/kondolab/n/ndb6bf9c5b9d6, published 2025-08-23
+    09:09, no source code) and the part-2/finished-game piece, "Google
+    Gemini と「100回遊べるRPG」製作（後編）"
+    (https://note.com/kondolab/n/n1806e4234495, published 2025-08-23
+    14:09), which gives the game its real name "TinyRoG" and the source
+    download `sample3.zip`, plus an embedded Wokwi simulator (noted by
+    the author as slower than real hardware).
 
 Most of the Daniel-C `tinyJoypadShim`-lineage titles and all three Obono
 `TinyJoypadWorks` games in this folder are shipped now (22 games total -
@@ -1155,26 +1211,35 @@ file - both `sdl3`/`sdl2` rebuilt clean.
 ## Status (as of this session)
 
 Shipped and visually verified (WebGL emulator + a Puppeteer screenshot
-harness - see below): the shim architecture, the menu, and 34 full games
+harness - see below): the shim architecture, the menu, and 35 full games
 (NumberPlace, Tiny Invaders, 2048, HollowSeeker, Tiny Pinball, Tiny
 Pacman, Tiny Bomber, Tiny Doc, Tiny Bert, Tiny Tris, Tiny Arkanoid, Tiny
 Trick, Tiny Minez, Tiny Missile, Tiny Bike, Tiny Arena, Tiny Gilbert,
 Tiny Pipe, Tiny Morpion, Tiny Plaque, Tiny SQuest, Tiny DDug, Tiny
 Lander, Wren Rollercoaster, Frogger, Bat Bonanza, Stacker, UFO, Tiny
-Dungeon, Oroboros, Run Dude Run, Four in a Row, Dino Game, SnakeGame85).
-Every game from the project's original scope shipped with Tiny Dungeon
-(see its own writeup below for what's still not independently
-re-verified about it specifically) - Oroboros, Run Dude Run, Four in a
-Row, and Dino Game were this project's first four additions *beyond*
-that original scope, found via a follow-up GitHub/web search for
-TinyJoypad-compatible games not already catalogued (see "Beyond the
-original scope" below for the full survey and what else it turned up) -
-Dino Game was the last known candidate from *that* survey, but a fifth
-beyond-scope addition, SnakeGame85, was found afterward via a direct
-link the user supplied (github.com/terezaza/SnakeGame85, not part of the
-earlier systematic search) and shipped the same session - see its own
-writeup below. The beyond-scope backlog is empty again unless a future
-search or link turns up something new.
+Dungeon, Oroboros, Run Dude Run, Four in a Row, Dino Game, SnakeGame85,
+Jump Slime). Every game from the project's original scope shipped with
+Tiny Dungeon (see its own writeup below for what's still not
+independently re-verified about it specifically) - Oroboros, Run Dude
+Run, Four in a Row, and Dino Game were this project's first four
+additions *beyond* that original scope, found via a follow-up GitHub/web
+search for TinyJoypad-compatible games not already catalogued (see
+"Beyond the original scope" below for the full survey and what else it
+turned up) - Dino Game was the last known candidate from *that* survey,
+but a fifth beyond-scope addition, SnakeGame85, was found afterward via
+a direct link the user supplied (github.com/terezaza/SnakeGame85, not
+part of the earlier systematic search) and shipped the same session -
+see its own writeup below. A sixth addition, Jump Slime, came from a
+completely different discovery channel again: the user placed a
+`more games/sample/` folder directly into the repo containing 3 original
+AI-assisted ATtiny85 games by a Japanese creator (近藤さんちの研究室 /
+"kondolab"), with a `source.txt` listing the author's note.com articles -
+fetched via WebFetch to identify each game's real title/description/
+source link (see `more games/`'s own catalog entry below for the full
+triage of all 3). Jump Slime was picked as the simplest/lowest-risk of
+the three to port first; TinY Fi and TinyRoG remain triaged but not yet
+ported. The beyond-scope backlog is empty again unless a future search
+or link turns up something new.
 
 - `src/machineDependent.h` + `src/portVircon32.c` - the `md_*` primitives
   (video/input/audio) plus the atlas texture setup and the top-level
@@ -5228,6 +5293,150 @@ of scope).
   cell of its 4x2 grid, right after Dino Game's own cell 0) - no further
   atlas growth needed. Verified via screenshot that both thumbnails
   render correctly with no cross-contamination.
+- `src/games/gameJumpSlime.c` - Jump Slime (near-final revision "jump6" of
+  `more games/sample/attiny85AIjump6/attiny85AIjump6.ino`, one of 3 AI-
+  assisted original ATtiny85 games in `more games/sample/` - see that
+  folder's own catalog entry above for how all 3 were identified and
+  triaged, and this file's own Status intro for the discovery channel).
+  Author: 近藤さんちの研究室 ("Kondo-san's Laboratory"), note.com handle
+  "kondolab" - credited in the menu as "KONDOLAB" (romanized handle, no
+  individual real name given anywhere in English, same treatment as
+  SnakeGame85's own "TEREZAZA" credit). No license is stated for this
+  game's own code anywhere on its article page - listed as "None
+  specified", a statement about the license only, not the (known,
+  credited) author.
+
+  A jump-action platformer: run/jump across 5 stages of floating blocks,
+  dodge back-and-forth patrolling enemies, reach each stage's goal coin.
+  Picked over the other 2 sample games (TinY Fi, a fighting game; TinyRoG,
+  a roguelike) as the simplest/lowest-risk to port first - all 3 share the
+  same driver lineage (see below) and have exactly one `while(1)` each (the
+  standard outer state-dispatch loop, no goto-chains), but Jump Slime alone
+  has no fighting-game hit-frame/combo state and no maze-generation
+  algorithm to reason through.
+
+  Two local folders exist for this game (`attiny85AIjump5`/
+  `attiny85AIjump6`, both placed directly into the repo by the user, not
+  git-cloned) - confirmed NOT two different games via a line-ending-
+  normalized diff (`jump6` is saved CRLF, `jump5` LF, which made a naive
+  `diff` initially look like every single line had changed): `jump6` is a
+  strict superset of `jump5`, just adding a 5th stage on top of otherwise
+  byte-identical code, and its own file timestamp is 11 days later - a
+  later revision, ported here instead of the earlier one.
+
+  Not tinyJoypadShim/obonoCoreShim lineage by name - this game's own
+  `util.h` looked bespoke at first glance, but its actual button
+  thresholds (`TINYJOYPAD_LEFT`/`RIGHT`/`UP`/`DOWN`, A0/A3 analog reads)
+  and its sprite-blitting helpers (`blitzSprite`/`SPEED_BLITZ`/
+  `RecupeLineY`/`RecupeDecalageY`/`SplitSpriteDecalageY`) turned out to be
+  functionally identical to Daniel C's own `ELECTROLIB.h` already used
+  throughout this project (confirmed by direct diff against this
+  project's own already-staged copy) - almost certainly the AI was fed
+  that driver as a reference and reproduced it with added Japanese
+  comments rather than inventing a genuinely new one (the other 2 sample
+  games, TinY Fi/TinyRoG, `#include "ELECTROLIB.h"` directly, removing
+  any doubt about the lineage for those two). No new shim needed:
+  `isLeftPressed()`/`isRightPressed()`/`isFirePressed()`/`Sound()` from
+  the existing `tinyJoypadShim` cover the whole input/audio surface, and
+  `jslmBlitzSprite()` is a direct, already-proven translation of the same
+  algorithm this project's own `gameTinyBert.c` already carries under its
+  own prefix - reused rather than re-derived, to avoid a transcription
+  risk on a subtle bit-splitting algorithm that's already been gotten
+  right once.
+
+  Every sprite/font/stage-data table was byte-diff-verified against the
+  original source via a small Python script before ever building, not
+  hand-copied blind - matching this project's own "byte-diff transcribed
+  tables" discipline, reinforced by the SnakeGame85 port earlier the same
+  session where skipping exactly this verification step shipped a
+  corrupted bitmap array.
+
+  Upstream's own debounce mechanism (`lastBtnAState`/`DEBOUNCE`, a real
+  blocking `_delay_ms(30)` on every button check) is dropped entirely in
+  favor of a single shared `jslmPrevFire`/edge-detect flag updated once
+  per real frame (not reset per state) - enough on its own to keep a
+  state transition's own confirming press from bleeding into the very
+  next state's own edge check (e.g. title -> gameplay not instantly
+  triggering a jump on the same physical press), with no need for a
+  dedicated per-transition gate the way some other games in this project
+  have needed.
+
+  Two genuine 3-note `Sound()` bursts (game-over, fired identically from
+  both the fall-off-bottom and enemy-collision paths; stage-clear) were
+  found via a direct check of every `Sound()` call site before ever
+  compiling and converted to small frame-stepped sequencers up front,
+  matching this project's own established fix for this exact bug class
+  (Vircon32's audio channel has no queue - a synchronous burst of
+  `Sound()` calls is only ever audible as the very last note). At the
+  user's direct request ("check other games as well related to the
+  sound"), the other 2 sample games were checked too: both TinY Fi and
+  TinyRoG only ever call `Sound()` once per event and never invoke their
+  own `ELECTROLIB.h`'s shared (and, in both games, entirely unused)
+  `PLAY_MUSIC()` helper, so neither has this bug waiting when it's
+  eventually ported.
+
+  **A real CPU-budget overrun found immediately via the WebGL perf
+  overlay, before ever calling the port "done"**: gameplay was pegged at
+  a saturated 100%, with a visibly truncated frame (only the top couple
+  of rows drawn before cutting to black) - this project's own well-
+  documented "frame truncated mid-instruction-stream" failure signature.
+  Root cause was the now-familiar O(pixels x objects) shape: the current
+  stage's 12-13 blocks were rescanned from inside the per-pixel render
+  call (up to 13*1024 wasted loop iterations/frame to find the 1-2 blocks
+  that actually matched a given page), and the player/coin/enemy sprites
+  (each only an 8px-wide footprint) were each handed to `jslmBlitzSprite()`
+  for all 128 columns of every page regardless - the same "self-gated
+  call still costs a full call every time it's invoked" lesson already
+  found repeatedly elsewhere in this project (Arkanoid/Bert/Tris/Trick/
+  Morpion). Fixed with two per-page composite buffers
+  (`jslmBlockRowBuffer`/`jslmSpriteRowBuffer`, both rebuilt once per page -
+  8x/frame - instead of once per pixel - 1024x/frame): blocks are always
+  page-aligned in every one of this game's 5 stages (confirmed by
+  inspection), so their own buffer reads each block sprite's raw column
+  bytes directly rather than going through `jslmBlitzSprite()`'s more
+  general sub-page-split logic; the sprite buffer still calls
+  `jslmBlitzSprite()` (needed for the player, which *can* be sub-page-
+  positioned) but only across each sprite's own real 8-column span on the
+  (up to 2) pages its Y position could actually touch, not all 128
+  columns. Verified via the perf overlay: CPU dropped from a pegged,
+  truncating 100% to a steady 60% during real gameplay, with the
+  previously-truncated frame now rendering completely.
+
+  **A real credit mix-up caught by direct user question** ("regarding
+  author of jumpslime can't you look that up on the source.txt sites") -
+  an early draft of the `addGame()` call passed `"NONE SPECIFIED"` as the
+  *author* field, when that phrase was only ever meant to describe the
+  *license* (which genuinely has none stated) - the actual author
+  (kondolab, already identified during this game's own triage) had simply
+  been mis-slotted into the wrong parameter. Fixed by passing "KONDOLAB"
+  as the author instead, matching every other credited-by-handle game in
+  this project (SnakeGame85's own "TEREZAZA", etc) - a good reminder that
+  "no license stated" and "no author known" are two independent facts
+  that shouldn't collapse into the same placeholder string.
+
+  A 30fps whole-function tick-skip was added afterward at direct user
+  request ("limit this games speed to 30 fps") - upstream itself has no
+  genuine real-time throttle at all (no `FPS_Control`, no
+  `CONTROL_FRAMERATE` call - the "no timing model whatsoever upstream"
+  category from this project's own frame-pacing survey, same category as
+  Tiny Trick/Invaders/Pinball/Bert/Tris), so this is a deliberate
+  slowdown rather than restoring an original rate. Gates the *whole*
+  `gameJumpSlime_update()` body (logic and redraw together), matching the
+  majority precedent in this project (NumberPlace/HollowSeeker/t2048/Doc/
+  Pacman/Pipe) rather than the movement-only/redraw-stays-60fps split
+  used elsewhere for games that already had 60fps-tuned wait timers
+  needing to stay real-time accurate - this game had no such existing
+  timers to preserve. Every existing frame-counted constant in the file
+  (`jslmBlinkTimer`'s own 36-frame blink cycle, the sound sequencers' own
+  wait-frame tables) was deliberately left unrescaled, matching this
+  project's own standing "one divisor, no dual bookkeeping" practice -
+  they simply now take twice as long in real time. Verified via
+  screenshot that movement/jump/rendering all still work correctly at the
+  throttled rate, with CPU unchanged at ~60%.
+
+  Menu thumbnail added to `assets/thumbnails2.png`'s cell 2 (third cell of
+  its 4x2 grid) - no atlas growth needed. Verified via screenshot that it
+  displays correctly alongside its neighbors.
 
 ## Licensing
 
@@ -5290,6 +5499,16 @@ GitHub handle the repo is hosted under - credited in the menu as
 specific repository is more informative than genuine anonymity, the same
 reasoning already applied to Tiny Minez/Tiny Dungeon's own "SVEN B /
 LORANDIL" credit.
+Jump Slime is a different case again from every one above: its author
+*is* known by name (近藤さんちの研究室 / "kondolab", identified via the
+note.com articles linked from `more games/sample/source.txt`, not
+guessed) - credited in the menu as "KONDOLAB" - but no license is stated
+anywhere on the author's own article pages for this game's own code
+(only the separately-referenced `gametiny`/`ssd1306xled` libraries are
+confirmed GPLv3 there). Listed as "None specified" in the README for
+licensing purposes only - unlike Four in a Row/Dino Game/SnakeGame85,
+this is a case of a known author with an unstated license, not an
+unknown author.
 Attribution (corrected mid-session after checking each `.ino`'s own
 header comment directly, rather than trusting this file's earlier,
 imprecise "Lorandil" shorthand): Tiny Pinball/Pacman/Bomber/Doc/Bert/

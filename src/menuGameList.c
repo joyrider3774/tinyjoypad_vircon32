@@ -146,4 +146,9 @@ void addGames()
     // flag/skip-redraw path anywhere in this port), so NULL here is
     // confirmed correct, not an oversight.
     addGame( "SNAKEGAME85", "TEREZAZA", &gameSnakeGame85_init, &gameSnakeGame85_update, NULL );
+    // Jump Slime: gameJumpSlime_update() calls jslmRender() unconditionally
+    // at the end of every single state branch (no dirty-flag/skip-redraw
+    // path anywhere in this port), so NULL here is confirmed correct, not
+    // an oversight.
+    addGame( "JUMP SLIME", "KONDOLAB", &gameJumpSlime_init, &gameJumpSlime_update, NULL );
 }
