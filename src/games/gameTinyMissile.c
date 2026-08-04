@@ -1185,20 +1185,25 @@ int tmisUpdateEngine()
 // as a non-blocking burst flag instead (one rocket per real frame), with the
 // main engine update skipped entirely while it's active - see header comment.
 //
-// Upstream has two genuinely different outcomes depending on the clip state
-// at the *moment the burst starts* (not re-checked every tick): if the
-// current clip already had rockets in it, USE_WEAPON()'s own auto-refill
-// (pulling a fresh 9-round clip from SPARE once ROCKET hits 0) keeps
-// upstream's `while(ROCKET>0)` loop going, so the burst drains the *entire*
-// arsenal - current clip plus every spare clip - one continuous barrage. If
-// the clip was already empty when the burst started, upstream skips that
-// loop entirely and only fires one single defensive shot straight from
-// SPARE, no refill. `tmisAttackBurstHadRocket` captures that one-time
-// decision; without it, a naive per-tick `if(rocket>0)` check (an earlier
-// version of this port) would incorrectly stop the barrage the instant the
-// current clip ran dry instead of continuing into the spare clips, and
-// would use the wrong "single shot" sound for what should be a continuing
-// barrage.
+// Upstream: `if(ROCKET>0){while(1){if(ROCKET>0){USE_WEAPON();...}else{goto
+// Exit_;}}}else{if(SPARE>0){SPARE--;SNDBOX(3);}}` - traced carefully (a
+// prior version of this comment/fix got this backwards): the while loop's
+// own `ROCKET>0` check runs BEFORE every USE_WEAPON() call, so USE_WEAPON()
+// is only ever invoked while ROCKET is already nonzero - its own internal
+// SPARE-refill branch (only taken when ROCKET is ALREADY 0 at the moment
+// it's called) is unreachable from this specific loop. The burst just
+// drains whatever's left in the CURRENT clip (up to 10 shots) and stops -
+// it never reaches into SPARE when the clip had rounds in it. Only if the
+// clip was ALREADY empty at the moment of the hit does upstream take a
+// single defensive shot straight from SPARE, no refill loop at all.
+// `tmisAttackBurstHadRocket` still captures the one-time "which of the two
+// outcomes" decision at burst-start (matching upstream's own "not
+// re-checked every tick" framing for *that* choice), but tmisArmyRocket
+// itself is re-checked every tick within the "had rocket" branch, same as
+// upstream's own loop - it must never call tmisArmyUseWeapon() once the
+// clip reaches 0, since that would incorrectly trigger its own SPARE-
+// refill branch and continue the burst into the spare clips, which
+// upstream never does.
 int tmisAttackBurstHadRocket;
 
 void tmisAttackWeaponStart()
@@ -1213,8 +1218,9 @@ int tmisAttackWeaponStep()
 {
     if( tmisAttackBurstHadRocket )
     {
-        if( tmisArmyUseWeapon() )
+        if( tmisArmyRocket > 0 )
         {
+            tmisArmyUseWeapon();
             tmisSndBox( 5 );
             return 1;
         }
