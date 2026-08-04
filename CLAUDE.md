@@ -1118,6 +1118,40 @@ play-test focused on that specific visual detail (does the rider's
 pedaling motion stay still while stationary, only kicking in once
 moving) if time allows.
 
+## Tiny Bike locked to 30fps (whole-tick), confirmed by direct user play-test
+
+Investigating the pedaling-animation gap above led to a static cycle-
+count of the real I2C bit-bang driver (`FastTinyDriver.cpp`, delay-free
+ASM) to estimate upstream's real, uncapped tick rate - the estimate
+suggested upstream might run *faster* than 60fps, not slower, which
+didn't explain a "too fast" perception through a simple timing-mismatch
+theory. Rather than trust an uncertain static estimate over a live
+report, the user asked directly to try locking the game to 30fps as a
+test ("it seems the game may be running too fast judging from arduboy
+port") - tried, played, and confirmed as the right fix.
+
+Implemented as a whole-function tick-skip (`BIK_TICK_DIVISOR = 60/30 =
+2`), the same shape already used for Tiny Pipe's own "limit to 30fps
+including its logic" fix - gates input reads, physics, animation, and
+redraw together (not a movement-only/redraw-stays-60fps split, unlike
+Trick/Invaders/Pinball/Bert's own treatment - "including its logic" per
+the same reasoning Tiny Pipe's own fix used). Every existing wait-frame
+constant in the file (`bikWaitFrames`, the note-sequencer's own
+`60.0`-based timing) was deliberately left unrescaled, matching this
+project's own standing "one divisor, no dual bookkeeping" practice -
+they simply now take twice as long in real time, which is the intended
+effect of halving the tick rate.
+
+Verified via Puppeteer (accounting for the now-doubled real-time
+duration of `BIK_STATE_LEVEL_INTRO_WAIT`'s own `bikWaitFrames=120` wait,
+which an under-slept first test attempt caught mid-wait, looking like a
+stuck screen before the wait was given enough real time to finish - not
+a bug, just the test's own sleep durations needing to account for the
+new slower pace) and then directly by the user's own play-test, who
+confirmed the result felt right. Ported to the SDL sibling project
+(`Tinyjoypad_SDL`) identically once confirmed, same session, same shared
+file - both `sdl3`/`sdl2` rebuilt clean.
+
 ## Status (as of this session)
 
 Shipped and visually verified (WebGL emulator + a Puppeteer screenshot
