@@ -291,6 +291,19 @@ int bikBikePosY;
 int bikTrigOk;
 int bikMapPos;
 int bikAnimBike;
+
+// Upstream's own `uint8_t t=0;` (declared once, right before the start-
+// line wait, i.e. once per race attempt) is read at the TOP of every
+// while(1) tick (`if(TRIG_OK==0 && Wheel_up==1 && t>0)`) BEFORE that same
+// tick's own `for(t=0;t<CHECK_SPEED_ADJ(ACCEL);t++)` loop overwrites it -
+// so it's really "how many speed-loop iterations did the PREVIOUS tick
+// run," used to suppress the pedaling-animation toggle while ACCEL is
+// still <=1 (CHECK_SPEED_ADJ returns 0) and the bike isn't genuinely
+// moving yet. A plain per-call `int t;` (this file's own movement loop
+// variable, scoped to gameTinyBike_update()) can't carry that value
+// across real ticks the way upstream's persistent global does - this
+// mirrors it explicitly.
+int bikPrevSpeedTicks;
 int bikRenewSprite;
 int bikNoSprite;
 int bikFoulBlitz;
@@ -1047,6 +1060,31 @@ void bikTinyFlip( int mode )
 #define BIK_STATE_LEVEL_WIN_WAIT   5
 #define BIK_STATE_GAME_OVER_WAIT   6
 
+// Upstream has no explicit timing model of its own (no _delay_ms() in the
+// main gameplay while(1) loop - Tiny_Flip() and the movement/animation
+// logic run at whatever raw, uncapped rate the bare AVR loop achieves,
+// the same "no genuine rate to match" category as Trick/Invaders/
+// Pinball/Bert/Tris elsewhere in this project). A static cycle-count of
+// the real I2C bit-bang (FastTinyDriver.cpp's delay-free asm driver)
+// suggested upstream's real rate might be *faster* than 60fps, not
+// slower - but a direct user report ("game may be running too fast
+// judging from the Arduboy port") plus this file's own now-confirmed
+// "pedaling" animation gap (toggling every single tick with nothing else
+// slowing it down, easy to read as a flicker rather than legible motion)
+// made a real, testable slowdown worth trying rather than relying on an
+// uncertain cycle estimate. TEST: whole-function tick-skip to 30fps,
+// same shape already used for Tiny Pipe's own "limit to 30fps including
+// its logic" fix - gates input reads, physics, animation, AND redraw
+// together (not a movement-only/redraw-stays-60fps split), matching
+// "including its logic" exactly. Every existing wait-frame constant in
+// this file (bikWaitFrames, the note-sequencer's own 60.0-based timing)
+// is deliberately left unrescaled, matching this project's own standing
+// "one divisor, no dual bookkeeping" practice - they simply now take
+// twice as long in real time, which is the whole point.
+#define BIK_FPS 30
+#define BIK_TICK_DIVISOR ( 60 / BIK_FPS )
+int bikTickSkipCounter = 0;
+
 int bikState;
 int bikWaitFrames;
 int bikForceRedraw;
@@ -1079,6 +1117,7 @@ void bikBeginPlaying()
 {
     bikState = BIK_STATE_PLAYING;
     bikAnimBike = 6;
+    bikPrevSpeedTicks = 0;
 }
 
 int bikWinWaitStarted;
@@ -1116,6 +1155,15 @@ void gameTinyBike_forceRedraw()
 
 void gameTinyBike_update()
 {
+    // TEST: whole-function 30fps tick-skip - see BIK_TICK_DIVISOR's own
+    // declaration comment. Skipped frames leave the previous frame's
+    // image on screen (no draw call happens for them), matching this
+    // project's own established whole-function-throttle games exactly.
+    bikTickSkipCounter++;
+    if( bikTickSkipCounter < BIK_TICK_DIVISOR )
+      return;
+    bikTickSkipCounter = 0;
+
     // Advances whatever note sequence is currently active, regardless of
     // state - previously only advanced from within BIK_STATE_START_LINE/
     // LEVEL_WIN_WAIT, which left bikAddLive()'s bonus-life cue (triggered
@@ -1209,7 +1257,13 @@ void gameTinyBike_update()
                     if( isDownPressed() ) { if( bikTrackRunProgress < 3 ) { bikTrackRunProgress++; bikTrigOk = 1; } }
                     else if( isUpPressed() ) { if( bikTrackRunProgress > 0 ) { bikTrackRunProgress--; bikTrigOk = 2; } }
                 }
-                if( bikTrigOk == 0 && bikWheelUp == 1 )
+                // Upstream's own `t>0` third condition (see
+                // bikPrevSpeedTicks's own declaration comment) - without
+                // it, this port animated "pedaling" even while nearly
+                // stationary (ACCEL<=1, e.g. right after a crash/respawn
+                // or before the player starts accelerating), which
+                // upstream deliberately suppresses.
+                if( bikTrigOk == 0 && bikWheelUp == 1 && bikPrevSpeedTicks > 0 )
                 {
                     if( bikAnimBike == 1 ) bikAnimBike = 6;
                     else bikAnimBike = 1;
@@ -1262,6 +1316,7 @@ void gameTinyBike_update()
             }
             else bikDiv1++;
         }
+        bikPrevSpeedTicks = t;
 
         if( bikPause == 1 ) { if( bikLive > -1 ) bikLive--; bikPause = 0; }
         bikLatch1++;

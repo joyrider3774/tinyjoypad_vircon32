@@ -1055,6 +1055,69 @@ agents' own traced reasoning - each report is detailed enough (exact
 upstream line numbers, exact port line numbers, the precise re-check
 condition compared) to re-check by hand if anything seems off later.
 
+## Tiny Bike: no motor sound exists upstream (confirmed, not a bug); a real "pedaling" animation gap found and fixed while checking
+
+A direct follow-up question ("is it possible in tiny bike the motorsound
+and the player on the moving bike animation is not playing as intended")
+had two genuinely different answers.
+
+**Motor/engine sound**: upstream has none at all - checked every real
+`Sound()` call site in `Tiny-Bike.ino` (`intro_sound()`'s 7-note jingle,
+the race-start 2-tone confirm, a collision-type-4 `Sound(200,4)`, and
+`ADD_LIVE()`'s 3-tone bonus-life cue) and found nothing tied to
+acceleration/movement itself - only one-shot event cues, matching what
+this session's own earlier missing-sound-cue audit already found (no
+cue was missing, because none exists to miss). Not a gap in the port.
+
+**Player animation**: a real gap, found by re-reading upstream's actual
+`while(1)` main loop line by line rather than trusting the earlier
+`speedTicks` fix to have been the only issue in that area. Upstream:
+```c
+uint8_t t=0;                    // declared once, right before the race begins
+...
+while(1){
+  ...
+  if ((TRIG_OK==0)&&(Wheel_up==1)&&(t>0)) {animBike=(animBike==1)?6:1;}
+  ...
+  for (t=0;t<CHECK_SPEED_ADJ(ACCEL);t++){...}   // t re-declared fresh here, every tick
+```
+`t` is checked at the TOP of each tick (gating the "pedaling" animation
+toggle between frames 1/6) BEFORE that same tick's own speed-loop
+overwrites it - so `t>0` really means "did the *previous* tick's speed-
+loop run at least once," i.e. "was the bike moving fast enough last tick
+for `CHECK_SPEED_ADJ(ACCEL)` to return nonzero." Upstream deliberately
+suppresses the pedaling animation while nearly stationary (freshly
+spawned, right after a crash, or before the player starts accelerating).
+
+The port's own `t` (`gameTinyBike.c`, the speed-loop variable touched by
+the `speedTicks` fix above) is a plain local, freshly declared inside
+`gameTinyBike_update()` on every call - it can't carry a value across
+real ticks the way upstream's persistent global does. The port's own
+pedaling-toggle condition (`if(bikTrigOk==0 && bikWheelUp==1)`) was
+simply missing the third condition entirely, not approximating it
+incorrectly - so the port animated pedaling *unconditionally* whenever
+not mid-wheelie-adjustment, including while genuinely stationary.
+**Fixed** with a new persistent global, `bikPrevSpeedTicks` (reset to 0
+in `bikBeginPlaying()`, matching where upstream's `t=0` sits relative to
+the race actually starting; captured as `bikPrevSpeedTicks = t;`
+immediately after the speed-loop finishes each tick, for the *next*
+tick's own check to read) - the pedaling-toggle condition now reads
+`bikTrigOk==0 && bikWheelUp==1 && bikPrevSpeedTicks>0`, matching
+upstream's real three-condition gate exactly.
+
+Ported to the SDL sibling project (`Tinyjoypad_SDL`) identically, in the
+same session, same file (`gameworld/games/gameTinyBike.c`) - both
+projects rebuilt clean (Vircon32 via `Make.sh`, both `sdl3`/`sdl2` via
+`cmake --build`). Verified via Puppeteer on the Vircon32 build: launched,
+sat idle briefly, then accelerated - no crash or visual corruption
+through the transition - but didn't specifically isolate a frame-by-frame
+comparison of "pedaling animates correctly only once moving" the way a
+screenshot could prove wrong before the fix, since a still image can't
+show whether a *sequence* of frames animates or holds - worth a direct
+play-test focused on that specific visual detail (does the rider's
+pedaling motion stay still while stationary, only kicking in once
+moving) if time allows.
+
 ## Status (as of this session)
 
 Shipped and visually verified (WebGL emulator + a Puppeteer screenshot
