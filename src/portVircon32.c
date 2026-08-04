@@ -318,53 +318,76 @@ void md_armInputFireGate()
 //   AUDIO
 // -----------------------------------------------------------------------------
 
-// TinyJoypad's original hardware is a single piezo buzzer - every lineage's
-// Sound()/playTone() expects exactly one tone active at a time, so a single
-// tracked voice (rather than PlayNote's full 16-channel pool) matches the
-// games' own expectations and keeps this trivial.
-int audioVoice = -1;
-int audioStopAtFrame = -1;
+// TinyJoypad's original hardware is a single piezo buzzer, so every game's
+// own Sound()/playTone() call site was written assuming "this replaces
+// whatever's currently sounding" - but that's a property of the ORIGINAL
+// hardware, not something md_playTone() itself needs to enforce. PlayNote
+// already manages up to 16 real simultaneous channels on its own
+// (playnote_start() calls Vircon32's own play_sound(), which picks the
+// first free SPU channel internally, per playnote.h's own doc) - the
+// original version of this function got in its own way by forcing every
+// call through one manually-tracked "audioVoice" and killing it before
+// every new tone, so two genuinely concurrent cues (e.g. Tiny Pacman's
+// continuously-retriggered power-pellet siren and its dot-eaten/ghost-
+// eaten SFX) could never be heard at once even though the hardware
+// supports it.
+//
+// Fixed by not fighting PlayNote's own channel picker at all: every call
+// just asks for a fresh channel and tracks that specific channel's own
+// expiry, instead of forcing everything through a single slot. This
+// doesn't change the *audible* behavior of the common "one tone
+// replacing the previous one" case - every existing frame-stepped
+// sequencer in this project already gates its own next note to start
+// only after the previous one's real duration has elapsed, so by the
+// time a new call happens, the old one has normally already expired and
+// freed its channel back up on its own. It only changes behavior when
+// two calls are genuinely concurrent, which is exactly the case that was
+// broken.
+#define AUDIO_MAX_VOICES 16
+int[AUDIO_MAX_VOICES] audioStopAtFrame;
 
 void md_initAudio()
 {
     playnote_init( WAVETABLE_SOUND_ID, WAVETABLE_PERIOD_SAMPLES );
+    int i;
+    for( i = 0; i < AUDIO_MAX_VOICES; i++ )
+      audioStopAtFrame[ i ] = -1;
 }
 
 void md_playTone( float freqHz, float durationSeconds )
 {
-    if( audioVoice != -1 )
-    {
-        playnote_stop_all();
-        audioVoice = -1;
-        audioStopAtFrame = -1;
-    }
-
     if( freqHz <= 0.0 )
       return;
 
-    audioVoice = playnote_start( freqHz, 0.6 );
+    int channel = playnote_start( freqHz, 0.6 );
+    if( channel < 0 )
+      return; // every channel already busy - drop the note rather than misbehave
 
     int durationFrames = (int)( durationSeconds * frames_per_second );
     if( durationFrames < 1 )
       durationFrames = 1;
 
-    audioStopAtFrame = get_frame_counter() + durationFrames;
+    audioStopAtFrame[ channel ] = get_frame_counter() + durationFrames;
 }
 
 void md_stopTone()
 {
     playnote_stop_all();
-    audioVoice = -1;
-    audioStopAtFrame = -1;
+    int i;
+    for( i = 0; i < AUDIO_MAX_VOICES; i++ )
+      audioStopAtFrame[ i ] = -1;
 }
 
 void md_updateAudio()
 {
-    if( audioVoice != -1 && get_frame_counter() >= audioStopAtFrame )
+    int i;
+    for( i = 0; i < AUDIO_MAX_VOICES; i++ )
     {
-        playnote_stop( audioVoice );
-        audioVoice = -1;
-        audioStopAtFrame = -1;
+        if( audioStopAtFrame[ i ] != -1 && get_frame_counter() >= audioStopAtFrame[ i ] )
+        {
+            playnote_stop( i );
+            audioStopAtFrame[ i ] = -1;
+        }
     }
 
     playnote_update();

@@ -129,22 +129,33 @@ int md_inputFireFrames();
 
 void md_initAudio();
 
-// Starts playing freqHz for durationSeconds, replacing whatever tone is
-// currently sounding - TinyJoypad's original hardware is a single piezo
-// buzzer, so games only ever expect one tone active at a time. freqHz <= 0
-// is treated as silence (used by ports of Sound(0, dur) rest/pause calls).
-// Unlike the original AVR Sound(), this does not block: it returns
-// immediately and the tone is stopped automatically by md_updateAudio()
-// once its duration elapses, so gameplay/animation keeps running during a
-// sound effect instead of freezing for it.
+// Starts playing freqHz for durationSeconds on the next free hardware
+// channel (up to 16 - see portVircon32.c's own header comment on
+// md_playTone() for why this doesn't force everything onto one shared
+// voice the way it used to). freqHz <= 0 is treated as silence (used by
+// ports of Sound(0, dur) rest/pause calls). Unlike the original AVR
+// Sound(), this does not block: it returns immediately and the tone is
+// stopped automatically by md_updateAudio() once its duration elapses,
+// so gameplay/animation keeps running during a sound effect instead of
+// freezing for it. Two or more genuinely concurrent calls (e.g. Tiny
+// Pacman's continuously-retriggered power-pellet siren alongside its
+// dot-eaten/ghost-eaten SFX) are now both actually audible instead of
+// cutting each other off - a plain sequential burst of calls with no
+// real time between them, though, is still only ever heard as a chord of
+// near-identical short notes at best, not a melody: use a frame-stepped
+// sequencer (see any game's own *AdvanceSfx()/*AdvanceNoteSeq() for the
+// established pattern) for anything meant to be heard as several
+// distinct notes in sequence.
 void md_playTone( float freqHz, float durationSeconds );
 
-// stops the current tone immediately (no fade) - used when leaving a game
-// (returning to the menu) so no audio survives into the next screen
+// stops every currently-playing tone immediately (no fade) - used when
+// leaving a game (returning to the menu) so no audio survives into the
+// next screen
 void md_stopTone();
 
-// advances the scheduled auto-stop and PlayNote's fade processing - call
-// exactly once per frame, regardless of which game (if any) is running
+// advances every channel's own scheduled auto-stop and PlayNote's fade
+// processing - call exactly once per frame, regardless of which game (if
+// any) is running
 void md_updateAudio();
 
 #endif

@@ -1200,6 +1200,11 @@ void gameTinyPacman_update()
         return;
     }
 
+    // md_playTone() itself now grabs a free hardware channel per call
+    // (see portVircon32.c's own header comment) instead of forcing
+    // everything through one shared voice, so this continuously-
+    // retriggered siren no longer cuts off (or gets cut off by) the
+    // dot-eaten/ghost-eaten SFX above - both are audible at once.
     if( pacGobeActive )
       md_playTone( (float)( 255 - pacTimerGobeActive ), 0.01 );
 }

@@ -866,6 +866,70 @@ session - both changes are small, mechanically consistent additions
 sequencer) rather than structural changes, so risk is low, but worth a
 direct check if anything sounds off.
 
+## `md_playTone()` became genuinely multi-voice, replacing the single shared channel this whole project was built on
+
+A direct follow-up request ("make pacman eating pills audible while the
+alarm sounds goes off... really don't gate it to single channel calls")
+asked for something the entire audio model above couldn't do: Tiny
+Pacman's power-pellet siren (retriggered every real tick while active,
+`md_playTone((float)(255-pacTimerGobeActive), 0.01)`) and its dot-eaten/
+ghost-eaten SFX shared the same single tracked "audioVoice" `md_playTone()`
+has used since the very first Arkanoid audio investigation this session -
+so whichever fired more recently always cut the other one off, and this
+was true for every game in the cartridge, not just Pacman.
+
+First attempt was a targeted fix - a second, independent channel
+(`md_playTone2()`/`md_stopTone2()`) specifically for Pacman's siren,
+leaving every other game's own single-voice `md_playTone()` untouched -
+reasoned as lower-risk than a global change, since some other games'
+own retriggered-tone cues (monster-march steps, footstep ticks) are
+*meant* to replace themselves each call, not stack.
+
+**The user pushed back twice, correctly, before this shipped**: first
+"can't we make playtone pick the next channel" (questioning why a
+hand-built second slot was needed at all, rather than just letting
+every call use a fresh channel), then, once a hand-wavy "the SDL3
+backend can't easily do this" justification came up, "playtone lib
+should already do this" - pointing directly at `playnote_start()`
+itself. Reading it confirmed the user was right: `playnote_start()`
+already calls Vircon32's own `play_sound()`, which picks the first free
+SPU channel *internally* - `md_playTone()` never needed to manually
+track a single voice at all, it was just fighting PlayNote's own
+already-correct channel management by forcing `playnote_stop_all()`
+before every call.
+
+**Fixed properly**: replaced the single `audioVoice`/`audioStopAtFrame`
+pair with a 16-element `audioStopAtFrame[]` array indexed by actual
+channel number. `md_playTone()` now just calls `playnote_start()` and
+records whichever channel it returns; `md_updateAudio()` loops over all
+16 channels checking each one's own expiry independently. No per-game
+opt-in, no second API - every existing `md_playTone()` call site across
+every game gets this for free. The earlier two-channel version
+(`md_playTone2()`/`md_stopTone2()`, and Pacman's own call routed through
+it) was fully reverted before this shipped - grepped for both names
+project-wide to confirm zero references remained.
+
+**Why this doesn't break the "replace, don't stack" cues it was
+initially worried about**: every frame-stepped sequencer already built
+this session (and every one already in the project before it -
+`arkAdvanceNoteSeq`, `tmisAdvanceNoteSeq`, etc) gates its own next note
+to start only once the previous note's real duration has elapsed, via
+its own `waitFrames` bookkeeping - so by the time any such sequence's
+next call happens, the previous note has normally already auto-expired
+and freed its channel back up via `md_updateAudio()`, same as before.
+The only thing that actually changed is what happens when two
+*genuinely concurrent* cues overlap in time (Pacman's per-tick siren vs.
+a dot-eaten blip landing in the same window) - exactly the case that was
+broken, and exactly what was asked for.
+
+Verified via Puppeteer after rebuilding: both Tiny Pacman (through the
+start jingle, into active gameplay, dots visibly eaten and ghosts
+moving out of the box after extended movement) and Tiny Bomber (start
+jingle, movement, bomb placement) render and play correctly with no
+crash or corruption - a meaningful check here since this change touches
+the one shared audio primitive every game in the cartridge calls into,
+not just Pacman's own file.
+
 ## Status (as of this session)
 
 Shipped and visually verified (WebGL emulator + a Puppeteer screenshot
