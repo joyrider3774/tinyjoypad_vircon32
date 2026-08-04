@@ -1235,9 +1235,23 @@ void gameTinyBike_update()
 
         bikDynamicAdj();
 
-        int speedTicks = bikCheckSpeedAdj( bikAccel );
+        // Upstream: for(t=0;t<CHECK_SPEED_ADJ(ACCEL);t++){...} - a plain C
+        // for-loop, so its bound is genuinely re-evaluated every iteration
+        // against whatever ACCEL currently is, not computed once up front.
+        // bikAccel is NOT read-only inside this loop's own body -
+        // bikIncrementeScroll() -> bikRefreshPosSprite() ->
+        // bikCheckCollision() -> bikAnaliseMinutieuse() can reduce it
+        // (oil-slick hit, bikAccel-=0.20) and bikBreakGravity() (a hard
+        // ramp landing) can too - so a same-tick collision correctly
+        // shortens the *remaining* iterations upstream, and re-derives
+        // bikHigherJump (via bikCheckSpeedAdj()'s own bikHigherAdj() call)
+        // against the new, post-collision speed. Hoisting this to a
+        // single pre-loop value (an earlier version of this port) loses
+        // both effects - found via a project-wide audit for this exact
+        // "loop's own re-checked bound got flattened to a constant"
+        // pattern, the same class as Tiny Missile's ATTACK_WEAPON() bug.
         int t;
-        for( t = 0; t < speedTicks; t++ )
+        for( t = 0; t < bikCheckSpeedAdj( bikAccel ); t++ )
         {
             bikIncrementeScroll();
             if( bikDiv1 == 3 )

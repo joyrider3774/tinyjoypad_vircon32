@@ -978,6 +978,83 @@ corruption. Audio correctness itself (does it actually silence/restore
 sound) wasn't verifiable via screenshot the same way the multi-voice fix
 above couldn't be either - worth a real play-test to confirm.
 
+## Tiny Missile's `ATTACK_WEAPON()` bug generalized into a project-wide audit for "loop's own re-checked condition flattened away" bugs
+
+A direct follow-up request ("can verify if there are any other such
+upstream vs downstream porting bugs... in all games i mean") turned the
+Tiny Missile fix above into a targeted, project-wide sweep. The bug
+class: an upstream `while`/`goto`-shaped loop whose own condition is
+re-checked *fresh on every iteration* (not just once, at the top) gates
+a call into a function with its own internal state-dependent branching -
+porting that loop into a frame-stepped state can silently drop the
+per-iteration recheck, either doing more than upstream (calling the
+inner function when it shouldn't) or less (stopping too early).
+
+Dispatched 4 parallel background agents, each covering ~8 games,
+specifically hunting for this shape (not general code review, not the
+sound-effect bugs already fixed earlier this session, not the byte-
+truncation/shift-wraparound/signed-sentinel bug family already
+extensively documented elsewhere in this file) - reading every upstream
+`while`/`goto` construct (including companion C++ class files, not just
+the main `.ino`) and tracing whether the port's own conversion preserves
+the exact re-check cadence.
+
+**31 of 32 remaining games came back clean** (Tiny Missile itself was
+already fixed and excluded from the sweep). Tiny Plaque's own
+`ADD_TEETH_TPLAQUE()`/`PUT_TEETH_TPLAQUE()` teeth-pool scan is
+structurally the closest analog to Missile's own bug (a genuine resource-
+pool-drain loop with per-candidate re-checking) and got the deepest
+individual scrutiny of the whole audit - confirmed already correctly
+ported, re-checking `extraTeeth > 0` fresh at each candidate and short-
+circuiting the remaining scan the instant the pool empties, matching
+upstream's own edge case (a call with an already-empty pool still
+consumes its "turn" without activating anything) exactly.
+
+**One real bug found: Tiny Bike.** Upstream's own per-tick movement loop:
+```c
+for (t=0; t<CHECK_SPEED_ADJ(ACCEL); t++){
+  INCREMENTE_SCROLL(); if (DIV1==3) {...TRACK_RUN_ADJ();...} else{DIV1++;}
+}
+```
+A plain C `for` loop re-evaluates its bound *every iteration* - so
+`CHECK_SPEED_ADJ(ACCEL)` (which also has its own side effect,
+`Higher_adj(ret)`, updating the jump-arc physics constant) is called
+fresh each pass against whatever `ACCEL` currently is. `ACCEL` is not
+read-only inside the loop body: `INCREMENTE_SCROLL()` ->
+`RefreshPosSprite()` -> `CheckCollision()` -> `analise_minutieuse()` can
+reduce it mid-loop via an oil-slick hit (`ACCEL-=0.20`), and a hard ramp
+landing via `Break_Gravity()` (`ACCEL-=2`) can too - so a same-tick
+collision correctly shortens the *remaining* iterations and re-derives
+the jump-height constant against the new, slower speed.
+
+The port (`gameTinyBike.c`) had instead hoisted this to
+`int speedTicks = bikCheckSpeedAdj( bikAccel ); for(t=0;t<speedTicks;t++)`
+- computed once, before the loop, with the SAME reachable mid-loop
+`bikAccel` reduction paths (`bikAnaliseMinutieuse()`'s oil-slick case,
+`bikBreakGravity()`) present in the port too (confirmed directly, not
+just inferred from the agent's report). Effect: after a same-tick
+oil-slick hit or hard landing, the port kept running the loop for the
+*original* (higher, pre-collision) iteration count instead of correctly
+shortening it, over-advancing scroll/track state that tick, and left
+`bikHigherJump` computed from the stale pre-collision speed instead of
+being refreshed - a different (less-gentle) jump arc than upstream
+immediately after a mid-tick deceleration event. **Fixed** by moving the
+`bikCheckSpeedAdj( bikAccel )` call directly into the loop condition,
+matching upstream's genuine per-iteration re-evaluation instead of a
+single hoisted value.
+
+Verified via Puppeteer after rebuilding: Tiny Bike launches, plays
+(acceleration, wheelie tilt, track scrolling, HUD) with no crash or
+corruption - didn't specifically force an oil-slick-hit-mid-loop frame to
+visually confirm the corrected shortened-iteration behavior itself
+(audio/physics-timing side effects aren't screenshot-verifiable the same
+way a crash would be), so worth a direct play-test focused on that exact
+scenario if time allows. The other 31 games' own audits were report-only
+(no files touched) and are not independently re-verified beyond the
+agents' own traced reasoning - each report is detailed enough (exact
+upstream line numbers, exact port line numbers, the precise re-check
+condition compared) to re-check by hand if anything seems off later.
+
 ## Status (as of this session)
 
 Shipped and visually verified (WebGL emulator + a Puppeteer screenshot
