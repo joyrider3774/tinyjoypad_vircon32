@@ -26,6 +26,8 @@ of that:
 | D-pad | Move / navigate the menu |
 | Button 1 ("A"/Fire) | Confirm, jump, shoot, rotate, etc. - context-sensitive per game |
 | Button 2 ("B") | Secondary action - only Tiny Minez uses this (instant flag-toggle, as an alternative to holding Button 1) |
+| Button 3 ("X") | Toggle a pixel-grid overlay on/off - only while a game is actually running (no effect on the menu) |
+| Button 4 ("Y") | Toggle sound on/off globally - works on the menu, mid-game, and during the quit-confirmation dialog |
 | Start | Pause mid-game and open the quit-confirmation dialog (YES/NO, defaults to NO) |
 
 Which physical keyboard key or real gamepad button maps to which of

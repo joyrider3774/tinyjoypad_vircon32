@@ -474,6 +474,20 @@ void drawConfirmQuitDialog()
 bool pixelGridEnabled = false;
 bool prevGridButton = false;
 
+// Sound on/off - Button Y (unused elsewhere: A=Fire, B=Fire2, X=pixel-grid
+// toggle, Start=quit dialog), toggled globally rather than gated to
+// gameplay-only the way the pixel-grid toggle is - matches the sibling
+// SDL ports' own BUTTON_SOUNDSWITCH, which likewise works everywhere
+// (menu, gameplay, dialog), not just mid-game. Implemented via Vircon32's
+// own real SPU_GlobalVolume hardware register (set_global_volume(),
+// range 0-2) rather than gating each md_playTone() call individually -
+// simpler, and (like the SDL ports' own gMuted flag) leaves every game's
+// own audioStopAtFrame[] duration bookkeeping untouched, so unmuting mid-
+// tone resumes hearing whatever's still legitimately playing instead of
+// needing anything to restart.
+bool audioMuted = false;
+bool prevMuteButton = false;
+
 void drawPixelGridOverlay()
 {
     select_texture( PIXELGRID_TEXTURE_ID );
@@ -611,6 +625,24 @@ void main()
 
         if( currentGameIndex != -1 && !confirmingQuit && pixelGridEnabled )
           drawPixelGridOverlay();
+
+        // Button Y toggles sound globally - unlike the pixel-grid toggle
+        // above, deliberately NOT gated to "a game is running": the menu
+        // itself is silent today, but gating this to gameplay-only would
+        // be a surprising inconsistency with the sibling SDL ports' own
+        // always-available mute, and would mean muting mid-game then
+        // returning to the menu and back couldn't be done from the menu
+        // screen itself.
+        bool muteButton = ( gamepad_button_y() > 0 );
+        if( muteButton && !prevMuteButton )
+        {
+            audioMuted = !audioMuted;
+            if( audioMuted )
+              set_global_volume( 0.0 );
+            else
+              set_global_volume( 1.0 );
+        }
+        prevMuteButton = muteButton;
 
         md_updateAudio();
         obonoCoreShimUpdateSound();

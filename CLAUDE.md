@@ -930,6 +930,54 @@ crash or corruption - a meaningful check here since this change touches
 the one shared audio primitive every game in the cartridge calls into,
 not just Pacman's own file.
 
+## A global sound on/off toggle, added on direct request after comparing against the sibling SDL ports
+
+A follow-up question ("can sound be turned off/on by button press +
+debounce in this port?") revealed a real asymmetry: the sibling SDL
+ports (`tinyjoypad_SDL3`/`Tinyjoypad_SDL`) have a dedicated, always-
+available mute button (`BUTTON_SOUNDSWITCH`) working identically across
+all 33 games, but this Vircon32 build had no equivalent - only 5 specific
+AttinyArcade-lineage games (Stacker, Wren Rollercoaster, Bat Bonanza/Pong,
+Frogger, UFO) have their own *local*, upstream-inherited "hold Fire ~2s"
+secret mute gesture, faithfully ported from those specific games' own
+original behavior - not a project-wide feature, and a different debounce
+shape entirely (a hold-duration threshold + an action-done flag, not a
+single-press edge check).
+
+Added a genuine global toggle on request, modeled on the SDL ports' own
+`gMuted` design: **Button Y** (the last of the 4 face buttons still
+unused by this project - A=Fire, B=Fire2, X=pixel-grid toggle, Start=quit
+dialog), a plain single-press edge check
+(`muteButton && !prevMuteButton`), toggling a new `audioMuted` bool.
+Deliberately **not** gated to "a game is running" the way the pixel-grid
+toggle is (see that feature's own write-up above) - works identically on
+the menu, mid-game, and during the quit-confirmation dialog, matching the
+SDL ports' own always-available behavior rather than the pixel-grid's
+own gameplay-only scope.
+
+**Implementation is simpler than the SDL ports' own fix required**:
+Vircon32 has a real hardware master-volume register exposed as
+`set_global_volume(float)`/`get_global_volume()` (`audio.h`, range 0-2) -
+muting is just `set_global_volume(0.0)`, unmuting `set_global_volume(1.0)`.
+No need to gate every individual `md_playTone()` call or touch the
+multi-voice mixing added earlier this session at all - the SPU's own
+volume register applies to every channel uniformly, so this composes
+cleanly with the just-added multi-voice fix without any interaction
+between the two.
+
+One dialect gotcha hit immediately: `audioMuted ? 0.0 : 1.0` (the natural
+first attempt) doesn't compile on this platform (`character '?' is not a
+valid identifier start` - this compiler has no ternary operator, a
+long-standing documented restriction throughout this project) - rewritten
+as a plain `if`/`else` instead.
+
+Verified via Puppeteer: toggling the button on the menu screen, then
+launching a game while muted, then toggling again mid-game to unmute -
+all three transitions rendered correctly with no crash, freeze, or visual
+corruption. Audio correctness itself (does it actually silence/restore
+sound) wasn't verifiable via screenshot the same way the multi-voice fix
+above couldn't be either - worth a real play-test to confirm.
+
 ## Status (as of this session)
 
 Shipped and visually verified (WebGL emulator + a Puppeteer screenshot
