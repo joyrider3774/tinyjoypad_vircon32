@@ -64,6 +64,7 @@
 #include "games/gameSnakeGame85.c"
 #include "games/gameJumpSlime.c"
 #include "games/gameTinyRoG.c"
+#include "games/gameTinYFi.c"
 
 #include "menuGameList.c"
 

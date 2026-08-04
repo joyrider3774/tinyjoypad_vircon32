@@ -156,4 +156,9 @@ void addGames()
     // flag/skip-redraw path anywhere in this port), so NULL here is
     // confirmed correct, not an oversight.
     addGame( "TINYROG", "KONDOLAB", &gameTinyRoG_init, &gameTinyRoG_update, NULL );
+    // TinY Fi: gameTinYFi_update() calls tfiRender() unconditionally at
+    // the end of every single state branch (no dirty-flag/skip-redraw
+    // path anywhere in this port), so NULL here is confirmed correct, not
+    // an oversight.
+    addGame( "TINY FI", "KONDOLAB", &gameTinYFi_init, &gameTinYFi_update, NULL );
 }

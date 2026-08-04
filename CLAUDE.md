@@ -95,7 +95,8 @@ future porting pass doesn't need to re-download anything:
     article: https://note.com/kondolab/n/n2c96413eaa23 (published
     2025-11-03), source download `sample4.zip` linked from that article,
     also playable via an embedded Wokwi simulator
-    (https://wokwi.com/projects/446512906551374849).
+    (https://wokwi.com/projects/446512906551374849). **Ported** as
+    `src/games/gameTinYFi.c` - see Status below for the full writeup.
   - `Cave11Item` - **"TinyRoG"** (folder name references its own
     `CAVEDATA.h`/cave theme, not the author's title) - a roguelike RPG
     with procedurally-generated mazes across 30 floors
@@ -1212,14 +1213,14 @@ file - both `sdl3`/`sdl2` rebuilt clean.
 ## Status (as of this session)
 
 Shipped and visually verified (WebGL emulator + a Puppeteer screenshot
-harness - see below): the shim architecture, the menu, and 36 full games
+harness - see below): the shim architecture, the menu, and 37 full games
 (NumberPlace, Tiny Invaders, 2048, HollowSeeker, Tiny Pinball, Tiny
 Pacman, Tiny Bomber, Tiny Doc, Tiny Bert, Tiny Tris, Tiny Arkanoid, Tiny
 Trick, Tiny Minez, Tiny Missile, Tiny Bike, Tiny Arena, Tiny Gilbert,
 Tiny Pipe, Tiny Morpion, Tiny Plaque, Tiny SQuest, Tiny DDug, Tiny
 Lander, Wren Rollercoaster, Frogger, Bat Bonanza, Stacker, UFO, Tiny
 Dungeon, Oroboros, Run Dude Run, Four in a Row, Dino Game, SnakeGame85,
-Jump Slime, TinyRoG). Every game from the project's original scope
+Jump Slime, TinyRoG, TinY Fi). Every game from the project's original scope
 shipped with Tiny Dungeon (see its own writeup below for what's still
 not independently re-verified about it specifically) - Oroboros, Run
 Dude Run, Four in a Row, and Dino Game were this project's first four
@@ -1239,9 +1240,10 @@ fetched via WebFetch to identify each game's real title/description/
 source link (see `more games/`'s own catalog entry below for the full
 triage of all 3). Jump Slime was picked as the simplest/lowest-risk of
 the three to port first; TinyRoG (the roguelike, second of the three)
-followed in the same session - see its own writeup below. TinY Fi (the
-fighting game) remains triaged but not yet ported. The beyond-scope
-backlog is empty again unless a future search or link turns up
+followed in the same session, and TinY Fi (the fighting game, third and
+last of the three) followed in a later session - see its own writeup
+below. The `more games/sample/` batch, and with it the beyond-scope
+backlog, is now empty again unless a future search or link turns up
 something new.
 
 - `src/machineDependent.h` + `src/portVircon32.c` - the `md_*` primitives
@@ -5565,13 +5567,129 @@ of scope).
   screenshot that movement/rendering still work correctly at the
   throttled rate, CPU unchanged at ~60%.
 
-  Menu thumbnail added to `assets/thumbnails2.png`'s cell 3 (fourth/last
-  cell of its 4x2 grid - the atlas is now completely full again, the
-  same situation the original 4x8 grid reached before Dino Game forced a
-  second texture; a third texture would be needed for any further
-  addition beyond this one). Verified via screenshot that it displays
-  correctly and Jump Slime's own neighboring thumbnail (cell 2) is
-  untouched.
+  Menu thumbnail added to `assets/thumbnails2.png`'s cell 3 (fourth cell
+  of its 4x2/8-cell grid - despite this session's own writeup at the time
+  claiming the atlas was "now completely full again", a later direct
+  pixel-level inspection of the PNG (done while porting TinY Fi, see that
+  game's own writeup below) confirmed cells 4-7 were still genuinely
+  blank - that earlier claim was simply wrong, not a description of a
+  since-changed state; corrected here rather than left standing).
+  Verified via screenshot that it displays correctly and Jump Slime's own
+  neighboring thumbnail (cell 2) is untouched.
+
+- `src/games/gameTinYFi.c` - TinY Fi (Kondolab / 近藤さんちの研究室,
+  contact via note.com - credited "KONDOLAB" in the menu, same treatment
+  as Jump Slime/TinyRoG's own credit; license "None specified", same
+  known-author-unstated-license situation as those two). Third and last
+  of the 3 `more games/sample/` AI-assisted games, ported after Jump
+  Slime and TinyRoG in a later session (picked last specifically because
+  its render dispatch - a dense, per-animation-state tangle of several
+  stacked sprite layers per character - looked like the highest-risk of
+  the three at triage time; see this file's own header comment for the
+  full reasoning). A belt-scroll-style fighting game: move/jump with the
+  d-pad, punch/uppercut/jump-kick with Fire, across 6 stages of
+  increasingly numerous enemies (the last enemy of stages 3 and 6 is a
+  tougher "boss" with double HP and its own head sprite). Same
+  `ELECTROLIB.h` driver lineage as every other Daniel-C-family game and
+  as Jump Slime/TinyRoG's own reproduction of it under a different
+  filename - no new shim needed, and no blocking waits/FPS-limiter to
+  convert at all (upstream's own `loop()` is already fully frame-based,
+  with real per-tick edge-detected button checks, not a busy-wait
+  anywhere in the game logic itself).
+
+  A proactive fix applied from the start, not found via a bug report:
+  `RecupeLineY`/`RecupeDecalageY` are fed genuinely negative Y positions
+  here (a jump's initial `gravity=JUMP_STRENGTH=-8` can carry a
+  character's Y above 0 before gravity brings it back down) - the exact
+  same logical-vs-arithmetic-right-shift bug class already found and
+  fixed in HollowSeeker's `hsDivByColumnW` and Tiny Pipe's own
+  `RecupeLineY`, fixed the identical way (branch on sign, only ever shift
+  a non-negative operand). Several genuine upstream quirks were traced
+  and preserved rather than "corrected" - a dead random-enemy-spawn-X
+  computation immediately overwritten by 3 fixed positions, an uppercut-
+  cooldown bonus that can never fire (`pncCd=14; if(pncCd%4==0)...` -
+  14%4 is never 0, in upstream too), a boss-designation check that reads
+  the wrong array index (`acter[i].x!=200` instead of `acter[ENM+i].x`,
+  an always-true no-op since the player's own X never reaches 200), a
+  genuine double-decrement of `acter[ME].cdw` within a single tick (once
+  near the top of `GAME_STAGE`, once again near the bottom - real,
+  already-tuned cooldown-timing behavior, not a transcription slip), and
+  a skipped out-of-bounds `enmCnt[nowStageNo]` read in `setup()` (reads
+  index 200 against a 6-entry array - traced every later use and
+  confirmed it's always overwritten before ever being read, so guarding
+  it would have been pure ceremony) - see this file's own header comment
+  for the full list and reasoning behind each.
+
+  **A real CPU-budget overrun, found via a direct user report during this
+  port's own first playtest** ("100% cpu is hit during gameplay"),
+  visible as characters rendering as small, incomplete blobs mid-fight -
+  this project's own well-documented "frame truncated mid-instruction-
+  stream, real CPU-budget exceeded" failure signature, not a logic bug.
+  Root cause was the by-now-familiar O(pixels x objects) shape, just one
+  level deeper than usual: the render loop already composited each of the
+  4 characters into a shared per-page buffer instead of scanning all 128
+  columns directly (this project's own standard fix, applied from this
+  port's very first draft) - but that per-character composite still
+  called the generic per-pixel `tfiBlitzSpriteDir()` once per *column*
+  per *layer* (up to ~20 columns x up to 5 stacked sprite layers x up to
+  4 characters x up to 6 pages), and each of those calls independently
+  recomputed the same per-row-constant values
+  (`wMax`/`picByte`/`recupeLineY`/`spriteYDecalage`) that don't actually
+  change across a single sprite layer's own row. Fixed by adding
+  `tfiBlitzSpriteRow()` - hoists that computation to run once per
+  (character, layer, page) instead of once per column, the same "cache/
+  hoist what doesn't change across an inner loop" lesson as TinyRoG's own
+  tile-row compositing and Tiny DDug's wall-mask cache, just applied one
+  level deeper than the per-character row-buffer compositing already in
+  place. Applied the identical lesson to the page-0 HUD layer too (the
+  "HP"/"EN" labels and every acter's own HP-bar segment were being
+  recomputed for all 128 columns instead of composited once per page) -
+  per a direct follow-up user request ("apply the pixel 1024
+  optimization if possible") - via a new `tfiComposeHudRow()`, matching
+  the same once-per-page compositing shape as the sprite fix.
+  **Measured, not just applied on theory**, per this project's own
+  standing practice: the WebGL perf overlay showed CPU dropping from a
+  saturated, frame-truncating 100% down to a steady 50-54% across an
+  extended soak test (continuous movement + repeated punching against
+  all 3 starting enemies, sampled every few real seconds), with
+  characters now rendering completely (heads, bodies, legs all present)
+  throughout - confirmed via screenshot at every sampled point, not just
+  a single before/after pair.
+
+  A 30fps whole-function tick-skip was added afterward at direct user
+  request ("limit fps to 30") - upstream has no genuine real-time
+  throttle at all (the "no timing model whatsoever upstream" category,
+  same as Jump Slime/TinyRoG). Every existing frame-counted constant in
+  the file (`tfiCnt`'s own 0-64 animation cycle, every `cdw`/`pncCd`
+  cooldown counter) was deliberately left unrescaled, matching this
+  project's own standing "one divisor, no dual bookkeeping" practice -
+  they simply now take twice as long in real time.
+
+  Verified via Puppeteer: the title screen ("TinyFi", composited from two
+  adjacent `miniStg` sprite frames), the floor-intro screen ("FL.01", via
+  the shared number-display helper), and active gameplay (movement,
+  punching connecting and reducing an enemy's HP bar, the HP/EN HUD bars
+  and enemy-remaining debug digit all rendering correctly) were all
+  confirmed via screenshot both before and after the CPU fix. The
+  DIE/FIN(clear) screens were not independently screenshot-forced this
+  session - both reuse the exact same `tfiSpeedBlitz`-against-`miniStg`
+  mechanism already proven correct by the title/floor-intro screens, just
+  with different frame indices from the same already-verified table, so
+  risk is low, but worth a direct check if anything looks off. Stage-
+  clear (defeating a full floor's worth of enemies) and a player-death
+  sequence were likewise not independently forced to completion this
+  session - an extended soak test reduced the starting 3-enemy group by
+  one confirmed kill (HP bar visibly emptying, the debug enemy-remaining
+  count changing) without incident, but didn't run long enough to reach
+  either terminal state.
+
+  Menu thumbnail added to `assets/thumbnails2.png`'s cell 4 (first cell
+  of the grid's second row) - confirmed via a direct pixel-level
+  inspection of the PNG (not by trusting this file's own prior, since-
+  corrected "atlas is now completely full" claim from TinyRoG's own
+  writeup above) that cells 4-7 were genuinely still blank before this
+  addition. No further atlas growth or third texture needed - 3 cells
+  (5,6,7) remain free for future games.
 
 ## Licensing
 
@@ -5643,8 +5761,9 @@ anywhere on the author's own article pages for this game's own code
 confirmed GPLv3 there). Listed as "None specified" in the README for
 licensing purposes only - unlike Four in a Row/Dino Game/SnakeGame85,
 this is a case of a known author with an unstated license, not an
-unknown author. TinyRoG shares this exact same situation (same author,
-same "None specified" license treatment) - see its own writeup above.
+unknown author. TinyRoG and TinY Fi both share this exact same situation
+(same author, same "None specified" license treatment) - see their own
+writeups above.
 Attribution (corrected mid-session after checking each `.ino`'s own
 header comment directly, rather than trusting this file's earlier,
 imprecise "Lorandil" shorthand): Tiny Pinball/Pacman/Bomber/Doc/Bert/

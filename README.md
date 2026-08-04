@@ -1,6 +1,6 @@
 # TinyJoypad → Vircon32
 
-A single [Vircon32](https://www.vircon32.com/) cartridge that ports **33
+A single [Vircon32](https://www.vircon32.com/) cartridge that ports **37
 games** originally written for the [TinyJoypad](https://www.tinyjoypad.com/)
 ATtiny85 + SSD1306 128x64 OLED handheld onto Vircon32's 640x360 GPU, behind
 one shared game-select menu. Vircon32's GPU is a texture-region blitter with
@@ -88,6 +88,7 @@ license/attribution is preserved unmodified in its own header comment in
 | SnakeGame85 | terezaza | GPLv3 | [SnakeGame85](https://github.com/terezaza/SnakeGame85) |
 | Jump Slime | Kondolab (近藤さんちの研究室) | None specified | [note.com/kondolab](https://note.com/kondolab/n/ndc93ac31e555) |
 | TinyRoG | Kondolab (近藤さんちの研究室) | None specified | [note.com/kondolab](https://note.com/kondolab/n/n1806e4234495) |
+| TinY Fi | Kondolab (近藤さんちの研究室) | None specified | [note.com/kondolab](https://note.com/kondolab/n/n2c96413eaa23) |
 
 ## Optimizations
 
