@@ -357,11 +357,59 @@ int tpipeSweepActive;
 int tpipeSweepT;
 int tpipeBurstActive;
 
-// SND_TPIPE(0) - a short 5-note ascending confirm chime, harmless as a
-// synchronous burst (only 5 calls).
+// Small non-blocking multi-note SFX player for this file's short, fixed
+// cues (SND_TPIPE(0), the kill-sprite cue, the bonus-life jingle) - same
+// shape as gameTinyDoc.c's/gameTinyTrick.c's/gameTinyTris.c's own. A
+// burst of N Sound() calls with no real time between them is only ever
+// audible as the very last one (md_playTone() has no queue) - contrary
+// to this function's own former comment below, even a "short" 5-call
+// burst isn't harmless, since the call count doesn't matter, only the
+// fact that there's more than one. gameTinyPipe_update() only ticks once
+// every TPIPE_TICK_DIVISOR(2) real frames (30 logic ticks/sec), so
+// wait-frame counts here are computed against 30.
+#define TPIPE_SND_MAX_NOTES 6
+int[TPIPE_SND_MAX_NOTES] tpipeSndFreqBytes;
+int[TPIPE_SND_MAX_NOTES] tpipeSndDurBytes;
+int tpipeSndLen;
+int tpipeSndPos;
+int tpipeSndWaitFrames;
+
+void tpipeAdvanceSfx()
+{
+    if( tpipeSndPos >= tpipeSndLen )
+      return;
+
+    if( tpipeSndWaitFrames > 0 )
+    {
+        tpipeSndWaitFrames--;
+        return;
+    }
+
+    int freqByte = tpipeSndFreqBytes[ tpipeSndPos ];
+    int durByte = tpipeSndDurBytes[ tpipeSndPos ];
+    Sound( freqByte, durByte );
+
+    int periodUs = 255 - freqByte;
+    if( periodUs < 1 )
+      periodUs = 1;
+    float durationSeconds = (float)( durByte * 2 * periodUs ) / 1000000.0;
+    int waitFrames = (int)( durationSeconds * 30.0 );
+    if( waitFrames < 1 )
+      waitFrames = 1;
+    tpipeSndWaitFrames = waitFrames;
+
+    tpipeSndPos++;
+}
+
+// SND_TPIPE(0) - a short 5-note ascending confirm chime.
 void tpipeSound0()
 {
-    Sound( 10, 40 ); Sound( 60, 40 ); Sound( 110, 40 ); Sound( 170, 40 ); Sound( 220, 40 );
+    tpipeSndFreqBytes[ 0 ] = 10; tpipeSndDurBytes[ 0 ] = 40;
+    tpipeSndFreqBytes[ 1 ] = 60; tpipeSndDurBytes[ 1 ] = 40;
+    tpipeSndFreqBytes[ 2 ] = 110; tpipeSndDurBytes[ 2 ] = 40;
+    tpipeSndFreqBytes[ 3 ] = 170; tpipeSndDurBytes[ 3 ] = 40;
+    tpipeSndFreqBytes[ 4 ] = 220; tpipeSndDurBytes[ 4 ] = 40;
+    tpipeSndLen = 5; tpipeSndPos = 0; tpipeSndWaitFrames = 0;
 }
 
 // SND_TPIPE(1) - see this file's own header comment: upstream fires
@@ -866,7 +914,9 @@ void tpipeKillSprite()
 {
     if( !tpipeSprite[ tpipeSequencialCheck ].killed )
     {
-        Sound( 100, 2 ); Sound( 240, 2 );
+        tpipeSndFreqBytes[ 0 ] = 100; tpipeSndDurBytes[ 0 ] = 2;
+        tpipeSndFreqBytes[ 1 ] = 240; tpipeSndDurBytes[ 1 ] = 2;
+        tpipeSndLen = 2; tpipeSndPos = 0; tpipeSndWaitFrames = 0;
         int a = tpipeSprite[ tpipeSequencialCheck ].active;
         if( a == 1 )
         {
@@ -1032,7 +1082,13 @@ void tpipeLoadLevel( int level )
     if( level == 2 || level == 5 || level == 8 || level == 11 || level == 14 || level == 17 )
     {
         tpipeGP.lives++;
-        Sound( 200, 255 ); Sound( 0, 255 ); Sound( 200, 255 ); Sound( 0, 255 ); Sound( 200, 255 ); Sound( 0, 255 );
+        tpipeSndFreqBytes[ 0 ] = 200; tpipeSndDurBytes[ 0 ] = 255;
+        tpipeSndFreqBytes[ 1 ] = 0; tpipeSndDurBytes[ 1 ] = 255;
+        tpipeSndFreqBytes[ 2 ] = 200; tpipeSndDurBytes[ 2 ] = 255;
+        tpipeSndFreqBytes[ 3 ] = 0; tpipeSndDurBytes[ 3 ] = 255;
+        tpipeSndFreqBytes[ 4 ] = 200; tpipeSndDurBytes[ 4 ] = 255;
+        tpipeSndFreqBytes[ 5 ] = 0; tpipeSndDurBytes[ 5 ] = 255;
+        tpipeSndLen = 6; tpipeSndPos = 0; tpipeSndWaitFrames = 0;
     }
     if( level > 20 ) level = 20;
     tpipeGP.levelXSpeed = tpipeMymap( level, 0, 20, 3, 10 );
@@ -1340,6 +1396,8 @@ void gameTinyPipe_update()
     tpipeTickSkipCounter++;
     if( tpipeTickSkipCounter < TPIPE_TICK_DIVISOR ) return;
     tpipeTickSkipCounter = 0;
+
+    tpipeAdvanceSfx();
 
     if( tpipeState == TPIPE_STATE_INTRO_FADEIN )
     {

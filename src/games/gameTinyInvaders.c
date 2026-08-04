@@ -754,6 +754,105 @@ int tinvOuDansLaGrilleMonster( int x, int y )
     return 0;
 }
 
+// Small non-blocking multi-note SFX player, same shape as
+// gameTinyPacman.c's/gameTinyBomber.c's own - upstream's real Sound(freq,
+// dur) calls genuinely block on real hardware, but md_playTone() has no
+// queue: a burst of N calls with no real time between them is only ever
+// audible as the very last one. Declared here, ahead of its first call
+// site (this function, the UFO-destroyed sweep below), since this
+// dialect requires definition before use.
+#define TINV_SFX_MAX_NOTES 15
+float[TINV_SFX_MAX_NOTES] tinvSfxFreq;
+float[TINV_SFX_MAX_NOTES] tinvSfxDur;
+int tinvSfxLen;
+int tinvSfxPos;
+int tinvSfxWaitFrames;
+
+void tinvStartSfx2( float freq0, float dur0, float freq1, float dur1 )
+{
+    tinvSfxFreq[ 0 ] = freq0; tinvSfxDur[ 0 ] = dur0;
+    tinvSfxFreq[ 1 ] = freq1; tinvSfxDur[ 1 ] = dur1;
+    tinvSfxLen = 2;
+    tinvSfxPos = 0;
+    tinvSfxWaitFrames = 0;
+}
+
+// Upstream's own level-cleared fanfare: Sound(110,255);_delay_ms(40);
+// Sound(130,255);_delay_ms(40);Sound(100,255);_delay_ms(40);Sound(1,155);
+// _delay_ms(20);Sound(60,255);Sound(60,255); - 5 distinct tones (the
+// trailing Sound(60,255) is a duplicate, deduped here), each with a real
+// _delay_ms() gap upstream that a synchronous burst here can't reproduce.
+void tinvStartFanfare()
+{
+    int[5] freqBytes;
+    freqBytes[ 0 ] = 110; freqBytes[ 1 ] = 130; freqBytes[ 2 ] = 100;
+    freqBytes[ 3 ] = 1; freqBytes[ 4 ] = 60;
+    int[5] durBytes;
+    durBytes[ 0 ] = 255; durBytes[ 1 ] = 255; durBytes[ 2 ] = 255;
+    durBytes[ 3 ] = 155; durBytes[ 4 ] = 255;
+
+    int i;
+    for( i = 0; i < 5; i++ )
+    {
+        int periodUs = 255 - freqBytes[ i ];
+        if( periodUs < 1 )
+          periodUs = 1;
+        tinvSfxFreq[ i ] = 500000.0 / (float)periodUs;
+        tinvSfxDur[ i ] = (float)( durBytes[ i ] * 2 * periodUs ) / 1000000.0;
+    }
+    tinvSfxLen = 5;
+    tinvSfxPos = 0;
+    tinvSfxWaitFrames = 0;
+}
+
+// Upstream's own UFO-destroyed sweep: for(x=1;x<100;x++){Sound(x,1);} - 99
+// real notes, each only a couple microseconds long on real hardware
+// (bit-banged, genuinely fast - the whole sweep is a near-instant "zap").
+// Reproducing all 99 one-per-real-frame would stretch it to over a real
+// second, far longer than intended - downsampled the loop's own step size
+// instead (stride 7, matching the established fix for every other
+// oversized computed sweep in this project), capped to this file's shared
+// TINV_SFX_MAX_NOTES(15)-note buffer.
+void tinvStartUfoSweep()
+{
+    int i;
+    int x = 1;
+    for( i = 0; i < TINV_SFX_MAX_NOTES; i++ )
+    {
+        int periodUs = 255 - x;
+        if( periodUs < 1 )
+          periodUs = 1;
+        tinvSfxFreq[ i ] = 500000.0 / (float)periodUs;
+        tinvSfxDur[ i ] = (float)( 1 * 2 * periodUs ) / 1000000.0;
+        x = x + 7;
+        if( x >= 100 ) x = 99;
+    }
+    tinvSfxLen = TINV_SFX_MAX_NOTES;
+    tinvSfxPos = 0;
+    tinvSfxWaitFrames = 0;
+}
+
+void tinvAdvanceSfx()
+{
+    if( tinvSfxPos >= tinvSfxLen )
+      return;
+
+    if( tinvSfxWaitFrames > 0 )
+    {
+        tinvSfxWaitFrames--;
+        return;
+    }
+
+    md_playTone( tinvSfxFreq[ tinvSfxPos ], tinvSfxDur[ tinvSfxPos ] );
+
+    int waitFrames = (int)( tinvSfxDur[ tinvSfxPos ] * 60.0 );
+    if( waitFrames < 1 )
+      waitFrames = 1;
+    tinvSfxWaitFrames = waitFrames;
+
+    tinvSfxPos++;
+}
+
 void tinvUFOAttackCheck( int x )
 {
     // x unused (the UFO's own X range is read directly off tinvSpace) -
@@ -763,8 +862,7 @@ void tinvUFOAttackCheck( int x )
     {
         if( tinvSpace->MyShootBallxpos >= tinvSpace->UFOxPos && tinvSpace->MyShootBallxpos <= tinvSpace->UFOxPos + 14 )
         {
-            for( int i = 1; i < 100; i++ )
-              md_playTone( (float)i, 0.01 );
+            tinvStartUfoSweep();
 
             if( tinvLive < 3 ) { tinvLive++; tinvAddScore( 50 ); }
             else { tinvAddScore( 150 ); }
@@ -1019,8 +1117,10 @@ void tinvVarResetNewLevel()
 
 void tinvBebeep()
 {
-    md_playTone( 100.0, 0.1 );
-    md_playTone( 50.0, 0.1 );
+    // Upstream: Sound(100,125); Sound(50,125); - real freq/dur derived via
+    // the shared 500000/(255-freq) formula, sequenced non-blocking instead
+    // of a synchronous burst (md_playTone() has no queue).
+    tinvStartSfx2( 3225.8, 0.039, 2439.0, 0.051 );
 }
 
 void tinvCalcNewBackgroundOffset()
@@ -1297,11 +1397,7 @@ void tinvBeginLevelCleared()
 {
     tinvState = TINV_STATE_LEVEL_CLEARED;
 
-    md_playTone( 110.0, 0.05 );
-    md_playTone( 130.0, 0.05 );
-    md_playTone( 100.0, 0.05 );
-    md_playTone( 1.0, 0.02 );
-    md_playTone( 60.0, 0.05 );
+    tinvStartFanfare();
 
     tinvClearBattleground();
     tinvNewLevelAnimation = true;
@@ -1526,8 +1622,16 @@ void tinvUpdatePlaying()
     }
     else
     {
-        md_playTone( 80.0, 0.02 );
-        md_playTone( 100.0, 0.02 );
+        // Upstream: Sound(80,1);Sound(100,1); fired every real loop
+        // iteration while "crawling" (real hardware genuinely alternates
+        // between the two, since each Sound() call blocks) - md_playTone()
+        // has no queue, so a 2-call burst here would only ever be audible
+        // as the last one; alternating a single call by tinvDecompte's own
+        // parity instead reproduces the same audible back-and-forth buzz,
+        // the same technique this file's own monster-march step sound
+        // (tinvSpace->anim toggle, above) already uses.
+        if( tinvDecompte % 2 == 0 ) md_playTone( 2857.1, 0.01 );
+        else md_playTone( 3225.8, 0.01 );
         tinvDecompte++;
         if( tinvDecompte >= 30 )
         {
@@ -1556,6 +1660,8 @@ void tinvUpdateLevelCleared()
 
 void gameTinyInvaders_update()
 {
+    tinvAdvanceSfx();
+
     if( tinvWaitFrames > 0 )
     {
         tinvWaitFrames--;

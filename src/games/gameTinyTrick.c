@@ -392,18 +392,88 @@ int trkPatinoire1_2( int xPass, int yPass )
 
 // -----------------------------------------------------------------------------
 //   Sound (simplified long tone-loops - see header comment)
+//
+// Every multi-call branch here used to fire synchronously, no real time
+// between calls - harmless on real AVR hardware (Sound() genuinely
+// blocks there), but md_playTone() (which Sound() itself calls into) has
+// no queue, so only the very last call of each burst was ever audible.
+// Fixed with a small non-blocking byte-pair sequencer (same shape as
+// gameTinyDoc.c's own tdSndTdoc() fix) - still calls the shared
+// Sound(freqByte,durByte) directly, no formula re-derivation needed.
+// This file has no whole-function tick divisor (only TRK_MOVE_DIVISOR,
+// which gates physics, not the whole update) - gameTinyTrick_update()
+// ticks every real 60fps frame, so wait-frame counts below are computed
+// against 60.
 // -----------------------------------------------------------------------------
+
+#define TRK_SND_MAX_NOTES 4
+int[TRK_SND_MAX_NOTES] trkSndFreqBytes;
+int[TRK_SND_MAX_NOTES] trkSndDurBytes;
+int trkSndLen;
+int trkSndPos;
+int trkSndWaitFrames;
+
+void trkAdvanceSfx()
+{
+    if( trkSndPos >= trkSndLen )
+      return;
+
+    if( trkSndWaitFrames > 0 )
+    {
+        trkSndWaitFrames--;
+        return;
+    }
+
+    int freqByte = trkSndFreqBytes[ trkSndPos ];
+    int durByte = trkSndDurBytes[ trkSndPos ];
+    Sound( freqByte, durByte );
+
+    int periodUs = 255 - freqByte;
+    if( periodUs < 1 )
+      periodUs = 1;
+    float durationSeconds = (float)( durByte * 2 * periodUs ) / 1000000.0;
+    int waitFrames = (int)( durationSeconds * 60.0 );
+    if( waitFrames < 1 )
+      waitFrames = 1;
+    trkSndWaitFrames = waitFrames;
+
+    trkSndPos++;
+}
+
+void trkSndSet2( int f0, int d0, int f1, int d1 )
+{
+    trkSndFreqBytes[ 0 ] = f0; trkSndDurBytes[ 0 ] = d0;
+    trkSndFreqBytes[ 1 ] = f1; trkSndDurBytes[ 1 ] = d1;
+    trkSndLen = 2; trkSndPos = 0; trkSndWaitFrames = 0;
+}
+
+void trkSndSet3( int f0, int d0, int f1, int d1, int f2, int d2 )
+{
+    trkSndFreqBytes[ 0 ] = f0; trkSndDurBytes[ 0 ] = d0;
+    trkSndFreqBytes[ 1 ] = f1; trkSndDurBytes[ 1 ] = d1;
+    trkSndFreqBytes[ 2 ] = f2; trkSndDurBytes[ 2 ] = d2;
+    trkSndLen = 3; trkSndPos = 0; trkSndWaitFrames = 0;
+}
+
+void trkSndSet4( int f0, int d0, int f1, int d1, int f2, int d2, int f3, int d3 )
+{
+    trkSndFreqBytes[ 0 ] = f0; trkSndDurBytes[ 0 ] = d0;
+    trkSndFreqBytes[ 1 ] = f1; trkSndDurBytes[ 1 ] = d1;
+    trkSndFreqBytes[ 2 ] = f2; trkSndDurBytes[ 2 ] = d2;
+    trkSndFreqBytes[ 3 ] = f3; trkSndDurBytes[ 3 ] = d3;
+    trkSndLen = 4; trkSndPos = 0; trkSndWaitFrames = 0;
+}
 
 void trkSndTrk( int snd )
 {
-    if( snd == 0 ) { Sound( 140, 30 ); Sound( 220, 30 ); Sound( 140, 30 ); Sound( 220, 30 ); }
-    else if( snd == 1 ) { Sound( 20, 35 ); Sound( 200, 45 ); Sound( 20, 35 ); Sound( 200, 45 ); }
-    else if( snd == 2 ) { Sound( 3, 5 ); Sound( 10, 10 ); Sound( 3, 5 ); }
+    if( snd == 0 ) trkSndSet4( 140, 30, 220, 30, 140, 30, 220, 30 );
+    else if( snd == 1 ) trkSndSet4( 20, 35, 200, 45, 20, 35, 200, 45 );
+    else if( snd == 2 ) trkSndSet3( 3, 5, 10, 10, 3, 5 );
     else if( snd == 3 ) Sound( 3, 2 );
-    else if( snd == 4 ) { Sound( 200, 10 ); Sound( 80, 4 ); }
-    else if( snd == 5 ) { Sound( 4, 80 ); Sound( 100, 80 ); Sound( 4, 80 ); Sound( 100, 80 ); }
-    else if( snd == 6 ) { Sound( 180, 3 ); Sound( 90, 12 ); Sound( 60, 3 ); Sound( 30, 12 ); }
-    else if( snd == 7 ) { Sound( 100, 250 ); Sound( 20, 250 ); }
+    else if( snd == 4 ) trkSndSet2( 200, 10, 80, 4 );
+    else if( snd == 5 ) trkSndSet4( 4, 80, 100, 80, 4, 80, 100, 80 );
+    else if( snd == 6 ) trkSndSet4( 180, 3, 90, 12, 60, 3, 30, 12 );
+    else if( snd == 7 ) trkSndSet2( 100, 250, 20, 250 );
 }
 
 // -----------------------------------------------------------------------------
@@ -1138,6 +1208,8 @@ void gameTinyTrick_forceRedraw()
 
 void gameTinyTrick_update()
 {
+    trkAdvanceSfx();
+
     if( trkState == TRK_STATE_INTRO )
     {
         if( trkIntroTimer < 255 ) trkIntroTimer++; else trkIntroTimer = 0;

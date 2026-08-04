@@ -312,16 +312,84 @@ int trisMap( int x, int inMin, int inMax, int outMin, int outMax )
 
 // -----------------------------------------------------------------------------
 //   Sound (simplified two heavy sweep cases - see header comment)
+//
+// Every multi-call branch here used to fire synchronously, no real time
+// between calls - md_playTone() (which Sound() calls into) has no queue,
+// so only the very last call of each burst was ever audible. Fixed with a
+// small non-blocking byte-pair sequencer (same shape as gameTinyDoc.c's/
+// gameTinyTrick.c's own fix) - still calls the shared
+// Sound(freqByte,durByte) directly. This file has no whole-function tick
+// divisor of its own (ships at full real 60fps rate - see CLAUDE.md's own
+// frame-pacing history for Tris), so wait-frame counts are computed
+// against 60.
 // -----------------------------------------------------------------------------
+
+#define TRIS_SND_MAX_NOTES 4
+int[TRIS_SND_MAX_NOTES] trisSndFreqBytes;
+int[TRIS_SND_MAX_NOTES] trisSndDurBytes;
+int trisSndLen;
+int trisSndPos;
+int trisSndWaitFrames;
+
+void trisAdvanceSfx()
+{
+    if( trisSndPos >= trisSndLen )
+      return;
+
+    if( trisSndWaitFrames > 0 )
+    {
+        trisSndWaitFrames--;
+        return;
+    }
+
+    int freqByte = trisSndFreqBytes[ trisSndPos ];
+    int durByte = trisSndDurBytes[ trisSndPos ];
+    Sound( freqByte, durByte );
+
+    int periodUs = 255 - freqByte;
+    if( periodUs < 1 )
+      periodUs = 1;
+    float durationSeconds = (float)( durByte * 2 * periodUs ) / 1000000.0;
+    int waitFrames = (int)( durationSeconds * 60.0 );
+    if( waitFrames < 1 )
+      waitFrames = 1;
+    trisSndWaitFrames = waitFrames;
+
+    trisSndPos++;
+}
+
+void trisSndSet3( int f0, int d0, int f1, int d1, int f2, int d2 )
+{
+    trisSndFreqBytes[ 0 ] = f0; trisSndDurBytes[ 0 ] = d0;
+    trisSndFreqBytes[ 1 ] = f1; trisSndDurBytes[ 1 ] = d1;
+    trisSndFreqBytes[ 2 ] = f2; trisSndDurBytes[ 2 ] = d2;
+    trisSndLen = 3; trisSndPos = 0; trisSndWaitFrames = 0;
+}
+
+void trisSndSet4( int f0, int d0, int f1, int d1, int f2, int d2, int f3, int d3 )
+{
+    trisSndFreqBytes[ 0 ] = f0; trisSndDurBytes[ 0 ] = d0;
+    trisSndFreqBytes[ 1 ] = f1; trisSndDurBytes[ 1 ] = d1;
+    trisSndFreqBytes[ 2 ] = f2; trisSndDurBytes[ 2 ] = d2;
+    trisSndFreqBytes[ 3 ] = f3; trisSndDurBytes[ 3 ] = d3;
+    trisSndLen = 4; trisSndPos = 0; trisSndWaitFrames = 0;
+}
+
+void trisSndSet2( int f0, int d0, int f1, int d1 )
+{
+    trisSndFreqBytes[ 0 ] = f0; trisSndDurBytes[ 0 ] = d0;
+    trisSndFreqBytes[ 1 ] = f1; trisSndDurBytes[ 1 ] = d1;
+    trisSndLen = 2; trisSndPos = 0; trisSndWaitFrames = 0;
+}
 
 void trisSndTtris( int snd )
 {
-    if( snd == 0 ) { Sound( 3, 5 ); Sound( 10, 10 ); Sound( 3, 5 ); }
+    if( snd == 0 ) trisSndSet3( 3, 5, 10, 10, 3, 5 );
     else if( snd == 1 ) Sound( 3, 2 );
-    else if( snd == 2 ) { Sound( 40, 80 ); Sound( 150, 80 ); Sound( 40, 80 ); Sound( 150, 80 ); }
-    else if( snd == 3 ) { Sound( 180, 6 ); Sound( 90, 12 ); Sound( 60, 6 ); Sound( 30, 12 ); }
-    else if( snd == 4 ) { Sound( 20, 150 ); Sound( 100, 150 ); }
-    else if( snd == 5 ) { Sound( 40, 1 ); Sound( 120, 1 ); Sound( 200, 1 ); }
+    else if( snd == 2 ) trisSndSet4( 40, 80, 150, 80, 40, 80, 150, 80 );
+    else if( snd == 3 ) trisSndSet4( 180, 6, 90, 12, 60, 6, 30, 12 );
+    else if( snd == 4 ) trisSndSet2( 20, 150, 100, 150 );
+    else if( snd == 5 ) trisSndSet3( 40, 1, 120, 1, 200, 1 );
 }
 
 // -----------------------------------------------------------------------------
@@ -1033,12 +1101,18 @@ void gameTinyTris_forceRedraw()
 
 void gameTinyTris_update()
 {
+    trisAdvanceSfx();
+
     if( trisState == TRIS_STATE_ATTRACT )
     {
         trisPiecesPreview = trisPseudoRnd();
         if( isFirePressed() )
         {
             md_armInputFireGate();
+            // Upstream's SND_TTRIS case 4 - fired right here (new-game
+            // confirm chime) but never actually called anywhere in this
+            // port; found via a project-wide missing-sound-cue audit.
+            trisSndTtris( 4 );
             trisResetScore();
             trisBeginLevelSetup();
             trisState = TRIS_STATE_PLAYING;

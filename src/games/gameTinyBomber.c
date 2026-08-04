@@ -686,9 +686,105 @@ void bomTinyFlip( int render0Picture1 )
 #define BOM_STATE_DEATH_WAIT      2
 #define BOM_STATE_GAMEOVER_WAIT   3
 #define BOM_STATE_LEVELCLEAR_WAIT 4
+#define BOM_STATE_MUSIC_WAIT      5
 
 int bomState;
 int bomWaitFrames;
+int bomMusicIndex;
+int bomMusicNoteWaitFrames;
+
+// Small non-blocking multi-note SFX player, same shape as
+// gameTinyPacman.c's own pacStartSfx2()/pacAdvanceSfx() - upstream's real
+// Sound(freq,dur) calls are genuinely blocking (each one takes real wall-
+// clock time on real hardware), but md_playTone() has no queue: every call
+// immediately replaces whatever's currently sounding, so a burst of N
+// calls with no real time between them is only ever audible as the very
+// last one. Used for the two short cues below (death, game-over) that
+// don't need to freeze gameplay - just advance quietly alongside it,
+// unlike the start jingle further down which gets its own dedicated
+// freezing state (BOM_STATE_MUSIC_WAIT), matching upstream's own real
+// blocking pause there.
+#define BOM_SFX_MAX_NOTES 10
+float[BOM_SFX_MAX_NOTES] bomSfxFreq;
+float[BOM_SFX_MAX_NOTES] bomSfxDur;
+// Extra real-time silence held after a note's own tone finishes, in real
+// frames - reproduces upstream's own delay(300) between beeps in the
+// level-start jingle below (0 for every other cue in this file, which has
+// no such gap upstream).
+int[BOM_SFX_MAX_NOTES] bomSfxExtraFrames;
+int bomSfxLen;
+int bomSfxPos;
+int bomSfxWaitFrames;
+
+void bomStartSfx2( float freq0, float dur0, float freq1, float dur1 )
+{
+    bomSfxFreq[ 0 ] = freq0; bomSfxDur[ 0 ] = dur0; bomSfxExtraFrames[ 0 ] = 0;
+    bomSfxFreq[ 1 ] = freq1; bomSfxDur[ 1 ] = dur1; bomSfxExtraFrames[ 1 ] = 0;
+    bomSfxLen = 2;
+    bomSfxPos = 0;
+    bomSfxWaitFrames = 0;
+}
+
+// Upstream's game-over buzzer: for(t=0;t<5;t++){Sound(100,100);Sound(1,100);}
+// - a real 10-call alarm the port had never actually reproduced at all
+// (not even as a collapsed burst - the trigger sites simply had no call
+// for it whatsoever), found while auditing this file's other sound bugs.
+void bomStartGameOverBuzzer()
+{
+    int i;
+    for( i = 0; i < 5; i++ )
+    {
+        bomSfxFreq[ i * 2 ] = 3225.8; bomSfxDur[ i * 2 ] = 0.031; bomSfxExtraFrames[ i * 2 ] = 0;
+        bomSfxFreq[ i * 2 + 1 ] = 1968.5; bomSfxDur[ i * 2 + 1 ] = 0.0508; bomSfxExtraFrames[ i * 2 + 1 ] = 0;
+    }
+    bomSfxLen = 10;
+    bomSfxPos = 0;
+    bomSfxWaitFrames = 0;
+}
+
+// Upstream's level-start jingle: for(t=0;t<=4;t++){Sound(80,100);delay(300);}
+// - 5 identical beeps, each followed by a real 300ms silence - found
+// entirely missing from this port (not even a collapsed burst) via a
+// project-wide missing-sound-cue audit. Fires on every level transition
+// except the very first (upstream's own `if(Level>-1)` guard - Level
+// starts at -1, so the initial NEWGAME->NEWLEVEL transition into level 0
+// is silent, matching bomBeginNewLevel()'s own callers below).
+void bomStartLevelJingle()
+{
+    int i;
+    for( i = 0; i < 5; i++ )
+    {
+        bomSfxFreq[ i ] = 2857.1; bomSfxDur[ i ] = 0.035; bomSfxExtraFrames[ i ] = 18;
+    }
+    bomSfxLen = 5;
+    bomSfxPos = 0;
+    bomSfxWaitFrames = 0;
+}
+
+// Advances the SFX player by one logic tick - call unconditionally once
+// per real frame (this file has no tick-divisor of its own, so one call
+// per real 60fps frame). A no-op once the sequence has finished.
+void bomAdvanceSfx()
+{
+    if( bomSfxPos >= bomSfxLen )
+      return;
+
+    if( bomSfxWaitFrames > 0 )
+    {
+        bomSfxWaitFrames--;
+        return;
+    }
+
+    md_playTone( bomSfxFreq[ bomSfxPos ], bomSfxDur[ bomSfxPos ] );
+
+    int waitFrames = (int)( bomSfxDur[ bomSfxPos ] * BOM_FPS );
+    if( waitFrames < 1 )
+      waitFrames = 1;
+    waitFrames = waitFrames + bomSfxExtraFrames[ bomSfxPos ];
+    bomSfxWaitFrames = waitFrames;
+
+    bomSfxPos++;
+}
 
 bool bomLeftHeld()  { return isLeftPressed(); }
 bool bomRightHeld() { return isRightPressed(); }
@@ -761,10 +857,17 @@ void bomBeginNewLevel()
 {
     if( bomLevel < 2 )
     {
+        // Upstream's own if(Level>-1) guard - bomLevel starts at -1 (see
+        // bomBeginAttract()), so the very first NEWGAME->NEWLEVEL
+        // transition into level 0 is silent; every later one plays the
+        // jingle.
+        if( bomLevel > -1 )
+          bomStartLevelJingle();
         bomLevel++;
     }
     else
     {
+        bomStartLevelJingle();
         bomSpeedBomber = 1;
         bomLevel = 0;
     }
@@ -779,6 +882,8 @@ void gameTinyBomber_init()
 
 void gameTinyBomber_update()
 {
+    bomAdvanceSfx();
+
     if( bomState == BOM_STATE_ATTRACT )
     {
         if( isFirePressed() )
@@ -795,7 +900,16 @@ void gameTinyBomber_update()
         if( bomWaitFrames <= 0 )
         {
             if( bomLive > 0 ) { bomLive--; bomRestartLevel(); }
-            else bomBeginAttract();
+            else
+            {
+                // Matches upstream's own game-over buzzer, which fires
+                // regardless of which death path (enemy collision or bomb
+                // self-damage) triggered it - see the other trigger site's
+                // own comment further down.
+                bomStartGameOverBuzzer();
+                bomState = BOM_STATE_GAMEOVER_WAIT;
+                bomWaitFrames = BOM_FPS;
+            }
         }
         return;
     }
@@ -813,6 +927,45 @@ void gameTinyBomber_update()
         bomWaitFrames--;
         if( bomWaitFrames <= 0 )
           bomBeginNewLevel();
+        return;
+    }
+
+    if( bomState == BOM_STATE_MUSIC_WAIT )
+    {
+        if( bomMusicNoteWaitFrames > 0 )
+        {
+            bomMusicNoteWaitFrames--;
+            return;
+        }
+
+        // bomMusic[] has 42 real elements (21 note pairs, indices 0-41) -
+        // upstream's own loop bound (`t<=42`) reads one pair past the end
+        // of its identical 42-element Music[] table (harmless on real
+        // AVR/PROGMEM, a genuine out-of-bounds global read here) - capped
+        // at the real 21 pairs instead of reproducing that stray read.
+        if( bomMusicIndex >= 42 )
+        {
+            bomState = BOM_STATE_PLAYING;
+            return;
+        }
+
+        // Same real Sound(freq,dur) bit-bang formula used throughout this
+        // project (500000/(255-freq) Hz, dur*2*(255-freq)/1e6 seconds).
+        int freqByte = bomMusic[ bomMusicIndex ];
+        int durByte = bomMusic[ bomMusicIndex + 1 ];
+        int periodUs = 255 - freqByte;
+        if( periodUs < 1 )
+          periodUs = 1;
+        float freqHz = 500000.0 / (float)periodUs;
+        float durationSeconds = (float)( durByte * 2 * periodUs ) / 1000000.0;
+        md_playTone( freqHz, durationSeconds );
+
+        int waitFrames = (int)( durationSeconds * BOM_FPS );
+        if( waitFrames < 1 )
+          waitFrames = 1;
+        bomMusicNoteWaitFrames = waitFrames;
+
+        bomMusicIndex = bomMusicIndex + 2;
         return;
     }
 
@@ -848,8 +1001,7 @@ void gameTinyBomber_update()
     }
     else
     {
-        md_playTone( 200.0, 0.3 );
-        md_playTone( 100.0, 0.3 );
+        bomStartSfx2( 200.0, 0.3, 100.0, 0.3 );
         bomState = BOM_STATE_DEATH_WAIT;
         bomWaitFrames = BOM_FPS / 2;
         return;
@@ -886,19 +1038,24 @@ void gameTinyBomber_update()
         if( bomInGame == 1 )
         {
             bomInGame = 2;
-            int t;
-            for( t = 0; t <= 42; t = t + 2 )
-              md_playTone( (float)bomMusic[ t ], bomMusic[ t + 1 ] / 1000.0 );
+            bomState = BOM_STATE_MUSIC_WAIT;
+            bomMusicIndex = 0;
+            bomMusicNoteWaitFrames = 0;
+            return;
         }
     }
 
     if( bomSprite[ 0 ].dead == 1 )
     {
-        md_playTone( 200.0, 0.3 );
-        md_playTone( 100.0, 0.3 );
+        bomStartSfx2( 200.0, 0.3, 100.0, 0.3 );
         if( bomLive > 0 ) { bomLive--; bomRestartLevel(); }
         else
         {
+            // Matches upstream's own game-over buzzer, fired the same way
+            // regardless of which death path triggered it (see
+            // BOM_STATE_DEATH_WAIT's own comment for the enemy-collision
+            // path's identical handling).
+            bomStartGameOverBuzzer();
             bomState = BOM_STATE_GAMEOVER_WAIT;
             bomWaitFrames = BOM_FPS;
         }

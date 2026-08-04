@@ -448,6 +448,21 @@ int tmorpionNoteStep;
 int tmorpionNoteDur;
 int tmorpionNoteSub;
 
+// Fixed 2-note cue (mode 3) - reuses the existing note-runner fields
+// rather than growing the struct: tmorpionNoteT/tmorpionNoteEnd hold the
+// first note's freq/dur byte, tmorpionNoteStep/tmorpionNoteDur the
+// second's, tmorpionNoteSub picks which is still pending.
+void tmorpionStartFixed2( int freq0, int dur0, int freq1, int dur1 )
+{
+    tmorpionNoteActive = 1;
+    tmorpionNoteMode = 3;
+    tmorpionNoteT = freq0;
+    tmorpionNoteEnd = dur0;
+    tmorpionNoteStep = freq1;
+    tmorpionNoteDur = dur1;
+    tmorpionNoteSub = 0;
+}
+
 // SND_BOX_TMORPION cases 0/1 - a short 10-note ascending burst (each note
 // only a few ms) - small enough that a straightforward frame-stepped
 // runner (below) covers it without needing any downsampling.
@@ -461,10 +476,12 @@ void tmorpionStartMoveSound( int isPlayer )
 }
 
 // SND_BOX_TMORPION(6) - two fixed notes at the very start of a session.
+// Was firing both Sound() calls synchronously (md_playTone() has no
+// queue, so only the second was ever audible) - now routed through mode
+// 3 below, the same fixed-2-note treatment as the blink-winner cue.
 void tmorpionSoundStart()
 {
-    Sound( 100, 250 );
-    Sound( 20, 250 );
+    tmorpionStartFixed2( 100, 250, 20, 250 );
 }
 
 // SND_BOX_TMORPION(4) - player wins the whole match: a genuine ~38-call
@@ -513,11 +530,20 @@ int tmorpionAdvanceNote()
         return 0;
     }
 
-    // mode 2 - downsampled big sweep
-    if( tmorpionNoteT <= 10 ) { tmorpionNoteActive = 0; return 1; }
-    if( tmorpionNoteSub == 0 ) { Sound( 200 - tmorpionNoteT, 3 ); tmorpionNoteSub = 1; }
-    else { Sound( tmorpionNoteT, 12 ); tmorpionNoteSub = 0; tmorpionNoteT -= 15; }
-    return 0;
+    if( tmorpionNoteMode == 2 )
+    {
+        // downsampled big sweep
+        if( tmorpionNoteT <= 10 ) { tmorpionNoteActive = 0; return 1; }
+        if( tmorpionNoteSub == 0 ) { Sound( 200 - tmorpionNoteT, 3 ); tmorpionNoteSub = 1; }
+        else { Sound( tmorpionNoteT, 12 ); tmorpionNoteSub = 0; tmorpionNoteT -= 15; }
+        return 0;
+    }
+
+    // mode 3 - fixed 2-note cue (tmorpionStartFixed2())
+    if( tmorpionNoteSub == 0 ) { Sound( tmorpionNoteT, tmorpionNoteEnd ); tmorpionNoteSub = 1; return 0; }
+    Sound( tmorpionNoteStep, tmorpionNoteDur );
+    tmorpionNoteActive = 0;
+    return 1;
 }
 
 // -----------------------------------------------------------------------------
@@ -1019,10 +1045,16 @@ void gameTinyMorpion_update()
 
     if( tmorpionState == TMORPION_STATE_BLINK_WINNER )
     {
+        // Advances whatever the previous tick's tmorpionStartFixed2() call
+        // (below) queued up - this state's own branch returns before ever
+        // reaching the shared tmorpionAdvanceNote() call further down, so
+        // it needs its own.
+        tmorpionAdvanceNote();
+
         int half = tmorpionBlinkStep % 2;
         if( half == 0 )
         {
-            Sound( 140, 10 ); Sound( 220, 4 );
+            tmorpionStartFixed2( 140, 10, 220, 4 );
             int t;
             for( t = 0; t < 9; t++ ) if( tmorpionBoard[t] == tmorpionPlayers[ tmorpionMyTurn ] ) tmorpionBoard[t] = 2;
             tmorpionTinyFlip( 1 );

@@ -454,10 +454,58 @@ void bertResetDataVar()
     for( x = 0; x < 3; x++ ) bertDeadify( x );
 }
 
+// Small non-blocking multi-note SFX player, same shape as this project's
+// other ports (gameTinyDoc.c etc) - upstream's own for(s=200;s>100;s--)
+// Sound(s,10); fires 100 real notes synchronously; md_playTone() (which
+// Sound() calls into) has no queue, so all 100 used to collapse to just
+// the very last one. Downsampled (stride 8, ~13 notes) rather than
+// reproducing all 100 one-per-real-frame, matching the established fix
+// for every other oversized computed sweep in this project.
+#define BERT_SND_MAX_NOTES 13
+int[BERT_SND_MAX_NOTES] bertSndFreqBytes;
+int bertSndLen;
+int bertSndPos;
+int bertSndWaitFrames;
+
+void bertAdvanceSfx()
+{
+    if( bertSndPos >= bertSndLen )
+      return;
+
+    if( bertSndWaitFrames > 0 )
+    {
+        bertSndWaitFrames--;
+        return;
+    }
+
+    int freqByte = bertSndFreqBytes[ bertSndPos ];
+    Sound( freqByte, 10 );
+
+    int periodUs = 255 - freqByte;
+    if( periodUs < 1 )
+      periodUs = 1;
+    float durationSeconds = (float)( 10 * 2 * periodUs ) / 1000000.0;
+    int waitFrames = (int)( durationSeconds * 60.0 );
+    if( waitFrames < 1 )
+      waitFrames = 1;
+    bertSndWaitFrames = waitFrames;
+
+    bertSndPos++;
+}
+
 void bertDeadSound()
 {
-    int s;
-    for( s = 200; s > 100; s-- ) Sound( s, 10 );
+    int i;
+    int s = 200;
+    for( i = 0; i < BERT_SND_MAX_NOTES; i++ )
+    {
+        if( s <= 100 ) s = 101;
+        bertSndFreqBytes[ i ] = s;
+        s = s - 8;
+    }
+    bertSndLen = BERT_SND_MAX_NOTES;
+    bertSndPos = 0;
+    bertSndWaitFrames = 0;
 }
 
 void bertRenewSprite( int spr )
@@ -1079,6 +1127,8 @@ void gameTinyBert_init()
 
 void gameTinyBert_update()
 {
+    bertAdvanceSfx();
+
     if( bertState == BERT_STATE_ATTRACT )
     {
         bertSeedRnd();

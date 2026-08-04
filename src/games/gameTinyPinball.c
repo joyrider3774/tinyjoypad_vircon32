@@ -407,11 +407,125 @@ void tpWriteMoveBounce( TpBall* b )
     b->Speedy = b->SIMSpeedy;
 }
 
+// Small non-blocking multi-note SFX player, same shape as
+// gameTinyPacman.c's/gameTinyBomber.c's/gameTinyInvaders.c's own -
+// upstream's real Sound(freq,dur) calls genuinely block on real hardware,
+// but md_playTone() has no queue: a burst of N calls with no real time
+// between them is only ever audible as the very last one. Declared here,
+// ahead of its first call site (tpFalseBall() below), since this dialect
+// requires definition before use.
+#define TP_SFX_MAX_NOTES 13
+float[TP_SFX_MAX_NOTES] tpSfxFreq;
+float[TP_SFX_MAX_NOTES] tpSfxDur;
+int tpSfxLen;
+int tpSfxPos;
+int tpSfxWaitFrames;
+
+void tpAdvanceSfx()
+{
+    if( tpSfxPos >= tpSfxLen )
+      return;
+
+    if( tpSfxWaitFrames > 0 )
+    {
+        tpSfxWaitFrames--;
+        return;
+    }
+
+    md_playTone( tpSfxFreq[ tpSfxPos ], tpSfxDur[ tpSfxPos ] );
+
+    int waitFrames = (int)( tpSfxDur[ tpSfxPos ] * (float)TP_FPS );
+    if( waitFrames < 1 )
+      waitFrames = 1;
+    tpSfxWaitFrames = waitFrames;
+
+    tpSfxPos++;
+}
+
+void tpStartSfx3( float freq0, float dur0, float freq1, float dur1, float freq2, float dur2 )
+{
+    tpSfxFreq[ 0 ] = freq0; tpSfxDur[ 0 ] = dur0;
+    tpSfxFreq[ 1 ] = freq1; tpSfxDur[ 1 ] = dur1;
+    tpSfxFreq[ 2 ] = freq2; tpSfxDur[ 2 ] = dur2;
+    tpSfxLen = 3;
+    tpSfxPos = 0;
+    tpSfxWaitFrames = 0;
+}
+
+void tpStartSfx5( float freq0, float dur0, float freq1, float dur1, float freq2, float dur2, float freq3, float dur3, float freq4, float dur4 )
+{
+    tpSfxFreq[ 0 ] = freq0; tpSfxDur[ 0 ] = dur0;
+    tpSfxFreq[ 1 ] = freq1; tpSfxDur[ 1 ] = dur1;
+    tpSfxFreq[ 2 ] = freq2; tpSfxDur[ 2 ] = dur2;
+    tpSfxFreq[ 3 ] = freq3; tpSfxDur[ 3 ] = dur3;
+    tpSfxFreq[ 4 ] = freq4; tpSfxDur[ 4 ] = dur4;
+    tpSfxLen = 5;
+    tpSfxPos = 0;
+    tpSfxWaitFrames = 0;
+}
+
+// Upstream's game-over buzzer: for(t=0;t<5;t++){Sound(100,100);Sound(1,100);}
+void tpStartGameOverBuzzer()
+{
+    int i;
+    for( i = 0; i < 5; i++ )
+    {
+        tpSfxFreq[ i * 2 ] = 3225.8; tpSfxDur[ i * 2 ] = 0.031;
+        tpSfxFreq[ i * 2 + 1 ] = 1968.5; tpSfxDur[ i * 2 + 1 ] = 0.0508;
+    }
+    tpSfxLen = 10;
+    tpSfxPos = 0;
+    tpSfxWaitFrames = 0;
+}
+
+// Upstream's own "falseBall" sweep: for(t=50;t>0;t--){Sound(t,6);} - 50
+// real notes, each only a few microseconds on real hardware. Downsampled
+// (stride 4, ~13 notes) rather than reproducing all 50 one-per-real-frame,
+// matching the established fix for every other oversized computed sweep
+// in this project.
+void tpStartFalseBallSweep()
+{
+    int i;
+    int t = 50;
+    for( i = 0; i < TP_SFX_MAX_NOTES; i++ )
+    {
+        if( t < 1 ) t = 1;
+        int periodUs = 255 - t;
+        if( periodUs < 1 )
+          periodUs = 1;
+        tpSfxFreq[ i ] = 500000.0 / (float)periodUs;
+        tpSfxDur[ i ] = (float)( 6 * 2 * periodUs ) / 1000000.0;
+        t = t - 4;
+    }
+    tpSfxLen = TP_SFX_MAX_NOTES;
+    tpSfxPos = 0;
+    tpSfxWaitFrames = 0;
+}
+
+// Upstream's own bonus-ball-slot sweep:
+// for(ttt=60;ttt<240;ttt+=20){Sound(ttt,6);} - a real, already-modest
+// 9-note sweep, reproduced in full (no downsampling needed).
+void tpStartBonusSweep()
+{
+    int i;
+    int ttt = 60;
+    for( i = 0; i < 9; i++ )
+    {
+        int periodUs = 255 - ttt;
+        if( periodUs < 1 )
+          periodUs = 1;
+        tpSfxFreq[ i ] = 500000.0 / (float)periodUs;
+        tpSfxDur[ i ] = (float)( 6 * 2 * periodUs ) / 1000000.0;
+        ttt = ttt + 20;
+    }
+    tpSfxLen = 9;
+    tpSfxPos = 0;
+    tpSfxWaitFrames = 0;
+}
+
 void tpFalseBall()
 {
-    int t;
-    for( t = 50; t > 0; t-- )
-      md_playTone( (float)t, 0.06 );
+    tpStartFalseBallSweep();
 }
 
 void tpBallUpdate( TpBall* b )
@@ -435,9 +549,7 @@ void tpBallUpdate( TpBall* b )
             {
                 if( tpTotalBall < 4 ) tpTotalBall++;
                 tpTotalPush = 0;
-                int ttt;
-                for( ttt = 60; ttt < 240; ttt = ttt + 20 )
-                  md_playTone( (float)ttt, 0.06 );
+                tpStartBonusSweep();
             }
         }
         if( b->SIMSpeedy >= 0.15 ) b->SIMSpeedy = b->SIMSpeedy - 0.1;
@@ -580,9 +692,10 @@ void tpTinyFlip2( TpBall* b )
         tpFrameCount++;
         if( tpFrameCount > 1 )
         {
-            md_playTone( 1.0, 0.16 );
-            md_playTone( 20.0, 0.16 );
-            md_playTone( 1.0, 0.16 );
+            // Upstream: Sound(1,20);Sound(20,20);Sound(1,20); - real
+            // freq/dur, non-blocking sequenced instead of a synchronous
+            // burst.
+            tpStartSfx3( 1968.5, 0.0102, 2127.7, 0.0094, 1968.5, 0.0102 );
             tpBouncePush = 0;
             tpFrameCount = 0;
         }
@@ -632,11 +745,10 @@ void tpBeginTitle()
     tpTotalBall = 5;
     tpPicDraw( 0 );
     // Approximation of upstream's real-time tone sweep - see file header.
-    md_playTone( 900.0, 0.15 );
-    md_playTone( 600.0, 0.15 );
-    md_playTone( 300.0, 0.15 );
-    md_playTone( 600.0, 0.15 );
-    md_playTone( 900.0, 0.15 );
+    // Now properly sequenced non-blocking instead of a synchronous burst
+    // (md_playTone() has no queue - all 5 calls used to collapse to just
+    // the last one).
+    tpStartSfx5( 900.0, 0.15, 600.0, 0.15, 300.0, 0.15, 600.0, 0.15, 900.0, 0.15 );
     tpTitleSettleFrames = TP_FPS * 3 / 2;
 }
 
@@ -668,12 +780,7 @@ void tpBeginGameOver()
 {
     tpState = TP_STATE_GAMEOVER;
     tpPicDraw( 2 );
-    int t;
-    for( t = 0; t < 5; t++ )
-    {
-        md_playTone( 100.0, 0.1 );
-        md_playTone( 1.0, 0.1 );
-    }
+    tpStartGameOverBuzzer();
     tpWaitFrames = TP_FPS * 13 / 10; // ~300ms pre-wait folded in + ~1000ms
 }
 
@@ -693,6 +800,8 @@ void gameTinyPinball_init()
 
 void gameTinyPinball_update()
 {
+    tpAdvanceSfx();
+
     if( tpState == TP_STATE_TITLE )
     {
         if( tpTitleSettleFrames > 0 )

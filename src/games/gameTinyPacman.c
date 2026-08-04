@@ -532,6 +532,54 @@ void pacRefreshCaracter()
     }
 }
 
+// Tiny non-blocking 2-note SFX player, shared by the "ghost eaten" and
+// "dot eaten" cues below - unlike the death/level-clear jingles (see
+// their own PAC_STATE_* handlers further down), these are short enough
+// (a few tens of ms) that they don't need to freeze normal gameplay,
+// just advance quietly alongside it. Declared here (ahead of its first
+// call site, pacCollisionPac2Caracter() below) since this dialect
+// requires definition before use.
+float[2] pacSfxFreq;
+float[2] pacSfxDur;
+int pacSfxLen;
+int pacSfxPos;
+int pacSfxWaitFrames;
+
+void pacStartSfx2( float freq0, float dur0, float freq1, float dur1 )
+{
+    pacSfxFreq[ 0 ] = freq0;
+    pacSfxDur[ 0 ] = dur0;
+    pacSfxFreq[ 1 ] = freq1;
+    pacSfxDur[ 1 ] = dur1;
+    pacSfxLen = 2;
+    pacSfxPos = 0;
+    pacSfxWaitFrames = 0;
+}
+
+// Advances the 2-note SFX player by one logic tick - call unconditionally
+// once per tick, regardless of pacState, same as any other per-tick
+// bookkeeping. A no-op once both notes have played.
+void pacAdvanceSfx()
+{
+    if( pacSfxPos >= pacSfxLen )
+      return;
+
+    if( pacSfxWaitFrames > 0 )
+    {
+        pacSfxWaitFrames--;
+        return;
+    }
+
+    md_playTone( pacSfxFreq[ pacSfxPos ], pacSfxDur[ pacSfxPos ] );
+
+    int waitFrames = (int)( pacSfxDur[ pacSfxPos ] * PAC_FPS );
+    if( waitFrames < 1 )
+      waitFrames = 1;
+    pacSfxWaitFrames = waitFrames;
+
+    pacSfxPos++;
+}
+
 int pacCollisionPac2Caracter()
 {
     int returnCollision = 0;
@@ -552,7 +600,10 @@ int pacCollisionPac2Caracter()
             {
                 if( pacGobeActive )
                 {
-                    if( pacSprite[ t ].guber != 1 ) { md_playTone( 20.0, 0.1 ); md_playTone( 2.0, 0.1 ); }
+                    // Upstream: Sound(20,100);Sound(2,100); - real freq/dur
+                    // derived via the same 500000/(255-freq) formula used
+                    // elsewhere in this file, not the raw byte values.
+                    if( pacSprite[ t ].guber != 1 ) pacStartSfx2( 2127.7, 0.047, 1976.3, 0.051 );
                     pacSprite[ t ].guber = 1;
                     returnCollision = 0;
                 }
@@ -622,7 +673,9 @@ int pacDotsWrite( int x, int y )
             {
                 pacDotsDestroy( pacDotsCount );
                 if( menReturn == 1 ) { pacTimerGobeActive = pacLevelSpeed; pacGobeActive = 1; }
-                else { md_playTone( 10.0, 0.02 ); md_playTone( 50.0, 0.02 ); }
+                // Upstream: Sound(10,10);Sound(50,10); - real freq/dur,
+                // same reasoning as the ghost-eaten cue above.
+                else pacStartSfx2( 2040.8, 0.005, 2439.0, 0.004 );
             }
         }
     }
@@ -751,10 +804,59 @@ void pacTinyFlip()
 #define PAC_STATE_DEATH_WAIT       1
 #define PAC_STATE_LEVELCLEAR_WAIT  2
 #define PAC_STATE_BONUSLIFE_WAIT   3
+#define PAC_STATE_MUSIC_WAIT       4
+#define PAC_STATE_DEATH_SWEEP      5
+#define PAC_STATE_LEVELCLEAR_SWEEP 6
 
 int pacState;
 int pacTickSkipCounter = 0;
 int pacWaitFrames;
+
+// The classic Pac-Man "start of game" jingle (pacMusic[], a 70-note
+// table) - upstream plays it as 70 back-to-back synchronous Sound()
+// calls in one go (real hardware bit-bangs each one, so it takes real
+// wall-clock time; the whole loop takes as long as the tune itself,
+// visually freezing the just-initialized Pacman/ghost positions on
+// screen for that whole duration - matching the original arcade game's
+// own "ready" pause before the maze starts moving). This engine's own
+// md_playTone() has no such blocking/queueing behavior - each call
+// replaces whatever's currently sounding immediately, so 70 calls with
+// no real time between them are only ever audible as the very last one,
+// silently losing the entire tune. Same bug shape (and same fix) as
+// Tiny Arkanoid's own arkStartNoteSeq()/arkAdvanceNoteSeq() - a small
+// frame-stepped sequencer, one note per real logic tick, freezing normal
+// gameplay updates (via this same file's own PAC_STATE_* wait-state
+// pattern) for the tune's own real duration instead of upstream's
+// blocking loop.
+int pacMusicIndex;
+int pacMusicNoteWaitFrames;
+
+// Same bug shape as the start jingle above, found in three more places in
+// this file: the death jingle (5 sequential Sound() calls), the level-
+// clear sweep (a 60-iteration, 120-call loop), and the two-tone "ghost
+// eaten"/"dot eaten" cues - all fired every upstream Sound() call in one
+// go with no real time between them, so only the very last call was ever
+// actually audible on this engine. The death/level-clear jingles freeze
+// normal gameplay the same way the start jingle does (their own
+// PAC_STATE_* wait states below); the two short cues don't need to freeze
+// anything, so they get their own tiny non-blocking 2-note player instead,
+// advanced once per logic tick alongside everything else.
+int pacDeathNoteIndex;
+int pacDeathWaitFrames;
+
+// Upstream's own level-clear sweep is `for(r=0;r<60;r++)
+// {Sound(2+r,10);Sound(255-r,20);}` - 120 real notes, each only a few
+// milliseconds long on real hardware (bit-banged, so genuinely fast).
+// Reproducing all 120 one-per-logic-tick (this file's 30 ticks/sec) would
+// take a full 4 real seconds, far longer than upstream's own ~0.3s sweep -
+// downsampled the loop's own step size instead, matching the established
+// fix for every other oversized computed sweep in this project (Tiny
+// Missile/Arena/Gilbert/Pipe).
+#define PAC_LEVELCLEAR_SWEEP_STRIDE 4
+#define PAC_LEVELCLEAR_SWEEP_STEPS  15
+int pacSweepStepIndex;
+int pacSweepSubNote;
+int pacSweepWaitFrames;
 
 bool pacLeftHeld()  { return isLeftPressed(); }
 bool pacRightHeld() { return isRightPressed(); }
@@ -892,7 +994,148 @@ void gameTinyPacman_update()
         return;
     }
 
+    if( pacState == PAC_STATE_MUSIC_WAIT )
+    {
+        if( pacMusicNoteWaitFrames > 0 )
+        {
+            pacMusicNoteWaitFrames--;
+            return;
+        }
+
+        if( pacMusicIndex > 139 )
+        {
+            pacState = PAC_STATE_PLAYING;
+            return;
+        }
+
+        // Matches upstream's own real Sound(freq,dur) bit-bang timing
+        // exactly (tinypacman.ino: `dur` full HIGH/LOW cycles, each
+        // `(255-freq)` microseconds per half-cycle) - the same
+        // `500000/(255-freq)` pitch formula tinyJoypadShim.c's own shared
+        // Sound() already uses elsewhere in this project, not the `- 8`/
+        // `/1000` approximation this file's own music-trigger code had
+        // instead (found while fixing the sequencing bug above: that
+        // approximation computed pitches around 100-170Hz - a low bass
+        // rumble - and a flat ~155ms/note regardless of pitch, neither of
+        // which resembles the real melody's own actual shape at all).
+        int freqByte = pacMusic[ pacMusicIndex ];
+        int durByte  = pacMusic[ pacMusicIndex + 1 ];
+        int periodUs = 255 - freqByte;
+        if( periodUs < 1 )
+          periodUs = 1;
+        float freqHz = 500000.0 / (float)periodUs;
+        float durationSeconds = (float)( durByte * 2 * periodUs ) / 1000000.0;
+        md_playTone( freqHz, durationSeconds );
+
+        int waitFrames = (int)( durationSeconds * PAC_FPS );
+        if( waitFrames < 1 )
+          waitFrames = 1;
+        pacMusicNoteWaitFrames = waitFrames;
+
+        pacMusicIndex = pacMusicIndex + 2;
+        return;
+    }
+
+    if( pacState == PAC_STATE_DEATH_SWEEP )
+    {
+        if( pacDeathWaitFrames > 0 )
+        {
+            pacDeathWaitFrames--;
+            return;
+        }
+
+        if( pacDeathNoteIndex > 4 )
+        {
+            // Matches upstream's own trailing delay(400) after its death
+            // jingle - PAC_FPS*2/5 ticks is exactly 0.4s at this file's
+            // 30-tick/sec logic rate.
+            pacState = PAC_STATE_DEATH_WAIT;
+            pacWaitFrames = PAC_FPS * 2 / 5;
+            return;
+        }
+
+        // Upstream: Sound(100,200);Sound(75,200);Sound(50,200);
+        // Sound(25,200);Sound(12,200); - same real freq/dur formula as
+        // PAC_STATE_MUSIC_WAIT above.
+        int freqByte = 100;
+        if( pacDeathNoteIndex == 1 ) freqByte = 75;
+        else if( pacDeathNoteIndex == 2 ) freqByte = 50;
+        else if( pacDeathNoteIndex == 3 ) freqByte = 25;
+        else if( pacDeathNoteIndex == 4 ) freqByte = 12;
+
+        int periodUs = 255 - freqByte;
+        if( periodUs < 1 )
+          periodUs = 1;
+        float freqHz = 500000.0 / (float)periodUs;
+        float durationSeconds = (float)( 200 * 2 * periodUs ) / 1000000.0;
+        md_playTone( freqHz, durationSeconds );
+
+        int waitFrames = (int)( durationSeconds * PAC_FPS );
+        if( waitFrames < 1 )
+          waitFrames = 1;
+        pacDeathWaitFrames = waitFrames;
+
+        pacDeathNoteIndex++;
+        return;
+    }
+
+    if( pacState == PAC_STATE_LEVELCLEAR_SWEEP )
+    {
+        if( pacSweepWaitFrames > 0 )
+        {
+            pacSweepWaitFrames--;
+            return;
+        }
+
+        if( pacSweepStepIndex >= PAC_LEVELCLEAR_SWEEP_STEPS )
+        {
+            // Matches upstream's own trailing delay(1000) after its sweep.
+            pacState = PAC_STATE_LEVELCLEAR_WAIT;
+            pacWaitFrames = PAC_FPS;
+            return;
+        }
+
+        // Upstream: for(r=0;r<60;r++){Sound(2+r,10);Sound(255-r,20);} -
+        // stepped by PAC_LEVELCLEAR_SWEEP_STRIDE instead of 1 (see this
+        // state's own declaration comment), same real freq/dur formula.
+        int r = pacSweepStepIndex * PAC_LEVELCLEAR_SWEEP_STRIDE;
+        int freqByte;
+        int durByte;
+        if( pacSweepSubNote == 0 )
+        {
+            freqByte = 2 + r;
+            durByte = 10;
+        }
+        else
+        {
+            freqByte = 255 - r;
+            durByte = 20;
+        }
+
+        int periodUs = 255 - freqByte;
+        if( periodUs < 1 )
+          periodUs = 1;
+        float freqHz = 500000.0 / (float)periodUs;
+        float durationSeconds = (float)( durByte * 2 * periodUs ) / 1000000.0;
+        md_playTone( freqHz, durationSeconds );
+
+        int waitFrames = (int)( durationSeconds * PAC_FPS );
+        if( waitFrames < 1 )
+          waitFrames = 1;
+        pacSweepWaitFrames = waitFrames;
+
+        if( pacSweepSubNote == 0 )
+          pacSweepSubNote = 1;
+        else
+        {
+            pacSweepSubNote = 0;
+            pacSweepStepIndex++;
+        }
+        return;
+    }
+
     // PAC_STATE_PLAYING
+    pacAdvanceSfx();
     if( isFirePressed() )
       pacStartGame();
 
@@ -916,16 +1159,12 @@ void gameTinyPacman_update()
     }
     else
     {
-        md_playTone( 100.0, 0.2 );
-        md_playTone( 75.0, 0.2 );
-        md_playTone( 50.0, 0.2 );
-        md_playTone( 25.0, 0.2 );
-        md_playTone( 12.0, 0.2 );
         // Upstream doesn't redraw here either - the screen just keeps
         // showing whatever the previous frame's Tiny_Flip() drew while the
         // death jingle plays, matching that exactly (no extra draw call).
-        pacState = PAC_STATE_DEATH_WAIT;
-        pacWaitFrames = PAC_FPS * 2 / 5;
+        pacState = PAC_STATE_DEATH_SWEEP;
+        pacDeathNoteIndex = 0;
+        pacDeathWaitFrames = 0;
         return;
     }
 
@@ -933,10 +1172,17 @@ void gameTinyPacman_update()
 
     if( pacInGame == 1 )
     {
-        int t;
-        for( t = 0; t <= 139; t = t + 2 )
-          md_playTone( (float)( pacMusic[ t ] - 8 ), ( pacMusic[ t + 1 ] - 100 ) / 1000.0 );
+        // Freezes the just-initialized Pacman/ghost scene (already drawn
+        // by pacTinyFlip() just above, this same frame) while the start
+        // jingle plays out over real time, one note per real logic tick -
+        // see PAC_STATE_MUSIC_WAIT's own handler above, and pacMusicIndex/
+        // pacMusicNoteWaitFrames's own declaration comment for why this
+        // can't just be the tight synchronous loop upstream uses.
         pacInGame = 2;
+        pacMusicIndex = 0;
+        pacMusicNoteWaitFrames = 0;
+        pacState = PAC_STATE_MUSIC_WAIT;
+        return;
     }
 
     int t;
@@ -947,14 +1193,10 @@ void gameTinyPacman_update()
     }
     if( allDotsGone )
     {
-        int r;
-        for( r = 0; r < 60; r++ )
-        {
-            md_playTone( (float)( 2 + r ), 0.02 );
-            md_playTone( (float)( 255 - r ), 0.02 );
-        }
-        pacState = PAC_STATE_LEVELCLEAR_WAIT;
-        pacWaitFrames = PAC_FPS;
+        pacState = PAC_STATE_LEVELCLEAR_SWEEP;
+        pacSweepStepIndex = 0;
+        pacSweepSubNote = 0;
+        pacSweepWaitFrames = 0;
         return;
     }
 

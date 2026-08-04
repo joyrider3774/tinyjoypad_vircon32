@@ -684,6 +684,16 @@ void ufoPlayingTick()
         }
     }
 
+    // Upstream's own thruster hum while climbing (a real quirk found only
+    // via a project-wide missing-sound-cue audit, not present in this
+    // port at all before now): a short beep(1,random(0,i*2)) pair per
+    // "boo" iteration above. Approximated as one representative short
+    // blip per tick instead of the full nested loop (which would just be
+    // several near-identical blips colliding into the same
+    // "burst collapses to one tone" issue fixed elsewhere this session).
+    if( flying && ufoFlames )
+      ufoBeepOnce( 1, arand( 4 ) );
+
     ufoStepsSinceLastObstacle += ufoObstacleStep;
     int i;
     for( i = 0; i < ufoMaxObstacles; i++ )

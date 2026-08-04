@@ -529,6 +529,343 @@ thought anything needed repainting. Confirmed via Puppeteer, using the
 WebGL build: toggling ON then OFF now cleanly restores the exact original
 title-screen picture, no grid lines left behind.
 
+## A seventh bug, same family as the sixth: Tiny Pacman's own sound effects all collapsing to their very last tone
+
+Found from a direct user report ("on a video on youtube I noticed there's
+a little pacman tune playing on game start... it seems to be missing in
+our port"), then, once that first fix surfaced the pattern, found again
+independently in three more places in the same file via a follow-up
+question ("what about the sound when pacman takes a pill to catch
+ghosts"). All five instances share one root cause: `gameTinyPacman.c`
+fired every one of upstream's `Sound(freq,dur)` calls for a given effect
+back-to-back, in a single synchronous burst, with no real time elapsing
+between them. Upstream's own `Sound()` genuinely blocks (a real bit-bang,
+so N calls take N times as long in real wall-clock time and are each
+audible in turn); this engine's `md_playTone()` has no such queue - each
+call immediately replaces whatever tone is currently sounding, so a burst
+of N calls issued with zero elapsed real time between them is only ever
+*audible* as the very last one. Same root cause and same fix shape as the
+sixth bug above and every other oversized/multi-call `Sound()` burst
+already found and fixed elsewhere in this project (Tiny Arkanoid, Tiny
+Missile, Tiny Arena, Tiny Gilbert, Tiny SQuest, Tiny Plaque, Tiny Pipe) -
+just the first time this exact bug turned out to affect *five separate
+cues in one file* rather than a single jingle.
+
+**1) Start-of-game jingle** (`pacMusic[141]`, a real 70-note table,
+triggered once when a fresh game begins). Two independent bugs stacked
+here: the sequencing bug above (70 calls in one burst, collapsing to the
+last note), *and* the pitch/duration conversion formula already baked
+into the port before this session (`pacMusic[t]-8` for frequency,
+`(pacMusic[t+1]-100)/1000.0` for duration) was itself wrong, unrelated to
+the sequencing issue - it computed pitches in the 100-170Hz range (a low
+bass rumble) and a flat ~155ms per note regardless of the table's real
+values, nothing like upstream's actual melody. Found only because the
+first fix attempt (preserving that formula, just fixing the sequencing)
+produced an implausible ~10.85s total duration - checking upstream's real
+`Sound(uint8_t freq,uint8_t dur)` bit-bang implementation directly
+(`tinypacman.ino:401-408`) gave the correct formula instead: each `Sound`
+call is `dur` full HIGH/LOW cycles, each half-cycle `(255-freq)`
+microseconds, i.e. `freqHz = 500000/(255-freqByte)` and
+`durationSeconds = durByte*2*(255-freqByte)/1e6` - the same formula
+`tinyJoypadShim.c`'s own shared `Sound()` already uses elsewhere in this
+project. Recomputed with the correct formula: ~4.4 real seconds, pitches
+2778-5882Hz, a plausible chiptune melody range. **Fixed** with a new
+`PAC_STATE_MUSIC_WAIT` state (`pacMusicIndex`/`pacMusicNoteWaitFrames`) -
+one note per real logic tick, freezing the just-initialized Pac-Man/ghost
+scene on screen for the tune's own real duration, the same frame-stepped-
+sequencer pattern Tiny Arkanoid's own `arkStartNoteSeq`/
+`arkAdvanceNoteSeq` already established. Deployed and user-confirmed
+correct by ear afterward (a stale browser-cached ROM briefly caused a
+false "plays way too fast" report mid-session - not a real bug, resolved
+by re-testing against the actual current build).
+
+**2) Ghost-eaten cue** (`Sound(20,100);Sound(2,100);`, fired when
+Pac-Man touches a vulnerable ghost during power-pellet mode) and **3) dot-
+eaten "waka" cue** (`Sound(10,10);Sound(50,10);`, fired on every normal
+dot) - both just two-call bursts, same collapse. Both call sites were
+also using raw byte values directly as literal Hz/seconds (e.g.
+`md_playTone(20.0, 0.1)` for a freq *byte* of 20) rather than the real
+formula - fixed with correctly-derived real values (ghost: 2127.7Hz/
+0.047s then 1976.3Hz/0.051s; dot: 2040.8Hz/0.005s then 2439.0Hz/0.004s).
+Unlike the three jingles below, these don't need to freeze gameplay -
+added a small standalone, reusable two-note player (`pacStartSfx2()`/
+`pacAdvanceSfx()`, `pacSfxFreq`/`pacSfxDur`/`pacSfxLen`/`pacSfxPos`/
+`pacSfxWaitFrames`) advanced once per logic tick alongside normal play,
+declared ahead of `pacCollisionPac2Caracter()`/`pacDotsWrite()` (its two
+call sites) since this dialect requires definition before use - both are
+earlier in the file than every other `PAC_STATE_*` machinery, which lives
+down in `gameTinyPacman_update()` itself.
+
+**4) Death jingle** (`Sound(100,200);Sound(75,200);Sound(50,200);
+Sound(25,200);Sound(12,200);` then a real `delay(400)`, fired on losing a
+life or ending the game) - a 5-call burst, same collapse, plus the same
+raw-byte-as-literal-Hz mistake as the two cues above. **Fixed** with a new
+`PAC_STATE_DEATH_SWEEP` state (`pacDeathNoteIndex`/`pacDeathWaitFrames`),
+transitioning into the pre-existing `PAC_STATE_DEATH_WAIT` once all 5
+notes finish - and `PAC_STATE_DEATH_WAIT`'s own existing
+`pacWaitFrames = PAC_FPS*2/5` (12 ticks = exactly 0.4s at this file's
+30-tick/sec rate) turned out to already be a correct port of upstream's
+own trailing `delay(400)`, not (as it looked in isolation before this
+fix) an undersized stand-in for the whole jingle - restructuring the
+trigger to play the jingle *then* fall into that existing wait reproduces
+upstream's real ~0.805s total pause (jingle + delay) exactly, using code
+that was already there.
+
+**5) Level-clear sweep** (`for(r=0;r<60;r++){Sound(2+r,10);
+Sound(255-r,20);}`, fired once every dot in a level is gone, then a real
+`delay(1000)`) - the largest burst of the five, 120 individual calls.
+Reproducing all 120 one-per-logic-tick (this file's 30 ticks/sec) would
+take a full 4 real seconds, far longer than upstream's own genuinely fast
+bit-banged sweep (~0.3s) - downsampled the loop's own step size instead
+(stride 4, 15 steps instead of 60, `PAC_LEVELCLEAR_SWEEP_STRIDE`/
+`PAC_LEVELCLEAR_SWEEP_STEPS`), matching the established fix for every
+other oversized computed sweep in this project (Tiny Missile/Arena/
+Gilbert/Pipe) rather than trying to play all 120 real notes. **Fixed**
+with a new `PAC_STATE_LEVELCLEAR_SWEEP` state
+(`pacSweepStepIndex`/`pacSweepSubNote`/`pacSweepWaitFrames`), transitioning
+into the pre-existing `PAC_STATE_LEVELCLEAR_WAIT` once done (matching
+upstream's own trailing `delay(1000)` the same way the death jingle's fix
+does above).
+
+Verified via Puppeteer on the rebuilt WebGL ROM: menu thumbnail/selection
+still correct, launching into Tiny Pacman still shows the frozen maze
+scene during the (now audibly longer, correctly-paced) start jingle, and
+active movement/dot-eating afterward renders correctly with ghosts
+leaving the box and dots disappearing along Pac-Man's path - confirming
+the restructured control flow (2 new SFX-player globals moved earlier in
+the file, ahead of their first call sites, plus 2 new `PAC_STATE_*`
+states) didn't break or freeze normal gameplay. The death jingle and
+level-clear sweep states themselves were not independently triggered in
+this session's own testing (would need reaching an actual death or
+clearing a full board) - both are structurally identical to the already-
+verified `PAC_STATE_MUSIC_WAIT` pattern, just with different trigger data,
+so risk is low, but worth a direct check if anything sounds off.
+
+## An eighth bug, same family as the sixth/seventh: the "burst collapses to one tone" bug found in ten more games via a project-wide audit
+
+After fixing Tiny Pacman's five sound bugs above, a direct user question
+("what about the sound when pacman takes a pill to catch ghosts") led to
+finding one more instance in that same file, which prompted a project-
+wide audit rather than continuing to fix these one report at a time.
+Grepped every game file for `md_playTone(...)` called directly (bypassing
+`tinyJoypadShim.c`'s `Sound()` wrapper) and separately for `Sound(...)`
+calls appearing more than once on the same source line or inside a `for`
+loop - both strong signals of the same bug shape, since a burst of N
+calls fired with zero real time between them is only ever audible as the
+very last one (`md_playTone()`, and therefore `Sound()` which calls into
+it, has no queue - confirmed directly by reading `portVircon32.c`'s own
+implementation: it unconditionally calls `playnote_stop_all()` before
+starting any new tone, discarding whatever was previously playing,
+regardless of the underlying PlayNote library's own real 16-channel
+capability, which this wrapper deliberately doesn't use).
+
+**Ten more games had this bug, all fixed the same way** (a small non-
+blocking multi-note sequencer, one note per real/logic tick, matching the
+`PAC_STATE_MUSIC_WAIT` shape above - a few used a fixed jingle needing its
+own freezing state, most used a lightweight "advance once per tick
+regardless of state" player since they don't need to freeze gameplay):
+
+- **Tiny Bomber** - three real bugs, plus two bonus finds from reading
+  upstream directly rather than trusting the port's own prior "simplified"
+  comment: (1) the death sound (two call sites - enemy collision and
+  bomb self-damage - both firing the same `md_playTone(200,0.3);
+  md_playTone(100,0.3);` pair synchronously) fixed with a small
+  `bomStartSfx2()`/`bomAdvanceSfx()` non-blocking player; (2) the 22-note
+  start-game jingle (`bomMusic[]`, a direct byte-for-byte match to
+  upstream's own `Music[]` table) fixed with a new `BOM_STATE_MUSIC_WAIT`
+  state, freezing gameplay the same way Pacman's own start jingle does;
+  (3) while deriving this state's own note-index bound, found that
+  upstream's own loop (`for(t=0;t<=42;t=t+2)`) reads one pair *past* the
+  end of its 42-element `Music[]` table - harmless on real AVR/PROGMEM,
+  a genuine out-of-bounds global read here - capped at the real 21 valid
+  pairs instead of reproducing the stray read; (4) upstream's own
+  game-over buzzer (`for(t=0;t<5;t++){Sound(100,100);Sound(1,100);}`,
+  fired from *both* death paths once lives reach 0) had no port
+  equivalent at all - not even a collapsed one, just silence - restored
+  via the same small SFX player, extended to a 10-note buzzer.
+- **Tiny Invaders** - four bugs: the level-cleared fanfare (5 tones, the
+  trailing duplicate `Sound(60,255)` deduped, matching upstream's own
+  effective 5 distinct pitches), a "crawling"/ship-dying tick sound that
+  fires every real frame while active (`Sound(80,1);Sound(100,1);` each
+  time) - fixed by alternating a single tone by parity instead of firing
+  both every frame, the same technique this file's own monster-march step
+  sound already uses for an identical shape, rather than a multi-tick
+  sequence that would never finish before being retriggered - the
+  UFO-destroyed sweep (`for(x=1;x<100;x++){Sound(x,1);}`, 99 real notes,
+  downsampled to 15 via stride 7), and `tinvBebeep()` (a 2-tone confirm
+  cue, fired once when Fire is pressed on the attract/intro screen).
+- **Tiny Pinball** - five bugs: `tpFalseBall()`'s 50-note descending sweep
+  (downsampled to 13, stride 4), the bonus-ball-slot's 9-note ascending
+  sweep (kept in full, already modest), the bumper "bounce push" 3-tone
+  cue, the title screen's own already-"approximated" 5-tone sweep
+  (upstream's real double 255-step sweep, 510 calls total, already
+  reduced to 5 representative tones by an earlier session - that
+  reduction was sound, but the 5 tones still fired as one synchronous
+  burst, so only the last was ever audible even with the "approximation"
+  already applied), and the game-over buzzer (matching Bomber's own
+  `for(t=0;t<5;t++){Sound(100,100);Sound(1,100);}` shape exactly, same
+  fix).
+- **Tiny Doc, Tiny Trick, Tiny Tris** - each has a central `snd`-number
+  sound dispatch function (`tdSndTdoc()`/`trkSndTrk()`/`trisSndTtris()`)
+  whose own header comment already said "simplified - see header comment"
+  or "simplified long tone-loops" - a deliberate design choice made
+  *before* this project had established the frame-stepped-sequencer
+  pattern (first used for Tiny Arkanoid), reducing upstream's own long
+  computed sweeps to a "handful of representative tones." That reasoning
+  assumed a short burst would still sound like several distinct tones -
+  wrong on this engine, since the call *count* doesn't matter, only
+  whether there's more than one with no gap between them. 4 of Doc's 7
+  branches, 7 of Trick's 8, and 5 of Tris's 6 were multi-tone bursts,
+  fixed with a small per-file byte-pair sequencer (`Sound(freqByte,
+  durByte)` called directly, no formula re-derivation needed since
+  `Sound()` itself already converts). Doc/Trick's fixes needed to match
+  each file's own real tick rate for wait-frame math (Doc ticks at 30/sec
+  via `TD_TICK_DIVISOR`; Trick and Tris have no whole-function divisor,
+  ticking at the real 60fps).
+- **Tiny Morpion** - two bugs, both fixed by adding a 4th mode (a fixed
+  2-note cue) to the file's own pre-existing generic note-runner
+  (`tmorpionAdvanceNote()`, modes 0-2 already existed for other cues):
+  the blink-winner cue (`Sound(140,10);Sound(220,4);`, fired repeatedly
+  during the win-blink animation) and `tmorpionSoundStart()`'s own
+  session-start cue (`Sound(100,250);Sound(20,250);`, on two separate
+  lines - missed by the initial same-line grep pass, found only once
+  every `Sound(` call in the file was read individually). The
+  blink-winner site needed its own explicit `tmorpionAdvanceNote()` call
+  added too - that branch `return`s before ever reaching the shared call
+  used by the normal-play/endgame-sweep states, so a queued note there
+  would never have actually advanced without it.
+- **Tiny Pipe** - three bugs (SND_TPIPE(0)'s 5-note confirm chime, a
+  kill-sprite 2-tone cue, and a 6-note bonus-life jingle), fixed with a
+  new small byte-pair sequencer separate from the file's own existing
+  500-call-sweep-specific one. The confirm chime's own code comment
+  claimed it was "harmless as a synchronous burst (only 5 calls)" -
+  itself a real, now-corrected misunderstanding: call *count* was never
+  the determining factor, only whether there's more than one call with no
+  gap between them, so even 2 calls collapse exactly the same way 500
+  would. The bonus-life jingle is the most audible case in this whole
+  audit: its last call is literally `Sound(0,255)` (upstream's own
+  deliberate silent "rest," alternating with `Sound(200,255)` for a
+  beep-beep-beep pattern) - meaning the *entire* jingle was previously
+  playing as complete silence, not just a wrong tone.
+- **Tiny Bert** - one bug, `bertDeadSound()`'s own
+  `for(s=200;s>100;s--) Sound(s,10);` (100 real notes), downsampled to 13
+  via stride 8, same shape as Pinball's `tpFalseBall()` fix.
+- **Tiny Bike** - two bugs (`bikAddLive()`'s 3-tone bonus-life burst, and
+  a 2-tone race-start cue), both routed through this file's own existing
+  `bikStartNoteSeq()`/`bikAdvanceNoteSeq()` sequencer (already built for
+  the intro/win jingles) rather than a new one. Doing this exposed a real
+  gap in that existing mechanism: `bikAdvanceNoteSeq()` was previously
+  only ever called from two specific states (`BIK_STATE_START_LINE`/
+  `BIK_STATE_LEVEL_WIN_WAIT`), so a sequence triggered from `bikAddLive()`
+  (mid-gameplay) or the race-start cue (triggered from `BIK_STATE_ATTRACT`,
+  which passes through two *other* states before ever reaching
+  `START_LINE`) would never actually have advanced. Fixed by moving the
+  advance call to run unconditionally once per real frame at the top of
+  `gameTinyBike_update()`, with the two original call sites changed to
+  check `!bikNoteSeqActive` (the same information their old return value
+  gave them) instead of calling it a second time - avoids double-advancing
+  the sequencer during the one state that used to call it directly.
+
+**A related, deliberate revert, done on direct user request rather than
+found as a new bug**: Tiny Missile's dome-explosion sound
+(`gameTinyMissile.c`, inside its explosion-animation loop) previously
+fired `SNDBOX`-equivalent sound only on the tick an explosion begins
+(`tmisDome[t].frame==1`), rather than upstream's own literal "every one
+of the 6 explosion-animation ticks" - a deliberate fix from earlier this
+session for a real reported "stuck buzz" (retriggering a multi-tick
+sequence every animation tick, rather than upstream's own near-
+instantaneous blocking beep, produced an audible stutter). Reverted back
+to upstream's literal per-tick call at the user's explicit request,
+accepting the risk that the original "stuck buzz" symptom may return -
+flagged clearly before making the change, user confirmed "yes fix it"
+anyway.
+
+Verified via Puppeteer: all ten fixed files compile clean individually
+(rebuilt and confirmed `BUILD SUCCESSFUL` after every single game's
+fix, not just once at the end) and Tiny Bomber - the game with the most
+invasive changes (a new frozen jingle state plus the two-site death-sound
+fix) - was screenshot-tested through menu selection, launch, the frozen
+start-jingle scene, and post-jingle gameplay (movement + bomb placement),
+confirming no crash/freeze/corruption from the restructuring. The other
+nine games were verified via a clean individual rebuild only, not
+independently screenshot-tested this session - each fix is mechanically
+consistent with the same pattern proven working in Bomber and in Pacman's
+own earlier, separately-verified fix, but worth a direct play-test if
+anything sounds off.
+
+## A project-wide audit for entirely missing (not just collapsed) sound cues
+
+A direct follow-up question ("also check for missing musics") after the
+burst-collapse audit above prompted a *second*, separate kind of check -
+not "does this event's sound play correctly," but "does this event have
+*any* sound call in the port at all." Dispatched 4 parallel background
+agents, each covering ~8 games, comparing every upstream `Sound()`/
+`TinySound()`/`beep()` call site (including companion C++ class files,
+not just the main `.ino`) against the port's own `.c` file for a matching
+event. 29 of 33 games came back completely clean (either full coverage or
+upstream genuinely has no sound to begin with - confirmed for Tiny
+Dungeon via its own `NO_SOUND` build guard, and Four in a Row/Dino Game
+via a direct grep finding no functional sound code anywhere in their
+upstream source, just a vestigial unused pin definition in Dino Game's
+case).
+
+**Four genuine omissions found and fixed**, all via the same session's
+own established small-sequencer patterns:
+
+- **Tiny Bomber** - the level-start jingle (upstream's `NEWLEVEL:` label:
+  `for(t=0;t<=4;t++){Sound(80,100);delay(300);}`, 5 identical beeps with a
+  real 300ms gap between each) had no port equivalent at all - not the
+  start-of-*game* jingle already fixed above (a different event, the
+  22-note `bomMusic[]` table played once when `bomInGame` first goes
+  active), but a *separate* cue firing on every level transition.
+  Reproduced with a new `bomStartLevelJingle()` (extending the file's
+  existing `bomSfxFreq`/`bomSfxDur` player with a new parallel
+  `bomSfxExtraFrames[]` array - the real `delay(300)` gap after each
+  beep's own tone finishes, 0 for this file's other cues which have no
+  such gap upstream) called from `bomBeginNewLevel()`, matching upstream's
+  own `if(Level>-1)` guard exactly (skips the very first NEWGAME->level-0
+  transition, plays on every one after).
+- **Tiny Tris** - `trisSndTtris(4)` (the new-game confirm chime,
+  `Sound(20,150);Sound(100,150);`) was already correctly implemented as a
+  dispatch case (from this session's own earlier burst-collapse fix pass)
+  but was never actually *called* anywhere - upstream fires it right when
+  the player presses Fire on the attract screen
+  (`INTRO_MANIFEST_TTRIS()`), a call site the port's own
+  `TRIS_STATE_ATTRACT` handler never had. Fixed by adding the one missing
+  call.
+- **Tiny Missile** - `Destroy_TMISSILE()`'s own descending 4-note tone
+  (`TinySound(Sn_=Sn_-45,4)`, fired once per missile slot scanned -
+  `TMIS_NUM_MISSILE`(4) times per call, *outside* the active/hit check, so
+  it always plays all 4 notes regardless of which missiles were actually
+  live) had no port equivalent in `tmisDestroy()` at all. This is also a
+  genuine multi-call burst in its own right (4 synchronous calls, same
+  family as every bug in the section above) - fixed with a new
+  `tmisDestroyNotes[8]` table (210/165/120/75, each dur 4, matching
+  `Sn_`'s own arithmetic) routed through this file's own existing
+  `tmisStartNoteSeq()`/`tmisAdvanceNoteSeq()` sequencer.
+- **UFO** - the thruster hum while climbing (`beep(1,random(0,i*2))`,
+  called up to 6 times per real tick inside a 3x2 nested loop while
+  actively flying up with room left to climb) had no port equivalent.
+  Approximated as a single representative `ufoBeepOnce(1, arand(4))` per
+  tick instead of the full nested loop - both to avoid reintroducing the
+  same burst-collapse issue this session already fixed elsewhere (6 near-
+  identical short blips colliding into one), and because the original's
+  own randomized sub-frame durations have no meaningfully different
+  audible result at 6x redundancy.
+
+Verified via Puppeteer after rebuilding: the ROM boots cleanly, the full
+33-game alphabetized menu renders correctly across all 4 pages, and both
+Tiny Bomber (already screenshot-verified above through the frozen
+start-jingle scene and post-jingle gameplay) and UFO (launched cleanly
+into its own attract screen, held Up to exercise the new thruster-hum
+code path) show no crash, freeze, or visual corruption from any of the
+four fixes. The other two games (Tris/Missile) were verified via a clean
+individual rebuild only, not independently screenshot-tested this
+session - both changes are small, mechanically consistent additions
+(one new function call; one new note table wired into an already-proven
+sequencer) rather than structural changes, so risk is low, but worth a
+direct check if anything sounds off.
+
 ## Status (as of this session)
 
 Shipped and visually verified (WebGL emulator + a Puppeteer screenshot

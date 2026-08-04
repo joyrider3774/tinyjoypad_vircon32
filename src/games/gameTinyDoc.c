@@ -434,28 +434,94 @@ int tdSpeedBlitz( int xPos, int yPos, int xPass, int yPass, int frame, int* spri
 
 // -----------------------------------------------------------------------------
 //   Sound (simplified - see header comment)
+//
+// The "simplified" approximations here still fired every one of their
+// several Sound() calls synchronously, with no real time between them -
+// harmless on real AVR hardware (each Sound() call genuinely blocks), but
+// md_playTone() (which Sound() itself calls into) has no queue: a burst
+// of N calls with no real time between them is only ever audible as the
+// very last one. Fixed with a small non-blocking byte-pair sequencer,
+// same shape as this project's other ports (gameTinyPacman.c etc) - it
+// still calls the shared Sound(freqByte,durByte) directly (not
+// md_playTone()), so no formula re-derivation is needed here, just
+// correct timing between calls. This file's own gameTinyDoc_update() only
+// ticks once every TD_TICK_DIVISOR(2) real frames (30 logic ticks/sec),
+// so wait-frame counts below are computed against 30, not 60.
 // -----------------------------------------------------------------------------
+
+#define TD_SND_MAX_NOTES 8
+int[TD_SND_MAX_NOTES] tdSndFreqBytes;
+int[TD_SND_MAX_NOTES] tdSndDurBytes;
+int tdSndLen;
+int tdSndPos;
+int tdSndWaitFrames;
+
+void tdAdvanceSfx()
+{
+    if( tdSndPos >= tdSndLen )
+      return;
+
+    if( tdSndWaitFrames > 0 )
+    {
+        tdSndWaitFrames--;
+        return;
+    }
+
+    int freqByte = tdSndFreqBytes[ tdSndPos ];
+    int durByte = tdSndDurBytes[ tdSndPos ];
+    Sound( freqByte, durByte );
+
+    int periodUs = 255 - freqByte;
+    if( periodUs < 1 )
+      periodUs = 1;
+    float durationSeconds = (float)( durByte * 2 * periodUs ) / 1000000.0;
+    int waitFrames = (int)( durationSeconds * 30.0 );
+    if( waitFrames < 1 )
+      waitFrames = 1;
+    tdSndWaitFrames = waitFrames;
+
+    tdSndPos++;
+}
 
 void tdSndTdoc( int snd )
 {
     if( snd == 0 ) Sound( 200, 1 );
     else if( snd == 1 )
     {
-        Sound( 4, 80 ); Sound( 100, 80 );
-        Sound( 4, 80 ); Sound( 100, 80 );
-        Sound( 4, 80 ); Sound( 100, 80 );
+        tdSndFreqBytes[ 0 ] = 4; tdSndDurBytes[ 0 ] = 80;
+        tdSndFreqBytes[ 1 ] = 100; tdSndDurBytes[ 1 ] = 80;
+        tdSndFreqBytes[ 2 ] = 4; tdSndDurBytes[ 2 ] = 80;
+        tdSndFreqBytes[ 3 ] = 100; tdSndDurBytes[ 3 ] = 80;
+        tdSndFreqBytes[ 4 ] = 4; tdSndDurBytes[ 4 ] = 80;
+        tdSndFreqBytes[ 5 ] = 100; tdSndDurBytes[ 5 ] = 80;
+        tdSndLen = 6; tdSndPos = 0; tdSndWaitFrames = 0;
     }
-    else if( snd == 2 ) { Sound( 240, 4 ); Sound( 100, 4 ); }
+    else if( snd == 2 )
+    {
+        tdSndFreqBytes[ 0 ] = 240; tdSndDurBytes[ 0 ] = 4;
+        tdSndFreqBytes[ 1 ] = 100; tdSndDurBytes[ 1 ] = 4;
+        tdSndLen = 2; tdSndPos = 0; tdSndWaitFrames = 0;
+    }
     else if( snd == 3 ) Sound( 2, 1 );
     else if( snd == 4 ) Sound( 10, 12 );
     else if( snd == 5 )
     {
-        Sound( 40, 3 ); Sound( 160, 12 );
-        Sound( 80, 3 ); Sound( 120, 12 );
-        Sound( 120, 3 ); Sound( 80, 12 );
-        Sound( 160, 3 ); Sound( 40, 12 );
+        tdSndFreqBytes[ 0 ] = 40; tdSndDurBytes[ 0 ] = 3;
+        tdSndFreqBytes[ 1 ] = 160; tdSndDurBytes[ 1 ] = 12;
+        tdSndFreqBytes[ 2 ] = 80; tdSndDurBytes[ 2 ] = 3;
+        tdSndFreqBytes[ 3 ] = 120; tdSndDurBytes[ 3 ] = 12;
+        tdSndFreqBytes[ 4 ] = 120; tdSndDurBytes[ 4 ] = 3;
+        tdSndFreqBytes[ 5 ] = 80; tdSndDurBytes[ 5 ] = 12;
+        tdSndFreqBytes[ 6 ] = 160; tdSndDurBytes[ 6 ] = 3;
+        tdSndFreqBytes[ 7 ] = 40; tdSndDurBytes[ 7 ] = 12;
+        tdSndLen = 8; tdSndPos = 0; tdSndWaitFrames = 0;
     }
-    else if( snd == 6 ) { Sound( 100, 255 ); Sound( 60, 255 ); }
+    else if( snd == 6 )
+    {
+        tdSndFreqBytes[ 0 ] = 100; tdSndDurBytes[ 0 ] = 255;
+        tdSndFreqBytes[ 1 ] = 60; tdSndDurBytes[ 1 ] = 255;
+        tdSndLen = 2; tdSndPos = 0; tdSndWaitFrames = 0;
+    }
 }
 
 // -----------------------------------------------------------------------------
@@ -1353,6 +1419,8 @@ void gameTinyDoc_update()
     if( tdTickSkipCounter < TD_TICK_DIVISOR )
       return;
     tdTickSkipCounter = 0;
+
+    tdAdvanceSfx();
 
     if( tdState == TD_STATE_ATTRACT )
     {

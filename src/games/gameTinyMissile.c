@@ -446,6 +446,14 @@ int[4] tmisSnd3Notes = { 200, 140, 100, 140 };
 int[4] tmisSnd4Notes = { 2, 140, 200, 14 };
 int[4] tmisSnd5Notes = { 200, 6, 150, 6 };
 
+// Destroy_TMISSILE()'s own descending tone, found missing entirely (not
+// just collapsed) via a project-wide missing-sound-cue audit - upstream
+// fires TinySound(Sn_=Sn_-45,4) once per missile slot scanned (all
+// TMIS_NUM_MISSILE(4) of them, active or not - the sound sits outside the
+// active/hit check), Sn_ starting at 255 and stepping down by 45 each
+// time: 210,165,120,75.
+int[8] tmisDestroyNotes = { 210, 4, 165, 4, 120, 4, 75, 4 };
+
 // case(1)/case(2) upstream are computed sweeps, not hand-authored melodies -
 // built once at init via the same loop shape upstream uses, instead of
 // transcribing several hundred numbers by hand.
@@ -993,6 +1001,8 @@ int tmisMissileProgress( TmisMissile* m )
 
 void tmisDestroy( int interceptIndex )
 {
+    tmisStartNoteSeq( tmisDestroyNotes, 8 );
+
     int t;
     for( t = 0; t < TMIS_NUM_MISSILE; t++ )
     {
@@ -1059,17 +1069,10 @@ void tmisUpdateDome()
         {
             if( tmisDome[t].frame > 0 )
             {
-                // Upstream calls SNDBOX(5) on every one of the 6
-                // explosion-animation ticks, but each of its own calls is a
-                // blocking ~2ms beep - basically inaudible overlap on real
-                // hardware. Vircon32's Sound() is a real async channel with
-                // no such blocking, so retriggering it every tick for a
-                // single dome's whole explosion instead produced an
-                // audible, stuck-sounding buzz (reported directly) - fixed
-                // by sounding once, on the tick the explosion actually
-                // starts, matching what a player perceives as "one boom."
-                if( tmisDome[t].frame == 1 )
-                  tmisSndBox( 5 );
+                // Matches upstream exactly: SNDBOX(5) fires on every one
+                // of the 6 explosion-animation ticks (CLASS_TMISSILE.cpp),
+                // not just the first.
+                tmisSndBox( 5 );
                 tmisDomeProgressAnim( &tmisDome[t] );
                 refresh = 1;
             }
