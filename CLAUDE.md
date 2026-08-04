@@ -1251,23 +1251,23 @@ file - both `sdl3`/`sdl2` rebuilt clean.
 ## Status (as of this session)
 
 Shipped and visually verified (WebGL emulator + a Puppeteer screenshot
-harness - see below): the shim architecture, the menu, and 38 full games
+harness - see below): the shim architecture, the menu, and 39 full games
 (NumberPlace, Tiny Invaders, 2048, HollowSeeker, Tiny Pinball, Tiny
 Pacman, Tiny Bomber, Tiny Doc, Tiny Bert, Tiny Tris, Tiny Arkanoid, Tiny
 Trick, Tiny Minez, Tiny Missile, Tiny Bike, Tiny Arena, Tiny Gilbert,
 Tiny Pipe, Tiny Morpion, Tiny Plaque, Tiny SQuest, Tiny DDug, Tiny
 Lander, Wren Rollercoaster, Frogger, Bat Bonanza, Stacker, UFO, Tiny
 Dungeon, Oroboros, Run Dude Run, Four in a Row, Dino Game, SnakeGame85,
-Jump Slime, TinyRoG, TinY Fi, Breakout). Every game from the project's
-original scope shipped with Tiny Dungeon (see its own writeup below for
-what's still not independently re-verified about it specifically) -
-Oroboros, Run Dude Run, Four in a Row, and Dino Game were this project's
-first four additions *beyond* that original scope, found via a follow-up
-GitHub/web search for TinyJoypad-compatible games not already catalogued
-(see "Beyond the original scope" below for the full survey and what else
-it turned up) - Dino Game was the last known candidate from *that*
-survey, but a fifth beyond-scope addition, SnakeGame85, was found
-afterward via a direct link the user supplied
+Jump Slime, TinyRoG, TinY Fi, Breakout, Space Attack). Every game from
+the project's original scope shipped with Tiny Dungeon (see its own
+writeup below for what's still not independently re-verified about it
+specifically) - Oroboros, Run Dude Run, Four in a Row, and Dino Game
+were this project's first four additions *beyond* that original scope,
+found via a follow-up GitHub/web search for TinyJoypad-compatible games
+not already catalogued (see "Beyond the original scope" below for the
+full survey and what else it turned up) - Dino Game was the last known
+candidate from *that* survey, but a fifth beyond-scope addition,
+SnakeGame85, was found afterward via a direct link the user supplied
 (github.com/terezaza/SnakeGame85, not part of the earlier systematic
 search) and shipped the same session - see its own writeup below. A
 sixth addition, Jump Slime, came from a completely different discovery
@@ -1287,9 +1287,11 @@ games/gametiny/` (this project's *other* beyond-scope source, previously
 believed fully triaged) against actual source code rather than genre
 similarity turned up 3 more genuine, previously-missed games -
 SpaceAttack, Tetris Multi-Button, and Breakout (see that folder's own
-catalog entry above for the full re-verification) - Breakout was ported
-first (see its own writeup below); SpaceAttack and Tetris Multi-Button
-remain open candidates for a future session.
+catalog entry above for the full re-verification). Breakout was ported
+first, Space Attack (a genuine Andy Jackson-family game, not a Tiny
+Invaders lookalike despite the shared genre) followed in the same
+session - see each game's own writeup below. Tetris Multi-Button remains
+the one open candidate from that batch for a future session.
 
 - `src/machineDependent.h` + `src/portVircon32.c` - the `md_*` primitives
   (video/input/audio) plus the atlas texture setup and the top-level
@@ -5864,6 +5866,133 @@ of scope).
   own check, run every tick exactly like everything else in the frame-
   action block.
 
+- `src/games/gameSpaceAttack.c` - Space Attack (Andy Jackson, non-
+  commercial-with-attribution; ATtiny-Joypad port by Billy Cheung, 2018 -
+  credited "ANDY JACKSON" in the menu). A classic Space-Invaders-style
+  shooter: 3 rows of 14 aliens step left-right-then-down as a block,
+  occasionally firing back, while a passing "mothership" bonus target
+  crosses the top for big points. Second of the 3 games found via the
+  `more games/gametiny/` re-verification (see that folder's own catalog
+  entry and this file's own Status intro above) - the game the user
+  specifically named when pushing back on the earlier "same genre as Tiny
+  Invaders, skip it" reasoning, confirmed via direct reading to be a
+  genuinely distinct codebase by a different author (Andy Jackson, not
+  Daniel C/Sven B) with its own mothership mechanic and scoring model.
+  `SpaceAttackAttiny2but` (a 2-button-hardware control variant, confirmed
+  via a 119-line all-comment/control-mapping diff) isn't ported
+  separately - TinyJoypad's own real dedicated fire button makes the
+  non-`2but` version the natural fit.
+
+  Same `gametiny`/Andy-Jackson-family boilerplate as Breakout (this
+  game's own `font6x8AJ.h` byte-diffed identical to Stacker/Breakout's
+  copy; needed no new shim; EEPROM dropped, hold-fire-to-mute gesture
+  kept). Upstream's own alien/mothership/fire timing counters
+  (`aliencounter`/`firecounter`/`mothercounter`) are plain per-iteration
+  tick counters with no real `millis()` reference anywhere in the actual
+  gameplay loop (confirmed directly - every `millis()`/`delay()` call in
+  the file is in the attract/game-over screens, none inside
+  `playSpaceAttack()` itself) - the "no timing model whatsoever upstream"
+  category, ported with a direct 1-engine-tick = 1-upstream-iteration
+  correspondence. Upstream's own "burn clock cycles" loop (padding out
+  each iteration's real duration as fewer aliens remain, to keep the bare
+  AVR loop's speed roughly constant) is a pure real-time-compensation
+  artifact with no equivalent need on a fixed-tick-rate engine - dropped
+  entirely rather than ported as pointless extra draw calls. The attract
+  screen's own elaborate ~91-frame slide-in animation was simplified to a
+  static screen (title, the small decorative alien-formation graphic
+  upstream also draws statically before that animation starts, credits,
+  platform) - a deliberate effort/fidelity tradeoff for a purely cosmetic,
+  non-gameplay sequence.
+
+  **A real, genuine bug found via direct user report right after
+  shipping** ("please check enemy bullets and their spawning and so
+  something is off"): `spaAlienFireActive`/`X`/`Y` were declared as
+  `int[3]` instead of `int[SPA_MAX_ALIEN_FIRE]` (5) - a straightforward
+  transcription slip, mixing up upstream's own `alienFire[5][3]`'s two
+  dimensions (5 concurrent shot slots, 3 fields each) when splitting it
+  into 3 parallel arrays. Every loop in the file iterates
+  `for(i=0;i<SPA_MAX_ALIEN_FIRE;i++)` (5 iterations), so indices 3 and 4
+  read/wrote past the end of these 3-element arrays on every single
+  tick - a genuine out-of-bounds memory access, not just a logic bug,
+  matching this project's own well-documented "ERROR: INVALID MEMORY
+  READ/WRITE" bug class. Fixed by correcting all 3 declarations to
+  `int[5]`. Found and fixed via direct code inspection (grepping every
+  `spaAlienFireActive`/`spaAlienFireX`/`spaAlienFireY` reference and
+  checking each declaration against its own real usage bound) rather than
+  by guessing from symptoms.
+
+  **A second, subtler real bug found via the user's own direct follow-up
+  question** ("does the game have an upstream fps lock" led to re-
+  tracing every `fire`/`playerFire[0]` read in the original source,
+  which surfaced this): an earlier draft gated the mothership/alien-
+  collision-check block on a fresh `isFirePressed()` **level** read
+  (`fireHeld`) rather than on `spaPlayerFireActive`. Tracing upstream's
+  own `fire` flag (interrupt-set on the physical button, but *only ever
+  cleared when a shot resolves* - never on button release) shows it
+  moves in lockstep with `playerFire[0]` for a shot's entire flight, so
+  upstream's own `if(fire==1){...}` gate around the collision checks
+  really means "is a shot currently in flight", not "is the button still
+  physically held". Gating on a live level read instead would have
+  frozen an in-flight shot un-checked the instant the player released
+  Fire before it resolved - a real, if narrow, gameplay bug (releasing
+  Fire early would make a shot pass through aliens harmlessly). Fixed by
+  switching that gate to `spaPlayerFireActive` (already updated by the
+  Y-advance/resolve step immediately above it in the same tick) - the
+  live button read is now only ever used to decide whether to *start* a
+  new shot.
+
+  **A real CPU-budget problem, also found via a direct user report**
+  (screenshots taken during this same investigation happened to show
+  93-98% CPU during gameplay) - `spaComputeByte()`'s first draft queried
+  every one of 1024 pixels/frame individually: an alien-grid lookup per
+  pixel, plus a 5-slot alien-fire scan *per pixel* (5120 checks/frame) to
+  find columns that are almost always empty - the same O(pixels x
+  objects) shape this project has repeatedly found and fixed elsewhere.
+  Fixed with `spaComposeRow()`, compositing each page's own real content
+  (aliens/mothership/platform/fire) into a shared row buffer once per
+  page, touching only each feature's own real, narrow column range.
+  Measured via the perf overlay: gameplay CPU dropped from 93-98% to a
+  steady 44%, with rendering confirmed pixel-identical via screenshot
+  (full 14-alien formation, platform, score, and multiple simultaneous
+  enemy bullets at different heights all still correct) before and after.
+  The attract screen (78% CPU) and level-up screen were not given the
+  same row-buffer treatment this pass - both are comfortably under
+  budget as measured, so left as-is rather than optimized pre-emptively.
+
+  A direct user request to audit for the established "8-bit vs 32-bit"
+  bug family (byte truncation, shift wraparound, signed sentinels,
+  `rand()` range) came back clean: the file's only two shift operations
+  are both in `spaFireColumnByte()`, already explicitly `&0xFF`-masked
+  where needed, and both provably only ever operate on non-negative,
+  bounded (0-7) values - `spaPlayerFireY`/`spaAlienFireY` are traced to
+  never go negative (initialized non-negative, only ever incremented or
+  decremented down to exactly 0). No raw `rand()`/`random()` calls (all
+  routed through `arand()`), no `0xFF`/`0x80`-style sentinel comparisons
+  anywhere in the file.
+
+  A separate, deliberate design decision (not a bug) preserved rather
+  than "fixed": `fireXidx`/`fireYidx` (the player-shot-to-alien-grid
+  mapping) are computed upstream via `floor(intExpr)`, but since both
+  inner expressions are already plain `int/int` division (which
+  truncates toward zero in C, not a real float division), the `floor()`
+  calls are no-ops applied to an already-integer value - ported as plain
+  integer division with no special negative-number handling, faithfully
+  reproducing upstream's real (imperfect) behavior rather than "fixing"
+  it into a genuine floor division upstream itself never actually
+  performed.
+
+  Verified via Puppeteer throughout (including full re-verification after
+  both bug fixes): the attract screen (title, decorative alien graphic,
+  both credit-line font substitutions, platform), the LEVEL 1 transition
+  screen, active gameplay (the full 14-alien formation descending,
+  platform movement, score display), and multiple simultaneous enemy
+  bullets at different flight heights all render correctly. Not
+  independently forced this session: a full level-clear (defeating all 14
+  aliens to reach level 2), a mothership kill, and a player-death/game-
+  over sequence - all three reuse logic paths that are otherwise direct,
+  unmodified, already-scrutinized ports of upstream's own code, so risk
+  is low, but worth a direct check if anything looks off.
+
 ## Licensing
 
 Tiny Invaders v4.2 is GPLv3 (its `tinyJoypadUtils`/driver lineage). Since a
@@ -5906,7 +6035,12 @@ separately confirmed to exist there too
 (`sketches/attiny_breakout_vcc_gnd_scl_sda/`) and is what the README's
 own source link points to, matching Oroboros/Run Dude Run/UFO's own
 precedent of citing the canonical repo over a combined-cartridge mirror
-when both exist. Four in a Row and Dino Game are the two exceptions to every
+when both exist. Space Attack (see the same re-verification above) is
+Andy Jackson's own - the same author and license family as Wren/Frogger/
+Bat Bonanza/Stacker - credited "ANDY JACKSON" accordingly, sourced from
+`SpaceAttackAttiny` directly (a standalone file, not a combined-cartridge
+extraction the way Breakout's own port needed). Four in a Row and Dino
+Game are the two exceptions to every
 license-family grouping above - neither's own source carries an author
 name or a license statement at all (neither is present in
 `webboggles/AttinyArcade` either, only in

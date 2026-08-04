@@ -162,4 +162,5 @@ void addGames()
     // an oversight.
     addGame( "TINY FI", "KONDOLAB", &gameTinYFi_init, &gameTinYFi_update, NULL );
     addGame( "BREAKOUT", "ILYA TITOV", &gameBreakout_init, &gameBreakout_update, &gameBreakout_forceRedraw );
+    addGame( "SPACE ATTACK", "ANDY JACKSON", &gameSpaceAttack_init, &gameSpaceAttack_update, &gameSpaceAttack_forceRedraw );
 }
