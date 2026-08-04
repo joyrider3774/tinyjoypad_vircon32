@@ -1155,23 +1155,26 @@ file - both `sdl3`/`sdl2` rebuilt clean.
 ## Status (as of this session)
 
 Shipped and visually verified (WebGL emulator + a Puppeteer screenshot
-harness - see below): the shim architecture, the menu, and 33 full games
+harness - see below): the shim architecture, the menu, and 34 full games
 (NumberPlace, Tiny Invaders, 2048, HollowSeeker, Tiny Pinball, Tiny
 Pacman, Tiny Bomber, Tiny Doc, Tiny Bert, Tiny Tris, Tiny Arkanoid, Tiny
 Trick, Tiny Minez, Tiny Missile, Tiny Bike, Tiny Arena, Tiny Gilbert,
 Tiny Pipe, Tiny Morpion, Tiny Plaque, Tiny SQuest, Tiny DDug, Tiny
 Lander, Wren Rollercoaster, Frogger, Bat Bonanza, Stacker, UFO, Tiny
-Dungeon, Oroboros, Run Dude Run, Four in a Row, Dino Game). Every game
-from the project's original scope shipped with Tiny Dungeon (see its own
-writeup below for what's still not independently re-verified about it
-specifically) - Oroboros, Run Dude Run, Four in a Row, and Dino Game are
-this project's first four additions *beyond* that original scope, found
-via a follow-up GitHub/web search for TinyJoypad-compatible games not
-already catalogued (see "Beyond the original scope" below for the full
-survey and what else it turned up) - **Dino Game was the last known
-candidate from that survey**, so the beyond-scope backlog is now empty
-unless a future search turns up something new (see the Status update at
-the very end of this section for the full picture of what's left).
+Dungeon, Oroboros, Run Dude Run, Four in a Row, Dino Game, SnakeGame85).
+Every game from the project's original scope shipped with Tiny Dungeon
+(see its own writeup below for what's still not independently
+re-verified about it specifically) - Oroboros, Run Dude Run, Four in a
+Row, and Dino Game were this project's first four additions *beyond*
+that original scope, found via a follow-up GitHub/web search for
+TinyJoypad-compatible games not already catalogued (see "Beyond the
+original scope" below for the full survey and what else it turned up) -
+Dino Game was the last known candidate from *that* survey, but a fifth
+beyond-scope addition, SnakeGame85, was found afterward via a direct
+link the user supplied (github.com/terezaza/SnakeGame85, not part of the
+earlier systematic search) and shipped the same session - see its own
+writeup below. The beyond-scope backlog is empty again unless a future
+search or link turns up something new.
 
 - `src/machineDependent.h` + `src/portVircon32.c` - the `md_*` primitives
   (video/input/audio) plus the atlas texture setup and the top-level
@@ -5067,6 +5070,164 @@ of scope).
   neighboring thumbnail (texture 1, cell 31, the original atlas's own
   last cell) both render correctly with no cross-contamination between
   the two textures.
+- `src/games/gameSnakeGame85.c` - SnakeGame85 (github.com/terezaza/
+  SnakeGame85, GPLv3). A fifth beyond-scope addition, found via a direct
+  link the user supplied rather than the earlier systematic search that
+  had otherwise closed out the beyond-scope backlog (see this file's own
+  Status intro). No individual author name appears anywhere in the
+  upstream source (`.ino`, `oled85.h`/`.cpp`, `README.md`) - credited in
+  the menu by the repo's own GitHub handle, "TEREZAZA", the only
+  identifying name available anywhere in the project. A classic
+  4-directional Nokia-style Snake on a 16x8 grid - deliberately not a
+  duplicate of this project's already-shipped Oroboros (also a Snake
+  clone, same beyond-scope batch): Oroboros's own upstream only supports
+  *relative* turn-left/turn-right input, while this game reads *absolute*
+  up/down/left/right, a genuinely different control feel confirmed before
+  committing to port it.
+
+  Not tinyJoypadShim/obonoCoreShim lineage - genuine bespoke hardware (a
+  real SSD1306 at I2C 0x3C, exact hardware match to every other game
+  here) with its own two-analog-pin, four-button ladder (`LEFT_RIGHT`/A3
+  and `UP_DOWN`/A2, each wired to two buttons at two different
+  thresholds) that has no fixed "left/right/up/down" meaning of its own -
+  mapped instead onto whatever produces natural d-pad movement, the same
+  kind of deliberate remap already used for Tiny Lander's thrust controls
+  and Tiny Arkanoid's paddle axis. `isFirePressed()` is never read at all
+  - this game's native input surface has only the four directions, which
+  also double as "any button" to start/restart, matching upstream's own
+  `checkButtonStateChange()` exactly.
+
+  `oled85.cpp`'s `drawBlock()`/`removeBlock()` operate on the same
+  byte-per-(column,page) primitive this whole project already uses
+  (`x *= NUM_PAGES` confirms x/y really are 16x8 grid units, one 8px-wide,
+  1-page-tall cell each) - no new shim needed. Rather than replicate
+  oled85's own incremental single-cell draw/erase calls, this port (like
+  most others here) rebuilds the whole 16x8 occupancy grid from scratch
+  every tick and redraws the complete screen every real engine frame,
+  avoiding any VRAM-persistence risk from the start rather than needing a
+  later fix. Upstream's own real, variable wall-clock tick pacing
+  (`moveSnake()`'s own `delay(150)`, plus `changeNextMove()`'s own
+  `delay(150)` on an actual direction change, plus the main loop's
+  trailing `delay(100)` - roughly 250-400ms/tick) was approximated with a
+  single flat whole-function tick divisor (~4 ticks/sec) rather than
+  modeled exactly, the same single-representative-rate simplification
+  already used for several other ports here. `changeNextMove()` is a
+  genuine synchronous level-read (`analogRead()`) called directly inside
+  the tick body upstream, not an interrupt-latched pending flag the way
+  Oroboros's own hardware works - so this port reads input once per
+  discrete engine tick rather than edge-detecting/queuing across real
+  frames, matching upstream's own polling structure directly (upstream's
+  own *second* `changeNextMove()` call per loop iteration only exists to
+  give real analog hardware a second chance to catch a change before its
+  own `delay(100)` - meaningless for an instantaneous digital gamepad
+  read, so only one call per tick is made here). Upstream's oversized
+  synchronous `tinyTune()` calls were converted to short frame-stepped
+  note sequencers, with frequencies/durations derived directly from
+  `tinyTune(down,up,times)`'s own real PWM period rather than guessed.
+
+  **Bitmap data extraction initially went wrong in a way worth
+  remembering**: the two raw SSD1306 bitmaps (`LOAD_SCREEN[]`/`SCORE[]`,
+  1024 bytes each) were correctly extracted via a small Python script
+  into scratchpad text files - but the *first* draft of this port's own
+  source file was written by manually transcribing plausible-looking
+  values into the `.c` file directly, without ever reading the script's
+  own output back in first. This produced a `snkLoadScreenData` array
+  with 1067 values instead of 1024 (caught immediately at compile time -
+  "too many values to assign to int[1024]" - not silently accepted), and
+  would have shipped with corrupted title-screen art had the count
+  happened to match. Fixed by actually reading the generated scratch
+  files and replacing the array with their real, byte-diffed-verified
+  content (`snkScoreBgData`, it turned out, actually *had* been copied
+  correctly the first time - only the load-screen array was wrong) - the
+  same "byte-diff transcribed tables, don't trust an eyeballed copy"
+  lesson this project has needed repeatedly, just via a new failure mode
+  (skipping the verification read-back step entirely, not just making a
+  transcription slip while looking at real data).
+
+  **A real display-orientation bug, found immediately from the first
+  screenshot rather than assumed correct**: the title screen rendered
+  with "SNAKE" upside-down and mirrored - a clean 180-degree rotation of
+  the whole image. Root-caused by re-reading `oled85.h`'s own
+  `init_commands_list`: it sends `SEGMENT_REMAP 0xA1` and
+  `COM_SCAN_DECREASING`, real SSD1306 hardware commands that reverse both
+  the column-address-to-physical-column mapping and the full 64-row scan
+  direction - meaning a real user's display shows every source byte's
+  (col, page) physically placed at (127-col, 7-page), *and* (since
+  reversing the scan direction reverses all 64 rows individually, not
+  just which 8-row page-block lands where) every byte's own 8 bits
+  individually reversed too. Fixed with a single wrapper in
+  `snkRenderImage()`: `snkComputeByte(127-x, 7-page)` (relative to the
+  physical pixel being drawn), then a bit-reversal of the result -
+  confirmed by the corrected screenshot showing "SNAKE" right-side up.
+  Also discovered from the same constructor read:
+  `OLED85::OLED85()` calls `sendCommand(INVERT_DISPLAY)` once,
+  permanently, right after the initial `fillScreen(0)` - this game runs
+  its entire real display hardware-inverted from boot onward, reproduced
+  with a `snkInvertFrame` flag applied uniformly to every rendered byte
+  (default on; only `blinkScreen()`'s own `NORMAL_DISPLAY` half-steps
+  briefly clear it), which is also why the grid-dot pattern reads as a
+  mostly-white cell with a single black dot rather than the reverse.
+
+  **A real CPU-cost regression from that same fix, reported directly by
+  the user right after** ("cpu usuage is high now that the game is
+  correctly flipped"): the bit-reversal was first implemented as an
+  8-iteration shift/or loop run for *every one* of the 1024 pixels/frame
+  (8192 total loop iterations/frame) - measurably enough to push a real
+  frame over Vircon32's 250,000-cycle/frame budget, visible as a partial
+  black region cut into the screen (this project's own well-documented
+  "frame truncated mid-instruction-stream" failure signature). Fixed by
+  precomputing a 256-entry bit-reversal lookup table instead (every
+  byte's own reversal is a pure function of its 8-bit value) - the same
+  "bake the 256 possible byte values into a table" approach the column
+  atlas itself already uses - collapsing the per-pixel cost to a single
+  array read. Verified via the WebGL perf overlay: CPU dropped to a
+  steady ~5-6%.
+
+  **A second real bug from the same orientation fix, also reported
+  directly by the user right after** ("controls are inverted now also so
+  need to adapt controls"): the display-orientation fix only corrected
+  *rendering* - the movement/collision logic still operates in the
+  original, now-visually-mirrored coordinate space, so a raw +X delta
+  (the same delta upstream's own `reset()` comment calls "left") was
+  moving the snake toward smaller *physical* columns, i.e. still visually
+  left, but pressing the gamepad's own Right button was mapped straight
+  to raw +X - backwards on screen. Fixed by inverting both axes in
+  `snkChangeNextMove()`'s own button-to-delta mapping (Left -> raw +X,
+  Right -> raw -X, Up -> raw +Y, Down -> raw -Y) to compensate for the
+  same point-reflection the renderer now applies - the anti-reversal
+  guards needed no changes, since they only compare raw deltas against
+  each other, not against any notion of screen direction. The *default*
+  starting direction (raw +X, unchanged) was deliberately left alone,
+  since it already correctly reproduces upstream's own documented visual
+  intent ("left") once run through the same remap.
+
+  **A third real bug, this time asked about rather than reported as
+  broken** ("does upstream actually temporarily draw a food item in a
+  corner of the screen?"): confirmed by directly re-reading `placeDot()`/
+  `moveSnake()`/the main loop that upstream does *not* - `dot[]` is only
+  ever assigned once a free cell is confirmed, drawn once. The corner
+  flash was a genuine bug specific to this port's own architecture:
+  growing the snake by simply incrementing `snkSnakeLen` left the new
+  tail slot's `snkSnakeX`/`snkSnakeY` at whatever zero-initialized value
+  was already sitting in the array - a real, in-bounds grid cell (0,0),
+  the board's own corner - and unlike upstream (whose own per-tick render
+  happens *inside* `moveSnake()`, before `snakeLen++` ever runs, so the
+  next tick's own shift overwrites the stale slot before it's ever drawn)
+  this port rebuilds the occupancy grid for rendering *after* growing
+  length, in the *same* tick, exposing the stale slot for exactly one
+  frame every time the snake ate. Fixed by explicitly seeding the new
+  tail segment at the old tail's own position at the moment of growth,
+  rather than leaving it unset. Verified with a temporary debug hook
+  (forcing a deterministic dot position right after spawn, so an eat
+  event could be reproduced on an exact known tick rather than waiting on
+  real randomness) - screenshots across the eating tick confirmed no
+  corner artifact, correct growth (3 segments to 4), and a sensible new
+  dot position after eating; the hook was fully removed once confirmed.
+
+  Menu thumbnail: added to `assets/thumbnails2.png`'s cell 1 (the second
+  cell of its 4x2 grid, right after Dino Game's own cell 0) - no further
+  atlas growth needed. Verified via screenshot that both thumbnails
+  render correctly with no cross-contamination.
 
 ## Licensing
 
@@ -5120,6 +5281,15 @@ rather than relabeled GPLv3, though the cartridge as a combined work
 remains GPLv3 overall regardless (a project-level determination already
 settled by Tiny Invaders' own GPLv3
 lineage, not something that changes per individual game file).
+SnakeGame85 is its own separate case again: its repo carries a real,
+unambiguous GPLv3 `LICENSE.txt` (confirmed directly, matching Tiny
+Invaders' own license exactly), but - like Four in a Row/Dino Game - no
+individual author name anywhere in its own source or README, only the
+GitHub handle the repo is hosted under - credited in the menu as
+"TEREZAZA" rather than "UNKNOWN", since a specific handle tied to a
+specific repository is more informative than genuine anonymity, the same
+reasoning already applied to Tiny Minez/Tiny Dungeon's own "SVEN B /
+LORANDIL" credit.
 Attribution (corrected mid-session after checking each `.ino`'s own
 header comment directly, rather than trusting this file's earlier,
 imprecise "Lorandil" shorthand): Tiny Pinball/Pacman/Bomber/Doc/Bert/

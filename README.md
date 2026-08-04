@@ -85,6 +85,7 @@ license/attribution is preserved unmodified in its own header comment in
 | Run Dude Run | Ilya Titov | Non-commercial, with attribution | [AttinyArcade](https://github.com/webboggles/AttinyArcade) |
 | Four in a Row | Unknown | None specified | [tiny-handheld](https://github.com/Yevgeniy-Olexandrenko/tiny-handheld) |
 | Dino Game | tiny-handheld project (original) | None specified | [tiny-handheld](https://github.com/Yevgeniy-Olexandrenko/tiny-handheld) |
+| SnakeGame85 | terezaza | GPLv3 | [SnakeGame85](https://github.com/terezaza/SnakeGame85) |
 
 ## Optimizations
 

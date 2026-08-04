@@ -141,4 +141,9 @@ void addGames()
     // only exits that helper, not the outer update function), so NULL here
     // is confirmed correct, not an oversight.
     addGame( "DINO GAME", "TINY HANDHELD", &gameDinoGame_init, &gameDinoGame_update, NULL );
+    // SnakeGame85: gameSnakeGame85_update() calls snkRenderImage()
+    // unconditionally at the end of every single state branch (no dirty-
+    // flag/skip-redraw path anywhere in this port), so NULL here is
+    // confirmed correct, not an oversight.
+    addGame( "SNAKEGAME85", "TEREZAZA", &gameSnakeGame85_init, &gameSnakeGame85_update, NULL );
 }
