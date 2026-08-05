@@ -1,5 +1,7 @@
 # TinyJoypad → Vircon32
 
+![Menu screenshot](metadata/menu.png)
+
 A single [Vircon32](https://www.vircon32.com/) cartridge that ports **41
 games** originally written for the [TinyJoypad](https://www.tinyjoypad.com/)
 ATtiny85 + SSD1306 128x64 OLED handheld onto Vircon32's 640x360 GPU, behind
@@ -50,49 +52,51 @@ license/attribution is preserved unmodified in its own header comment in
 
 ## Games
 
-| Game (in-cartridge title) | Original Author | License | Source |
-|---|---|---|---|
-| NumberPlace | Obono | MIT | [TinyJoypadWorks](https://github.com/obono/TinyJoypadWorks) |
-| 2048 | Obono | MIT | [TinyJoypadWorks](https://github.com/obono/TinyJoypadWorks) |
-| HollowSeeker | Obono | MIT | [TinyJoypadWorks](https://github.com/obono/TinyJoypadWorks) |
-| Tiny Invaders | Daniel C / Sven B | GPLv3 | [Tiny-invaders-v4.2](https://github.com/Lorandil/Tiny-invaders-v4.2) |
-| Tiny Minez | Sven B / Lorandil | GPLv3 | [TinyMinez](https://github.com/Lorandil/TinyMinez) |
-| Tiny Dungeon | Sven B / Lorandil | MIT | [TinyDungeon](https://github.com/Lorandil/TinyDungeon) |
-| Tiny Lander | Roger Buehler (tscha70) | GPLv3 | [TinyLanderV1.0](https://github.com/tscha70/TinyLanderV1.0) |
-| Tiny Pinball | Daniel C | GPLv3 | [tinyjoypad.com](https://www.tinyjoypad.com/tinyjoypad_attiny85) |
-| Tiny Pacman | Daniel C | GPLv3 | [tinyjoypad.com](https://www.tinyjoypad.com/tinyjoypad_attiny85) |
-| Tiny Bomber | Daniel C | GPLv3 | [tinyjoypad.com](https://www.tinyjoypad.com/tinyjoypad_attiny85) |
-| Tiny Doc | Daniel C | GPLv3 | [tinyjoypad.com](https://www.tinyjoypad.com/tinyjoypad_attiny85) |
-| Tiny Bert | Daniel C | GPLv3 | [tinyjoypad.com](https://www.tinyjoypad.com/tinyjoypad_attiny85) |
-| Tiny Tris | Daniel C | GPLv3 | [tinyjoypad.com](https://www.tinyjoypad.com/tinyjoypad_attiny85) |
-| Tiny Arkanoid | Daniel Champagne | GPLv3 | [tinyjoypad.com](https://www.tinyjoypad.com/tinyjoypad_attiny85) |
-| Tiny Trick | Daniel C | GPLv3 | [tinyjoypad.com](https://www.tinyjoypad.com/tinyjoypad_attiny85) |
-| Tiny Missile | Daniel C | GPLv3 | [tinyjoypad.com](https://www.tinyjoypad.com/tinyjoypad_attiny85) |
-| Tiny Bike | Daniel C | GPLv3 | [tinyjoypad.com](https://www.tinyjoypad.com/tinyjoypad_attiny85) |
-| Tiny Arena | Daniel C | GPLv3 | [tinyjoypad.com](https://www.tinyjoypad.com/tinyjoypad_attiny85) |
-| Tiny Gilbert | Daniel C | GPLv3 | [tinyjoypad.com](https://www.tinyjoypad.com/tinyjoypad_attiny85) |
-| Tiny Pipe | Daniel C | GPLv3 | [tinyjoypad.com](https://www.tinyjoypad.com/tinyjoypad_attiny85) |
-| Tiny Morpion | Daniel C | GPLv3 | [tinyjoypad.com](https://www.tinyjoypad.com/tinyjoypad_attiny85) |
-| Tiny Plaque | Daniel C | GPLv3 | [tinyjoypad.com](https://www.tinyjoypad.com/tinyjoypad_attiny85) |
-| Tiny SQuest | Daniel C | GPLv3 | [tinyjoypad.com](https://www.tinyjoypad.com/tinyjoypad_attiny85) |
-| Tiny DDug | Daniel C | GPLv3 | [tinyjoypad.com](https://www.tinyjoypad.com/tinyjoypad_attiny85) |
-| Wren Rollercoaster | Andy Jackson | Non-commercial, with attribution | [Attiny-Arduino-Games](https://github.com/andyhighnumber/Attiny-Arduino-Games) |
-| Frogger | Andy Jackson (art: @senkunmusashi) | Non-commercial, with attribution | [Attiny-Arduino-Games](https://github.com/andyhighnumber/Attiny-Arduino-Games) |
-| Bat Bonanza | Andy Jackson | Non-commercial, with attribution | [Attiny-Arduino-Games](https://github.com/andyhighnumber/Attiny-Arduino-Games) |
-| Stacker | Andy Jackson | Non-commercial, with attribution | [Attiny-Arduino-Games](https://github.com/andyhighnumber/Attiny-Arduino-Games) |
-| UFO | Ilya Titov | Non-commercial, with attribution | [AttinyArcade](https://github.com/webboggles/AttinyArcade) |
-| Oroboros | Ilya Titov | Non-commercial, with attribution | [AttinyArcade](https://github.com/webboggles/AttinyArcade) |
-| Run Dude Run | Ilya Titov | Non-commercial, with attribution | [AttinyArcade](https://github.com/webboggles/AttinyArcade) |
-| Four in a Row | Unknown | None specified | [tiny-handheld](https://github.com/Yevgeniy-Olexandrenko/tiny-handheld) |
-| Dino Game | tiny-handheld project (original) | None specified | [tiny-handheld](https://github.com/Yevgeniy-Olexandrenko/tiny-handheld) |
-| SnakeGame85 | terezaza | GPLv3 | [SnakeGame85](https://github.com/terezaza/SnakeGame85) |
-| Jump Slime | Kondolab (近藤さんちの研究室) | None specified | [note.com/kondolab](https://note.com/kondolab/n/ndc93ac31e555) |
-| TinyRoG | Kondolab (近藤さんちの研究室) | None specified | [note.com/kondolab](https://note.com/kondolab/n/n1806e4234495) |
-| TinY Fi | Kondolab (近藤さんちの研究室) | None specified | [note.com/kondolab](https://note.com/kondolab/n/n2c96413eaa23) |
-| Breakout | Ilya Titov | Non-commercial, with attribution | [AttinyArcade](https://github.com/webboggles/AttinyArcade) |
-| Space Attack | Andy Jackson | Non-commercial, with attribution | [Attiny-Arduino-Games](https://github.com/andyhighnumber/Attiny-Arduino-Games) |
-| Falling Blocks | Andy Jackson | Non-commercial, with attribution | [Attiny-Arduino-Games](https://github.com/andyhighnumber/Attiny-Arduino-Games) |
-| Tiny Mania | Daniel C | GPLv3 | [tinyjoypad.com](https://www.tinyjoypad.com/tinyjoypad_attiny85) |
+Click a thumbnail for the full-size screenshot.
+
+| Game (in-cartridge title) | Original Author | License | Source | Screenshot |
+|---|---|---|---|---|
+| NumberPlace | Obono | MIT | [TinyJoypadWorks](https://github.com/obono/TinyJoypadWorks) | [<img src="metadata/screenshots/NUMBERPLACE.png" width="160">](metadata/screenshots/NUMBERPLACE.png) |
+| 2048 | Obono | MIT | [TinyJoypadWorks](https://github.com/obono/TinyJoypadWorks) | [<img src="metadata/screenshots/2048.png" width="160">](metadata/screenshots/2048.png) |
+| HollowSeeker | Obono | MIT | [TinyJoypadWorks](https://github.com/obono/TinyJoypadWorks) | [<img src="metadata/screenshots/HOLLOWSEEKER.png" width="160">](metadata/screenshots/HOLLOWSEEKER.png) |
+| Tiny Invaders | Daniel C / Sven B | GPLv3 | [Tiny-invaders-v4.2](https://github.com/Lorandil/Tiny-invaders-v4.2) | [<img src="metadata/screenshots/TINY%20INVADERS.png" width="160">](metadata/screenshots/TINY%20INVADERS.png) |
+| Tiny Minez | Sven B / Lorandil | GPLv3 | [TinyMinez](https://github.com/Lorandil/TinyMinez) | [<img src="metadata/screenshots/TINY%20MINEZ.png" width="160">](metadata/screenshots/TINY%20MINEZ.png) |
+| Tiny Dungeon | Sven B / Lorandil | MIT | [TinyDungeon](https://github.com/Lorandil/TinyDungeon) | [<img src="metadata/screenshots/TINY%20DUNGEON.png" width="160">](metadata/screenshots/TINY%20DUNGEON.png) |
+| Tiny Lander | Roger Buehler (tscha70) | GPLv3 | [TinyLanderV1.0](https://github.com/tscha70/TinyLanderV1.0) | [<img src="metadata/screenshots/TINY%20LANDER.png" width="160">](metadata/screenshots/TINY%20LANDER.png) |
+| Tiny Pinball | Daniel C | GPLv3 | [tinyjoypad.com](https://www.tinyjoypad.com/tinyjoypad_attiny85) | [<img src="metadata/screenshots/TINY%20PINBALL.png" width="160">](metadata/screenshots/TINY%20PINBALL.png) |
+| Tiny Pacman | Daniel C | GPLv3 | [tinyjoypad.com](https://www.tinyjoypad.com/tinyjoypad_attiny85) | [<img src="metadata/screenshots/TINY%20PACMAN.png" width="160">](metadata/screenshots/TINY%20PACMAN.png) |
+| Tiny Bomber | Daniel C | GPLv3 | [tinyjoypad.com](https://www.tinyjoypad.com/tinyjoypad_attiny85) | [<img src="metadata/screenshots/TINY%20BOMBER.png" width="160">](metadata/screenshots/TINY%20BOMBER.png) |
+| Tiny Doc | Daniel C | GPLv3 | [tinyjoypad.com](https://www.tinyjoypad.com/tinyjoypad_attiny85) | [<img src="metadata/screenshots/TINY%20DOC.png" width="160">](metadata/screenshots/TINY%20DOC.png) |
+| Tiny Bert | Daniel C | GPLv3 | [tinyjoypad.com](https://www.tinyjoypad.com/tinyjoypad_attiny85) | [<img src="metadata/screenshots/TINY%20BERT.png" width="160">](metadata/screenshots/TINY%20BERT.png) |
+| Tiny Tris | Daniel C | GPLv3 | [tinyjoypad.com](https://www.tinyjoypad.com/tinyjoypad_attiny85) | [<img src="metadata/screenshots/TINY%20TRIS.png" width="160">](metadata/screenshots/TINY%20TRIS.png) |
+| Tiny Arkanoid | Daniel Champagne | GPLv3 | [tinyjoypad.com](https://www.tinyjoypad.com/tinyjoypad_attiny85) | [<img src="metadata/screenshots/TINY%20ARKANOID.png" width="160">](metadata/screenshots/TINY%20ARKANOID.png) |
+| Tiny Trick | Daniel C | GPLv3 | [tinyjoypad.com](https://www.tinyjoypad.com/tinyjoypad_attiny85) | [<img src="metadata/screenshots/TINY%20TRICK.png" width="160">](metadata/screenshots/TINY%20TRICK.png) |
+| Tiny Missile | Daniel C | GPLv3 | [tinyjoypad.com](https://www.tinyjoypad.com/tinyjoypad_attiny85) | [<img src="metadata/screenshots/TINY%20MISSILE.png" width="160">](metadata/screenshots/TINY%20MISSILE.png) |
+| Tiny Bike | Daniel C | GPLv3 | [tinyjoypad.com](https://www.tinyjoypad.com/tinyjoypad_attiny85) | [<img src="metadata/screenshots/TINY%20BIKE.png" width="160">](metadata/screenshots/TINY%20BIKE.png) |
+| Tiny Arena | Daniel C | GPLv3 | [tinyjoypad.com](https://www.tinyjoypad.com/tinyjoypad_attiny85) | [<img src="metadata/screenshots/TINY%20ARENA.png" width="160">](metadata/screenshots/TINY%20ARENA.png) |
+| Tiny Gilbert | Daniel C | GPLv3 | [tinyjoypad.com](https://www.tinyjoypad.com/tinyjoypad_attiny85) | [<img src="metadata/screenshots/TINY%20GILBERT.png" width="160">](metadata/screenshots/TINY%20GILBERT.png) |
+| Tiny Pipe | Daniel C | GPLv3 | [tinyjoypad.com](https://www.tinyjoypad.com/tinyjoypad_attiny85) | [<img src="metadata/screenshots/TINY%20PIPE.png" width="160">](metadata/screenshots/TINY%20PIPE.png) |
+| Tiny Morpion | Daniel C | GPLv3 | [tinyjoypad.com](https://www.tinyjoypad.com/tinyjoypad_attiny85) | [<img src="metadata/screenshots/TINY%20MORPION.png" width="160">](metadata/screenshots/TINY%20MORPION.png) |
+| Tiny Plaque | Daniel C | GPLv3 | [tinyjoypad.com](https://www.tinyjoypad.com/tinyjoypad_attiny85) | [<img src="metadata/screenshots/TINY%20PLAQUE.png" width="160">](metadata/screenshots/TINY%20PLAQUE.png) |
+| Tiny SQuest | Daniel C | GPLv3 | [tinyjoypad.com](https://www.tinyjoypad.com/tinyjoypad_attiny85) | [<img src="metadata/screenshots/TINY%20SQUEST.png" width="160">](metadata/screenshots/TINY%20SQUEST.png) |
+| Tiny DDug | Daniel C | GPLv3 | [tinyjoypad.com](https://www.tinyjoypad.com/tinyjoypad_attiny85) | [<img src="metadata/screenshots/TINY%20DDUG.png" width="160">](metadata/screenshots/TINY%20DDUG.png) |
+| Wren Rollercoaster | Andy Jackson | Non-commercial, with attribution | [Attiny-Arduino-Games](https://github.com/andyhighnumber/Attiny-Arduino-Games) | [<img src="metadata/screenshots/WREN%20ROLLERCOASTER.png" width="160">](metadata/screenshots/WREN%20ROLLERCOASTER.png) |
+| Frogger | Andy Jackson (art: @senkunmusashi) | Non-commercial, with attribution | [Attiny-Arduino-Games](https://github.com/andyhighnumber/Attiny-Arduino-Games) | [<img src="metadata/screenshots/FROGGER.png" width="160">](metadata/screenshots/FROGGER.png) |
+| Bat Bonanza | Andy Jackson | Non-commercial, with attribution | [Attiny-Arduino-Games](https://github.com/andyhighnumber/Attiny-Arduino-Games) | [<img src="metadata/screenshots/BAT%20BONANZA.png" width="160">](metadata/screenshots/BAT%20BONANZA.png) |
+| Stacker | Andy Jackson | Non-commercial, with attribution | [Attiny-Arduino-Games](https://github.com/andyhighnumber/Attiny-Arduino-Games) | [<img src="metadata/screenshots/STACKER.png" width="160">](metadata/screenshots/STACKER.png) |
+| UFO | Ilya Titov | Non-commercial, with attribution | [AttinyArcade](https://github.com/webboggles/AttinyArcade) | [<img src="metadata/screenshots/UFO.png" width="160">](metadata/screenshots/UFO.png) |
+| Oroboros | Ilya Titov | Non-commercial, with attribution | [AttinyArcade](https://github.com/webboggles/AttinyArcade) | [<img src="metadata/screenshots/OROBOROS.png" width="160">](metadata/screenshots/OROBOROS.png) |
+| Run Dude Run | Ilya Titov | Non-commercial, with attribution | [AttinyArcade](https://github.com/webboggles/AttinyArcade) | [<img src="metadata/screenshots/RUN%20DUDE%20RUN.png" width="160">](metadata/screenshots/RUN%20DUDE%20RUN.png) |
+| Four in a Row | Unknown | None specified | [tiny-handheld](https://github.com/Yevgeniy-Olexandrenko/tiny-handheld) | [<img src="metadata/screenshots/FOUR%20IN%20A%20ROW.png" width="160">](metadata/screenshots/FOUR%20IN%20A%20ROW.png) |
+| Dino Game | tiny-handheld project (original) | None specified | [tiny-handheld](https://github.com/Yevgeniy-Olexandrenko/tiny-handheld) | [<img src="metadata/screenshots/DINO%20GAME.png" width="160">](metadata/screenshots/DINO%20GAME.png) |
+| SnakeGame85 | terezaza | GPLv3 | [SnakeGame85](https://github.com/terezaza/SnakeGame85) | [<img src="metadata/screenshots/SNAKEGAME85.png" width="160">](metadata/screenshots/SNAKEGAME85.png) |
+| Jump Slime | Kondolab (近藤さんちの研究室) | None specified | [note.com/kondolab](https://note.com/kondolab/n/ndc93ac31e555) | [<img src="metadata/screenshots/JUMP%20SLIME.png" width="160">](metadata/screenshots/JUMP%20SLIME.png) |
+| TinyRoG | Kondolab (近藤さんちの研究室) | None specified | [note.com/kondolab](https://note.com/kondolab/n/n1806e4234495) | [<img src="metadata/screenshots/TINYROG.png" width="160">](metadata/screenshots/TINYROG.png) |
+| TinY Fi | Kondolab (近藤さんちの研究室) | None specified | [note.com/kondolab](https://note.com/kondolab/n/n2c96413eaa23) | [<img src="metadata/screenshots/TINY%20FI.png" width="160">](metadata/screenshots/TINY%20FI.png) |
+| Breakout | Ilya Titov | Non-commercial, with attribution | [AttinyArcade](https://github.com/webboggles/AttinyArcade) | [<img src="metadata/screenshots/BREAKOUT.png" width="160">](metadata/screenshots/BREAKOUT.png) |
+| Space Attack | Andy Jackson | Non-commercial, with attribution | [Attiny-Arduino-Games](https://github.com/andyhighnumber/Attiny-Arduino-Games) | [<img src="metadata/screenshots/SPACE%20ATTACK.png" width="160">](metadata/screenshots/SPACE%20ATTACK.png) |
+| Falling Blocks | Andy Jackson | Non-commercial, with attribution | [Attiny-Arduino-Games](https://github.com/andyhighnumber/Attiny-Arduino-Games) | [<img src="metadata/screenshots/FALLING%20BLOCKS.png" width="160">](metadata/screenshots/FALLING%20BLOCKS.png) |
+| Tiny Mania | Daniel C | GPLv3 | [tinyjoypad.com](https://www.tinyjoypad.com/tinyjoypad_attiny85) | [<img src="metadata/screenshots/TINY%20MANIA.png" width="160">](metadata/screenshots/TINY%20MANIA.png) |
 
 ## Optimizations
 
