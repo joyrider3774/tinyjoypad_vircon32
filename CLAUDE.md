@@ -6184,6 +6184,48 @@ of scope).
   unmodified ports of upstream's own already-working algorithms, so risk
   is low, but worth a direct check if anything looks off.
 
+## Menu thumbnail atlas fully regenerated from a sibling project's clean screenshots
+
+Every one of the 40 thumbnails documented above (added incrementally,
+game by game, across this whole session) had been captured via this
+project's own Puppeteer/WebGL test harness - a real browser page, not a
+bare emulator window. Asked directly to redo them, since the harness's
+own on-page UI (the F6 perf overlay's CPU/GPU bars when left toggled on,
+the page's own "FPS: NN"/info-icon readout and "Fullscreen" button baked
+into the bottom-left/bottom-right corners of every capture) had been
+bleeding into some of the saved thumbnails instead of being cropped out
+cleanly every time.
+
+Rather than re-capture all 40 games again through the same browser
+harness (repeating the same contamination risk), reused the sibling
+`c:\github\Tinyjoypad_SDL` project's own `metadata/screenshots/` folder -
+40 real gameplay screenshots, one per game, already genuinely clean (a
+native SDL window capture, no browser chrome of any kind) - confirmed by
+direct inspection of several before trusting the whole batch. Confirmed
+via a scripted diff that this project's own 40 `addGame()` menu titles
+(`menuGameList.c`) and that folder's own 40 filenames are an exact 1:1
+match (same title strings, same count) - not just a name-similarity
+guess. Each source image is 640x360 (the same native resolution this
+project's own captures already used) with the identical 20px top/bottom
+black letterbox convention already established here (confirmed both
+strips read as pure black via ImageMagick's own mean-pixel-value check
+before cropping) - so the existing crop-to-640x320-then-downscale-to-
+256x128 pipeline applied unchanged, no new asset-processing step needed.
+
+Rebuilt both atlas textures completely from scratch (not patched cell-
+by-cell) - `assets/thumbnails.png` (the 4x8, 32-cell first atlas) and
+`assets/thumbnails2.png` (the 4x2, 8-cell second atlas, needed only
+because Vircon32 caps a single texture at 1024x1024 - see this file's
+own earlier history for why a second texture exists at all) - composited
+in the exact same `addGame()` registration order every prior thumbnail
+addition already relied on (region id == registration index, first 32
+games in the first atlas, the remaining 8 in the second). Verified via
+Puppeteer across every one of the menu's 5 pages that every thumbnail
+still displays correctly and in the right position (spot-checked 2048,
+Falling Blocks, NumberPlace, Tiny Minez, and the last page's Tiny Tris/
+Tiny Rog/UFO/Wren Rollercoaster row) with no leftover browser-chrome
+artifacts in any of them.
+
 ## Licensing
 
 Tiny Invaders v4.2 is GPLv3 (its `tinyJoypadUtils`/driver lineage). Since a
