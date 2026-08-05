@@ -171,4 +171,10 @@ void addGames()
     // entry and every mention in this project's own documentation use
     // "Falling Blocks" instead, at direct user request.
     addGame( "FALLING BLOCKS", "ANDY JACKSON", &gameFallingBlocks_init, &gameFallingBlocks_update, &gameFallingBlocks_forceRedraw );
+    // No onResume needed - gameTinyMania_update() unconditionally reaches
+    // tmnTinyFlip() at the end of every single tick (both the attract and
+    // playing branches), with no dirty-flag/skip-redraw path anywhere in
+    // this port, so NULL here is correct by the same reasoning as Tiny Fi
+    // above, not an oversight.
+    addGame( "TINY MANIA", "DANIEL C", &gameTinyMania_init, &gameTinyMania_update, NULL );
 }

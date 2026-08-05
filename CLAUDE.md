@@ -31,7 +31,18 @@ future porting pass doesn't need to re-download anything:
   `Tiny SQuest`, `Tiny Pipe`, `Tiny Morpion`, `Tiny Missile`, `Tiny DDug`,
   `Tiny Plaque`, `Tiny Tris`, `Tiny Trick`, `Tiny Bike`, `Tiny Bert`,
   `Tiny Bomber`, `Tiny Arkanoid`, `Tiny Pacman`, `Tiny Pinball`,
-  `Tiny Gilbert`, `TESTMODE`.
+  `Tiny Gilbert`, `TESTMODE`, `Tiny Mania` (staged 2026-08-05, the newest
+  listing on tinyjoypad.com at the time - first release dated 2026-08-04
+  on the site itself; Programmer: Daniel C 2026, GPLv3, same
+  `ELECTROLIB.h`/`FastTinyDriver.h` lineage as most other Daniel-C titles
+  here - a Pac-Man-style maze/ghost-chase game per its own globals
+  (`PacLives`/`NbGhosts`/`GobModeTimer`/`TotalDotsCollected`), but with its
+  own `JmpSeq`/`JmpTrig`/`JmpPos` jump mechanic not present in the
+  already-shipped `Tiny Pacman` - the signature addition of the real
+  arcade game "Pac-Mania" this name references, suggesting a genuinely
+  distinct title rather than a duplicate, though not yet diffed/triaged
+  against `Tiny Pacman` line-by-line the way this project's other
+  genre-lookalike candidates have been before committing to port).
 - Not fetched: the official "Tiny Invaders" Drive download (redundant -
   `Tiny-invaders-v4.2`'s GitHub clone already has full source, the Drive
   link is just a compiled `.hex`) and the 3 "non-joypad-compatible"
@@ -1258,18 +1269,21 @@ file - both `sdl3`/`sdl2` rebuilt clean.
 ## Status (as of this session)
 
 Shipped and visually verified (WebGL emulator + a Puppeteer screenshot
-harness - see below): the shim architecture, the menu, and 40 full games
+harness - see below): the shim architecture, the menu, and 41 full games
 (NumberPlace, Tiny Invaders, 2048, HollowSeeker, Tiny Pinball, Tiny
 Pacman, Tiny Bomber, Tiny Doc, Tiny Bert, Tiny Tris, Tiny Arkanoid, Tiny
 Trick, Tiny Minez, Tiny Missile, Tiny Bike, Tiny Arena, Tiny Gilbert,
 Tiny Pipe, Tiny Morpion, Tiny Plaque, Tiny SQuest, Tiny DDug, Tiny
 Lander, Wren Rollercoaster, Frogger, Bat Bonanza, Stacker, UFO, Tiny
 Dungeon, Oroboros, Run Dude Run, Four in a Row, Dino Game, SnakeGame85,
-Jump Slime, TinyRoG, TinY Fi, Breakout, Space Attack, Falling Blocks -
-this last one's own menu name deliberately avoids naming the falling-
-block puzzle genre it's a clone of, a registered trademark - see its own
-writeup below for the full naming rationale). Every game from
-the project's original scope shipped with Tiny Dungeon (see its own
+Jump Slime, TinyRoG, TinY Fi, Breakout, Space Attack, Falling Blocks,
+Tiny Mania - this second-to-last one's own menu name deliberately avoids
+naming the falling-block puzzle genre it's a clone of, a registered
+trademark (see its own writeup below for the full naming rationale);
+Tiny Mania is the newest addition, staged from tinyjoypad.com itself
+mid-session after the user noticed it had just been released there - see
+its own writeup below). Every game from the project's original scope
+shipped with Tiny Dungeon (see its own
 writeup below for what's still not independently re-verified about it
 specifically) - Oroboros, Run Dude Run, Four in a Row, and Dino Game
 were this project's first four additions *beyond* that original scope,
@@ -6226,6 +6240,319 @@ Falling Blocks, NumberPlace, Tiny Minez, and the last page's Tiny Tris/
 Tiny Rog/UFO/Wren Rollercoaster row) with no leftover browser-chrome
 artifacts in any of them.
 
+## Tiny Mania - staged straight from a live tinyjoypad.com check, then ported the same session
+
+Discovered via a direct user request to re-check tinyjoypad.com/
+tinyjoypad_attiny85 for anything new - confirmed via WebFetch that "Tiny
+Mania" had just been listed there (first-release date on the site itself:
+2026-08-04, one day before this check). Staged into `more games/Tiny
+Mania/TinyMania/` the same way as every other official Google-Drive-only
+"Tiny X" title (downloaded, unzipped, no renaming) - confirmed
+**Programmer: Daniel C, 2026, GPLv3**, same `ELECTROLIB.h`/
+`FastTinyDriver.h` driver lineage as most other Daniel-C titles here.
+A Pac-Man-style maze/ghost-chase game, but with a genuine mechanical
+addition the already-shipped Tiny Pacman doesn't have: pressing Fire
+triggers a fixed jump-height animation (`Jump[]`/`JmpSeq`/`JmpPos`) that
+lets the player pass safely over a normal ghost mid-air - the actual
+signature mechanic of the real arcade game "Pac-Mania" this name
+references - confirming this is a genuinely distinct title, not a
+duplicate, before committing to port it.
+
+Not `tinyJoypadShim`/`obonoCoreShim` lineage by name, but needed no new
+shim (`ELECTROLIB.h`'s own A0/A3 500-750/750-950 thresholds and the
+shared Fire-button digital read exactly match every other Daniel-C game
+here). **Rendering reuses Tiny Arena's own half-resolution-buffer
+technique directly** - this game's own `VBuffer[4][64]` is the same
+64x32-doubled-2x-both-ways-via-nibble-expansion model as Tiny Arena's
+raycaster (`arVBuffer`/`arSliceByte`/`arExpand`, the exact same 16-entry
+expand table reused here as `tmnExpand`), so no new machineDependent
+primitives were needed. `tmnDrawSprite2Bit()` is a direct port of
+upstream's own two-plane (white/black-mask) sprite blitter. The bottom
+hardware row (physical page 7) is a genuine exception to the plain 2x-
+doubled model: upstream's own `Tiny_Flip()` replaces specific column
+ranges there with a *stateful, sequential* score-digit/lives-icon reader
+(`Recup_Digital`/`Recup_Lives`, each advancing its own persistent cursor,
+called twice per half-res column to produce two independently-resolved
+real columns) - ported as `tmnComposeRow7()`, computing the whole 128-
+byte real row into a cache once per frame by walking the exact same
+loop shape as upstream, the same "reproduce an intricate stateful
+algorithm's own shape rather than re-derive a closed form" reasoning
+already used for Frogger's own row-buffer compositing.
+
+**By far the largest number of blocking-delay-to-state-machine
+conversions of any port in this project to date**, including one genuine
+blocking `while(1)` busy-wait (the attract screen's own confirm gesture,
+converted to a plain press/release edge check, the same "arm against
+whatever's already held" reasoning as `md_armInputFireGate()`) and a
+whole family of real, multi-hundred-millisecond pauses following nearly
+every non-trivial game event: starting a game, restarting a level,
+advancing a level, clearing every dot (a real 58-note fanfare sequencer),
+eating a ghost, and dying (a real 27-note `PLAY_MUSIC(DeadSong)`
+sequencer). A genuinely subtle real upstream mechanic lives inside the
+fade-transition machinery: `RESTART_LEVEL()`'s own "if no lives left,
+re-trigger a *second*, nested fade-out-then-in cycle ending in the
+attract screen instead of a restarted level" - reproduced with a third
+`tmnFadeActive` value (3, "holding fully black") and the nested-retrigger
+guard deliberately placed to avoid the exact "shared 'wait complete'
+dispatcher clobbering its own callee's new state" bug class this
+project's own Tiny Invaders history already documents. See the file's
+own header comment for the full mapping of every conversion.
+
+**A genuine out-of-bounds read, caught proactively while investigating a
+separate CPU-load report, not by a crash**: several of the attract
+screen's own decorative sprite tables (`Start2`, `TinyMania2`, and two
+now-removed ones) are declared upstream with only a single data plane,
+not the two (white+black) `drawSprite2Bit()`'s own formula generally
+expects - harmless on real AVR PROGMEM (an adjacent-flash-byte read
+that's simply never acted on, since every one of these tables is only
+ever called with `mono=false`, and the black plane is only ever
+meaningful when `mono=true`), but a genuine out-of-bounds global read on
+Vircon32. **Fixed** by skipping the black-plane read entirely whenever
+`mono` is false, matching how every one of these tables is actually used
+- not a guess, confirmed by checking every real call site.
+
+**A real, substantial CPU-load problem, found via the perf overlay before
+ever calling the port done** - both the attract screen and active
+gameplay read a pegged 100%. Root-caused and fixed in stages, each
+measured before moving to the next:
+1. The attract screen's own border decoration was, itself, upstream's
+   own design: drawing each solid horizontal/vertical border line one
+   pixel-column at a time via 286 individual `drawSprite2Bit()` calls (a
+   real-AVR-hardware-tolerant technique, the same "fine on real hardware,
+   not under this project's own per-call-overhead-dominated model" shape
+   already found and fixed elsewhere - Tiny Trick's background lookup,
+   Tiny Bike's bomb rendering, etc). Replaced with direct `tmnVBuffer`
+   writes (the exact same pixels, computed once as constants or a tight
+   loop with no function-call overhead at all) - measured: 100% -> 46%.
+2. `tmnDrawLevel()`'s own per-cell ghost lookup scanned all `tmnNbGhosts`
+   ghosts for *every* one of the ~168 cells its scan visits (up to 1176
+   redundant comparisons/frame) - the same O(cells x objects) shape this
+   project has repeatedly found and fixed (Bomber/Pacman/Missile's own
+   render loops). Fixed with a small per-cell bucket-linked-list index
+   (`tmnGhostCellHead`/`tmnGhostCellNext`, built once per frame in
+   O(ghosts) instead of scanned in O(cells x ghosts)) - genuinely needed
+   the *list* shape, not a simple one-ghost-per-cell lookup, since every
+   ghost shares the exact same spawn cell right after a level/life
+   starts (`GridX` isn't reset per-ghost, only `GridY` is shifted
+   uniformly) - a single-slot lookup would have silently dropped
+   overlapping ghosts. Iterating ghosts high-to-low while prepending
+   preserves upstream's own exact ascending draw order for any ghosts
+   genuinely sharing a cell.
+3. Measured again with walls/dots re-enabled: still 100%. Isolated via
+   temporary debug toggles (background walls only, dots only, floor with
+   no sprite draws at all) rather than guessing - found the *floor* (no
+   sprite draws, just `tmnTinyFlip()`+bookkeeping) is 26%, dots+player+
+   ghosts together cost another ~20 points, and walls alone cost the
+   rest (~54 points) - because unlike Dot/BigDot's own mostly-transparent
+   art, a wall tile's own dense checkered-dither pattern never benefits
+   from `tmnDrawSprite2Bit()`'s own "skip an empty column" early exit.
+   Added `tmnBlit9x7()`, a specialized blitter for the one w=9,h=7,
+   1-frame,2-plane shape Block1/Block2/Dot/BigDot all share (skipping
+   the generic function's own frame/plane-size arithmetic, which is
+   compile-time-constant for this specific shape) plus hoisting
+   `tmnResolveBlocks(tmnBLKs)` out of the per-cell loop (it was being
+   re-resolved on every one of up to ~90 wall draws despite being
+   constant for the whole frame) - measured: dots+player+ghosts alone
+   dropped from 66% to 46% (confirming the specialization helped
+   meaningfully), but the *combined* total with walls re-enabled stayed
+   at a measured-capped 100%, since walls' own dense art is the
+   inherently larger remaining cost and the perf meter can't show how
+   far over budget a pegged reading actually is.
+   A further, more aggressive fix (batching a wall column's whole 7-bit
+   run into 1-2 direct writes instead of a 7-iteration bit loop) was
+   initially judged not worth attempting in this same pass - it would
+   need right-shifting a sometimes-negative row coordinate to compute a
+   half-res page index, the exact "Vircon32's `>>` is a *logical*, not
+   arithmetic, shift" hazard already documented elsewhere in this file
+   (HollowSeeker's own bug) - deferred rather than risked under the time
+   available to verify it thoroughly at that point in the session. Later
+   revisited and shipped successfully (after a real, user-reported false
+   start) once a 30fps throttle and other fixes freed up time to verify
+   it properly - see this game's own later write-up below for the full
+   story, including the actual bug that first attempt had (not the
+   shift-safety hazard itself, which the design correctly avoided, but a
+   plain reversed-shift-direction arithmetic mistake one step later).
+
+**A real timing bug, found via a direct user report comparing this port
+against real footage of the original game**: "when catching a ghost
+there is a pause but this pause in our port is way longer than on real
+hardware." Root-caused precisely, not just downsampled by feel: eating a
+frightened ghost (and dying, and picking up a plain fruit) all share the
+exact same upstream sound cue, `SoundSystem(1)` - a real 31-iteration/
+62-note sweep whose *individual* `Sound()` calls are each well under 1ms
+(computed directly: real total duration ≈76ms across all 62 notes,
+averaging 0.72ms each), but this project's own frame-stepped sequencer
+can't represent a note shorter than one real 60fps tick (~16.67ms) - so
+porting all 62 notes 1:1 forced each one to consume a minimum of one
+full real frame regardless of its own true sub-millisecond duration,
+stretching a ~76ms sound effect out to *over a full second* (a ~13.6x
+inflation, confirmed via direct computation, not estimation). **Fixed**
+by downsampling the shared note table (`tmnGubFreq_Dur`) from 62 notes to
+16 (keeping every 8th iteration - 1,33,65,97 - preserving the audible
+"descending sweep" character) - landing at ~267ms, a ~3.5x reduction from
+the broken ~1033ms and much closer to the real ~76ms, while still giving
+a clearly multi-step, non-instantaneous sweep. The same audit found the
+level-clear fanfare has a much milder version of the same issue (real
+~621ms vs. this port's ~967ms, only a 1.56x inflation, not the reported
+symptom) - left as-is rather than fixing an issue nobody reported, since
+its real and ported durations are already close enough not to be
+perceptually "way longer."
+
+**A 30fps whole-tick throttle, requested directly once the CPU
+investigation above concluded further per-call optimization had
+diminishing returns**: `TMN_TICK_DIVISOR=2`, the same whole-function
+tick-skip shape already established for NumberPlace/HollowSeeker/t2048/
+Doc/Pacman/Pipe (not the movement-only/render-stays-60fps shape used for
+Trick/Invaders/Pinball/Bert) - the right choice here specifically
+*because* rendering, not movement logic, is the expensive part, so a
+movement-only throttle would have left the real cost untouched. A
+skipped tick returns before ever calling `md_beginFrame()`, so the
+previous frame's own pixels simply persist rather than flashing black.
+Measured via the perf overlay's own history graph (not just the
+instantaneous reading, which is misleading under a throttle - see below):
+attract screen dropped to ~4%, active gameplay's *average* load dropped
+from a sustained pegged 100% to roughly half that. **Confirmed via the
+overlay's own rolling history bars that this halves *average* load by
+alternating cheap (skipped) and full-cost (real) frames, but does
+*not* reduce the peak cost of the frames that still run full logic** -
+those still read close to 100% individually, same as before the
+throttle, since nothing about their own per-frame work changed. Real,
+useful headroom for average/thermal purposes, but not by itself a fix
+for a single frame's own risk of exceeding the hard 250,000-cycle
+budget - worth remembering as a distinction for any future CPU
+investigation in this project, since the perf meter's instantaneous
+reading alone can't tell the two apart.
+**Sound was the one deliberate exception to this project's own standing
+"leave every wait constant unrescaled under a tick throttle" practice**:
+both note sequencers' own wait-frame formula is rescaled against the
+*logic* tick rate (30fps) rather than the engine's native 60fps, so
+every sound keeps its original real-time pace despite gameplay itself
+now advancing at half speed - every other frame-counted pause in the
+file (the 15/30/48/60-frame waits) was deliberately left alone and
+simply now takes twice as long in real time, matching this project's
+usual approach everywhere else.
+
+**A second, more careful attempt at batching the wall-column write
+(after the first one below), successfully fixed and shipped**: the
+initial version's sign-safety reasoning (never shifting the
+potentially-negative row coordinate directly) was sound, but the very
+next step had a plain arithmetic mistake - the shift *direction* was
+backwards in both branches (a page starting "at or after" the source's
+own row needs the source shifted *right* to align with it, not left,
+and vice versa), plus both boundary guards were off by one. Confirmed
+via a direct user report right after shipping ("this introduced bugs in
+wall drawing and scrolling of them") - reverted immediately rather than
+debugging live, then re-derived the whole mapping from scratch
+algebraically (`row = y0+i = page*8+b` => `b = i - shift` where
+`shift = page*8-y0`) and validated the corrected version against a
+20,000-case randomized brute-force comparison against the original
+per-bit loop *before* ever putting it back in the game - the same
+"don't trust reasoning alone, verify" lesson this project has needed
+repeatedly elsewhere, just applied via an offline script instead of an
+in-engine screenshot, since this is pure bit arithmetic with no
+rendering dependency to screenshot in the first place. Re-verified
+in-engine afterward with a dedicated 4-direction continuous-scrolling
+sweep (the exact scenario the user reported as broken) - no corruption
+in any direction. The user separately confirmed the *attempt* (even the
+initially-broken version) measurably helped CPU, motivating the second,
+corrected try rather than abandoning the idea after the first revert.
+
+**Two more real bugs found via direct user reports after the above
+shipped, both fixed and independently verified via a temporary debug
+hook** (`tmnPacCollision()` forced to `return 1` unconditionally, so
+every real tick triggers a death - removed again once each fix was
+confirmed):
+1. *"we have 3 pacman lives it seems but if we hit a ghost its
+   immediatly game over"* - a genuine bug, not a perception issue.
+   `tmnMenuFadeSelect()`'s own trigger==2 branch needed to detect whether
+   `tmnRestartLevel()` had itself just triggered a *nested* re-fade (the
+   real "last life lost, go straight to attract" upstream mechanic
+   already documented above) so it wouldn't clobber that re-trigger's
+   own setup - but the guard checked `tmnFadeActive != 1`, and
+   `tmnFadeActive` is **already** 1 at that exact point regardless of
+   which branch `tmnRestartLevel()` took (both the "still have lives"
+   case, which never touches it, and the nested `tmnFade2Black(0)` call,
+   which sets it to the *same* value 1) - so the condition could never
+   actually distinguish the two cases, meaning the "normal" branch's own
+   `tmnFadeActive=3` transition never ran *at all*. The very next tick's
+   `tmnUpdateFadeSequence()` found `tmnFadeActive` still 1 and `tmnFadeFrame`
+   still 0, so it re-entered and called `tmnMenuFadeSelect()` again -
+   and again - decrementing `tmnPacLives` once per real tick until it
+   hit 0, all within a handful of frames, indistinguishable from "instant
+   game over" to a player despite the death/respawn logic itself working
+   correctly. **Fixed** by checking `tmnFadeTrigger` instead (it
+   genuinely differs between the two cases - stays 2 normally, becomes 0
+   the instant a nested re-trigger runs). Verified with the forced-death
+   hook: lives now visibly step down 3 -> 2 -> 1 across three genuine
+   ~7.5-second real-time cycles (each including the full gub-sound-sweep
+   + two 1-second-equivalent pauses + death song + fade transitions, all
+   correctly lengthened by the 30fps throttle) before finally reaching
+   attract, rather than vanishing within a frame or two.
+2. Requested directly ("is the drawing of the ui elements (score /
+   lives) optimized?") - it wasn't: `tmnComposeRow7()` recomputed the
+   entire row (including up to ~40 `tmnRecupDigital()`/`tmnRecupLives()`
+   calls) every single frame regardless of whether the score or lives
+   had actually changed since the last one. Added a dirty-flag cache
+   (`tmnHudDirty`/`tmnHudCache`/`tmnHudIsCol`, matching Tiny Doc's own
+   established row-scoped caching precedent) - `tmnRebuildHudCache()`
+   only re-runs the cursor-threaded digit/lives lookup when
+   `tmnScores()`/`tmnResetScores()`/`tmnRestartLevel()` last actually
+   changed the underlying values, set once explicitly at boot too for
+   defensive safety. The level-background portion of the same row
+   genuinely changes every frame (camera scroll) and is deliberately
+   *not* cached, only merged with the cached HUD portion per frame.
+   Lower-risk than the wall-batching fix above (no shift/sign arithmetic
+   involved at all), and re-verified with the same forced-death hook
+   that the lives display still correctly steps down and invalidates
+   the cache at each of the three loss events.
+
+Verified via Puppeteer throughout: the attract screen (title logo,
+border decoration, Pac-Man/ghost/fruit art, blinking START prompt, all
+pixel-correct before and after every optimization pass), launching into
+a fresh game (fade transition timing, HUD showing 3 lives and a live
+score), movement in all 4 directions with dots visibly being collected
+(score climbing correctly across a real play sequence, confirmed
+multiple times across different builds), the jump gesture, a full
+4-direction continuous-scrolling sweep with no wall-rendering
+corruption, and - via the temporary forced-death debug hook - a
+complete, genuine multi-cycle death/respawn/lives-exhaustion sequence
+ending correctly at the attract screen. Not independently forced this
+session: eating a ghost (the mirror-image `TMN_PLAY_EAT_GUB`/
+`TMN_PLAY_EAT_WAIT` path, structurally identical to the now-verified
+death path and sharing the same fixes) and clearing a full level - worth
+a direct check if anything looks off.
+
+The menu thumbnail was recaptured once all of the above landed (the
+original, added at initial port time, predates the CPU/timing fixes and
+was also taken before `hideOverlay()` existed) - a fresh gameplay
+screenshot (player mid-maze, walls, dots, and the HUD all visible)
+replaced it in the same atlas cell, confirmed via screenshot to still
+render correctly with no cross-contamination of neighboring thumbnails.
+
+**A full line-by-line audit of every ghost-related function against the
+real upstream source, requested directly** ("can you verify with
+upstream if all logic is correct especially concerning ghosts and so"):
+confirmed exact matches for `InitSpk`, `Go2Left/Right/Up/Down`,
+`Trim_Xpos`, `MainAnim`, `GobAnim`, `Move_Ok`, `ReverseGhosts`,
+`CheckDirection`, `TrackPointX/Y`/`TrackDirection` (the chase-vs-scatter
+targeting - tracks the player when `health==0`, tracks the fixed scatter
+point `(7,5)` when frightened), the whole priority-then-random
+direction-selection chain (`SetCtrl`/`FixPriority`/`FixCtrl`/`SetMove`/
+`RandomDirection`/`GhostsDirectionProcess`, including the exact
+priority-3 fallback tie-break order), `ControlUpdate`'s own respawn-point
+health reset, `GhostsUpdate`'s eaten-ghost speed-throttle bypass, and
+`Pac_collision`'s own distance/jump-height thresholds. Also specifically
+re-traced the O(1) ghost-cell-index optimization (the piece most heavily
+rewritten from upstream's own shape) against the original loop and
+re-confirmed it preserves upstream's exact ascending draw order for any
+ghosts sharing a cell. The one confirmed, intentional deviation from a
+literal port - `tmnPacCollision()` processing one eat-or-death event per
+real tick rather than upstream's own single-call multi-eat scan - was
+already documented at the time it was written (see this file's own
+header comment) and re-confirmed still accurate, not a newly-found gap.
+No new bugs found in this pass - a clean audit, not just an absence of
+complaints.
+
 ## Licensing
 
 Tiny Invaders v4.2 is GPLv3 (its `tinyJoypadUtils`/driver lineage). Since a
@@ -6242,7 +6569,11 @@ the same way, "SVEN B / LORANDIL"); Tiny
 Invaders, Tiny Pinball, Tiny Pacman, Tiny Bomber, Tiny Doc, Tiny Bert,
 Tiny Tris, Tiny Arkanoid, Tiny Trick, Tiny Minez, Tiny Missile, Tiny Bike,
 Tiny Arena, Tiny Gilbert, Tiny Pipe, Tiny Morpion, Tiny Plaque, Tiny
-SQuest, Tiny DDug, and Tiny Lander all stay GPLv3 (Tiny Lander's own
+SQuest, Tiny DDug, Tiny Lander, and Tiny Mania all stay GPLv3 (Tiny Mania
+is the newest of these, its own header crediting "Daniel C 2026" directly
+- the same author/license/driver lineage as most of the rest of this
+list, credited "DANIEL C" in the menu the same way as Tiny Pinball/
+Pacman/etc above; Tiny Lander's own
 header credits "Roger Buehler" / GitHub handle "tscha70" - a different
 author from every Daniel-C/Sven-B title above, credited separately in
 the menu as "ROGER BUEHLER"). Wren Rollercoaster, Frogger, Bat Bonanza,
@@ -6513,6 +6844,20 @@ tools already present on this machine:
   work headless) to load the page, send keydown/keyup events, and
   screenshot. The BIOS boot splash takes a few seconds to clear before the
   cartridge's own menu appears - wait for it before interacting.
+- **`hideOverlay(page)` - always call this once right after page load,
+  for every screenshot from now on, not just thumbnail captures.** The
+  shell page's own UI chrome (`#fullscreen-button`, `#bottom-left-bar`
+  - the FPS counter/info button, `#perf-overlay`) had already
+  contaminated part of the shipped thumbnail atlas once (see "Menu
+  thumbnail atlas fully regenerated" above) before this was added, at
+  direct user request, as a standing practice rather than a one-off fix.
+  A small shared helper (`browsertest/helpers.js` in the scratchpad
+  directory) sets `element.style.display='none'` on those three element
+  IDs via `page.evaluate()`; only skip calling it on the rare screenshot
+  that's *specifically* trying to show/measure that chrome on purpose
+  (e.g. reading the perf overlay's own CPU%/history graph for a
+  performance investigation - toggle it with F6 instead in that case,
+  and don't call `hideOverlay`).
 
 ## Prior art in this codebase / author's other projects
 

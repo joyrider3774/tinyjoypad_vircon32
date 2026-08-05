@@ -115,3 +115,75 @@ details/measurements are in `CLAUDE.md`; this is just the summary.
   same lesson applied throughout this project. The dino sprite itself and
   the ground/rock layer were already call-site-gated/cheap from the
   start, needing no further change.
+- **SnakeGame85** - one fix, a direct consequence of a display-
+  orientation bug fix (real hardware runs this game column/row-reversed
+  and bit-reversed - see CLAUDE.md): the bit-reversal was first done as
+  an 8-iteration shift/or loop for every one of 1024 pixels/frame (8192
+  total), pushing a real frame over budget (visible as partial-frame
+  truncation). Replaced with a precomputed 256-entry lookup table (every
+  byte's own reversal is a pure function of its 8-bit value, the same
+  "bake all 256 byte values into a table" approach the column atlas
+  itself already uses) - CPU dropped to a steady ~5-6%.
+- **Jump Slime** - the current stage's 12-13 blocks were rescanned from
+  inside the per-pixel render call, and player/coin/enemy sprites were
+  handed to the sprite blitter across all 128 columns regardless of
+  their real ~8px footprint. Fixed with two per-page composite buffers
+  (blocks read directly since they're always page-aligned; sprites still
+  call the blitter but only across their own real column span) - dropped
+  from a pegged, frame-truncating 100% to a steady 60%.
+- **TinyRoG** - the map-tile renderer was called once per pixel even
+  though 8 consecutive columns always belong to the same tile (a
+  redundant-lookup waste, not the O(pixels x objects) shape). A first
+  attempt added a per-tile cache but measured *no* improvement, since the
+  call itself (not the lookup) was the cost - fixed properly by
+  compositing each page row by walking tiles (at most 17/row) instead of
+  pixels (128/row) into a shared buffer. Dropped from a pegged 100% to a
+  steady 60%.
+- **TinY Fi** - already composited per-character into a per-page buffer
+  from the start, but that composite still called the generic per-column
+  sprite blitter once per column per layer per character (up to ~20 x 5
+  x 4 = 400 calls/page), each redundantly recomputing the same per-row
+  constants. Fixed by hoisting that computation to run once per
+  (character, layer, page) instead of once per column; the same lesson
+  was then applied to the HUD row too. Dropped from a saturated,
+  frame-truncating 100% to a steady 50-54%.
+- **Breakout** - none needed. Measured 39% CPU during gameplay, 66% on
+  the attract screen - both comfortably under budget as shipped.
+- **Space Attack** - the alien-fire render check queried every one of
+  1024 pixels/frame individually, including a 5-slot fire-position scan
+  per pixel. Composited into a shared per-page row buffer instead,
+  touching only each feature's own real column range - dropped from
+  93-98% to a steady 44%.
+- **Falling Blocks** - two layers needed fixing: the per-cell game-grid
+  renderer recomputed the same block/ghost-cell lookup up to 6 times in
+  a row (one board row spans 6 physical columns), and the attract
+  screen's fixed title text/credits were called unconditionally across
+  all 1024 pixels/frame despite each only ever being nonzero within a
+  narrow known footprint. Fixed with a per-row composite buffer for the
+  game grid and call-site gating (a literal duplicate of each callee's
+  own bounds check) for the attract-screen text. Attract screen dropped
+  from a pegged 100% to 5-6%, gameplay from a pegged 100% (with a
+  visibly truncated frame) to a steady 5-9%.
+- **Tiny Mania** - the largest optimization pass in the project after
+  Tiny Dungeon's, several rounds: (1) replaced 286 individual
+  `drawSprite2Bit()` calls drawing the attract screen's own solid border
+  lines one pixel-column at a time with direct buffer writes (100% ->
+  46%); (2) replaced an O(cells x ghosts) per-cell ghost scan (up to
+  1176 redundant comparisons/frame) with a per-frame O(ghosts) bucket-
+  linked-list index; (3) a specialized blitter for the shared w=9,h=7
+  sprite shape (walls/dots), skipping the generic blitter's own frame/
+  plane-size arithmetic; (4) a 30fps whole-tick throttle (halves average
+  load, though not the peak cost of frames that still run full logic -
+  see CLAUDE.md for why that distinction matters), with sound
+  sequencing specifically rescaled to keep its own real-time pace
+  despite the halved tick rate; (5) a wall-column batched writer (7
+  bit-by-bit writes collapsed to <=4 masked read-modify-writes) - a
+  first attempt shipped a real bug (reversed shift direction, found via
+  direct user report), fixed by re-deriving the bit math from scratch
+  and validating it against 20,000 randomized test cases before
+  re-shipping; (6) a dirty-flag cache for the score/lives HUD row,
+  only recomputed when the underlying values actually change. Full
+  story, including two further correctness bugs found via user reports
+  during this same pass (an instant-game-over state-machine bug, and a
+  62-note sound sequence stretched to 13.6x its real duration), in
+  CLAUDE.md.
