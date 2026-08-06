@@ -192,4 +192,8 @@ void addGames()
     // a fire press) - forceRedraw is wired for a genuine reason, matching
     // every other attract-screen-waits-on-input game in this project.
     addGame( "ATTINY SNAKE", "SEAN PRICE", &gameAttinySnake_init, &gameAttinySnake_update, &gameAttinySnake_forceRedraw );
+    // Meteor Storm: METR_STATE_ATTRACT has no timer of its own (waits for
+    // a fire press) - forceRedraw is wired for a genuine reason, matching
+    // every other attract-screen-waits-on-input game in this project.
+    addGame( "METEOR STORM", "ALBERT GONZALEZ", &gameMeteorStorm_init, &gameMeteorStorm_update, &gameMeteorStorm_forceRedraw );
 }

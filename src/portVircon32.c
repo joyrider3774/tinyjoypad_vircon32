@@ -111,8 +111,8 @@
 
 #define THUMBNAILS2_TEXTURE_ID 2
 #define THUMBNAIL2_GRID_COLS 4
-#define THUMBNAIL2_GRID_ROWS 3
-#define THUMBNAIL2_COUNT 12
+#define THUMBNAIL2_GRID_ROWS 4
+#define THUMBNAIL2_COUNT 13
 
 // Pixel-grid overlay (see drawPixelGridOverlay() below) - one pre-baked
 // 640x320 texture (assets/pixelgrid.png, a transparent background with

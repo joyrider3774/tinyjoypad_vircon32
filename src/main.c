@@ -72,6 +72,7 @@
 #include "games/gameBlocksGold.c"
 #include "games/gameAstroBarrier.c"
 #include "games/gameAttinySnake.c"
+#include "games/gameMeteorStorm.c"
 
 #include "menuGameList.c"
 

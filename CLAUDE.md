@@ -234,17 +234,22 @@ future porting pass doesn't need to re-download anything:
     see that file's own header for the full writeup, including the
     trademark-avoidance rename and a real title-theme timing bug found
     via direct user report after shipping).
-  - `attiny85_microgame_meteor_storm` (theisolinearchip, Unlicense/public
-    domain) - a single-button Flappy-Bird-style avoider (hold to rise,
-    release to fall, dodge square "meteors"). The outlier of the batch:
-    a plain AVR-GCC/Makefile project (not an Arduino `.ino` sketch, the
-    build toolchain every other game in this whole project uses) with
-    its own custom, non-`ssd1306xled` minimal SSD1306 driver, and only
-    one physical button - would need the most adaptation of the 4 to
-    port (both a toolchain conversion and a control-scheme remap, the
-    latter similar in shape to this project's own already-solved UFO
-    hold-to-fly remap), but is a genuinely different, previously-
-    uncatalogued game.
+  - `attiny85_microgame_meteor_storm` (Albert Gonzalez, GitHub handle
+    `theisolinearchip` - confirmed via the repo's own git commit author,
+    not guessed from the handle alone; Unlicense/public domain) - a
+    single-button Flappy-Bird-style avoider (hold to rise, release to
+    fall, dodge square "meteors"). The outlier of the batch: a plain
+    AVR-GCC/Makefile project (not an Arduino `.ino` sketch, the build
+    toolchain every other game in this whole project uses) with its own
+    custom, non-`ssd1306xled` minimal SSD1306 driver, and only one
+    physical button - needed the most adaptation of the 4 to port (a
+    control-scheme remap similar in shape to this project's own already-
+    solved UFO hold-to-fly remap; the toolchain difference turned out not
+    to matter for the port itself, since the game logic is plain portable
+    C either way - only *building* upstream needed AVR-GCC specifically).
+    **Ported** as `src/games/gameMeteorStorm.c` (menu title "METEOR
+    STORM") - see Status below for the full writeup, including a real
+    rendering bug found via live user play well after initial shipping.
 
 Most of the Daniel-C `tinyJoypadShim`-lineage titles and all three Obono
 `TinyJoypadWorks` games in this folder are shipped now (22 games total -
@@ -1344,7 +1349,7 @@ file - both `sdl3`/`sdl2` rebuilt clean.
 ## Status (as of this session)
 
 Shipped and visually verified (WebGL emulator + a Puppeteer screenshot
-harness - see below): the shim architecture, the menu, and 44 full games
+harness - see below): the shim architecture, the menu, and 45 full games
 (NumberPlace, Tiny Invaders, 2048, HollowSeeker, Tiny Pinball, Tiny
 Pacman, Tiny Bomber, Tiny Doc, Tiny Bert, Tiny Tris, Tiny Arkanoid, Tiny
 Trick, Tiny Minez, Tiny Missile, Tiny Bike, Tiny Arena, Tiny Gilbert,
@@ -1352,20 +1357,21 @@ Tiny Pipe, Tiny Morpion, Tiny Plaque, Tiny SQuest, Tiny DDug, Tiny
 Lander, Wren Rollercoaster, Frogger, Bat Bonanza, Stacker, UFO, Tiny
 Dungeon, Oroboros, Run Dude Run, Four in a Row, Dino Game, SnakeGame85,
 Jump Slime, TinyRoG, TinY Fi, Breakout, Space Attack, Falling Blocks,
-Tiny Mania, Blocks Gold, Astro Barrier, ATtiny Snake - both Falling
-Blocks and Blocks Gold's own menu names deliberately avoid naming the
-falling-block puzzle genre they're clones of, a registered trademark
+Tiny Mania, Blocks Gold, Astro Barrier, ATtiny Snake, Meteor Storm - both
+Falling Blocks and Blocks Gold's own menu names deliberately avoid naming
+the falling-block puzzle genre they're clones of, a registered trademark
 (see each one's own writeup below for the full naming rationale); Tiny
 Mania was staged from tinyjoypad.com itself mid-session after the user
 noticed it had just been released there, and Blocks Gold/Astro Barrier/
-ATtiny Snake are the three most recent additions, all found via the same
-direct user request to search more broadly for uncatalogued ATtiny85/
-TinyJoypad games (including non-English-language sites) and picked one
-at a time from that search's own staged 4-candidate batch - the last
-remaining candidate, `attiny85_microgame_meteor_storm`, is still staged
-but not yet ported (see its own catalog entry above for why it needs
-more adaptation than the other three did) - see each shipped one's own
-writeup below). Every game from the project's original scope
+ATtiny Snake/Meteor Storm are the four most recent additions, all found
+via the same direct user request to search more broadly for uncatalogued
+ATtiny85/TinyJoypad games (including non-English-language sites) and
+picked one at a time from that search's own staged 4-candidate batch -
+Meteor Storm was the last remaining candidate from that batch, needing
+more adaptation than the other three (see its own catalog entry above
+for why) but shipped last in the same batch rather than staying
+permanently deferred - see each shipped one's own writeup below). Every
+game from the project's original scope
 shipped with Tiny Dungeon (see its own
 writeup below for what's still not independently re-verified about it
 specifically) - Oroboros, Run Dude Run, Four in a Row, and Dino Game
@@ -6892,6 +6898,113 @@ eating/growth/collision logic itself is a direct, low-risk structural
 match to this project's own already-proven Oroboros port, so risk is
 low, but this is a real gap worth a direct playtest.
 
+## Meteor Storm - the fourth and last port from this same `more games/` search batch
+
+Picked directly by the user ("port next game") as the fourth and final
+candidate from the same 4-game batch as Blocks Gold/Astro Barrier/ATtiny
+Snake - the one flagged at staging time as needing the most adaptation
+(a non-Arduino toolchain, a custom non-`ssd1306xled` driver, single-
+button hardware). Full technical writeup lives in
+`src/games/gameMeteorStorm.c`'s own header comment; this section covers
+the highlights plus a real rendering bug found well after shipping.
+
+**The toolchain/driver differences turned out not to matter for the
+port itself** - `ssd1306_send_single_data()` still streams one real
+SSD1306 page/column byte at a time (confirmed by reading the driver
+directly), the exact same model `md_drawColumn()` already handles, and
+the game logic in `main.c` is plain, portable C regardless of which
+build system compiles it. No sound of any kind exists in this game
+(confirmed by grep - no buzzer pin, no tone code anywhere) - the first
+port in this whole project needing zero sound work.
+
+**Sub-page, non-page-aligned sprite positioning**: `player_y` and each
+obstacle's own Y are arbitrary pixel values, not page-aligned, so
+`draw_player()`/`draw_obstacles()` both split their own sprite across up
+to 2 physical pages via real bit-shift math. Masked with an explicit
+`& 0xFF` at each shift site, the same byte-truncation fix this whole
+project's history starts with - both Y values are confirmed always
+non-negative before being shifted, so there's no logical-vs-arithmetic-
+shift hazard here (unlike a few other ports in this project).
+
+**A real, two-part rendering bug found via live user play, well after
+this port first shipped and was believed complete** - not caught by any
+of the automated Puppeteer verification at ship time, since it only
+shows up when the player or an obstacle's own sprite crosses the exact
+top/bottom border row or overlaps a different real pixel row than the
+player within the same physical page. Reported as "a black rectangle
+near the bottom" that could "obscure white meteors" and, separately,
+"obscure the outlines of the level" (the top/bottom border line) and
+"the player" (from an obstacle's own lower rows) - initially
+misdiagnosed by this session as "probably just legitimate obstacles
+clustering near the bottom" (a real, expected part of an inverted death
+screen, where every meteor genuinely does turn into a black square) -
+directly and firmly corrected by the user ("it is not a real obstacle
+ffs") before the real cause was found.
+
+Root cause: `metrComposeRow()` originally composited every layer (border,
+player, obstacles, score) with plain assignment (`=`), matching
+upstream's own real "last write wins" SSD1306 page-mode semantics - a
+real hardware write genuinely replaces a whole byte at once. But since
+each layer here only ever occupies a THIN sub-range of a page's 8 real
+pixel rows (the player is 4px tall, an obstacle can be as little as 1px
+tall on a given overflow page), two layers sharing the same (column,
+page) address but occupying genuinely different pixel rows within that
+one byte fully clobbered each other under assignment: the border's own
+single bit (row 0 or row 63) vanished into the middle of a much taller
+player/obstacle rectangle crossing that same column, and an obstacle's
+own overflow-page byte - even though it only really draws a handful of
+that byte's 8 bit-rows - blanked out whatever the player had in the
+*other* rows of that same byte, rows the obstacle was never actually
+drawing to. This is a genuine deviation from upstream's real hardware
+behavior being *desirable* here: the same effect happens on real
+hardware too, but is far less noticeable there (the display inverts
+almost instantly on death, with no way to pause and scrutinize a single
+frame the way this port's held inverted flash screen allows).
+
+**Fixed** by switching every layer in `metrComposeRow()` from assignment
+(`=`) to OR (`|=`), matching the OR-based compositing most other ports
+in this project already use - a general fix for the whole class of
+problem (any future layer combination), not a pairwise patch for just
+"border vs. player" or "player vs. obstacle". The only case this doesn't
+change anything for: two layers that genuinely occupy the exact same
+real pixel (an actual collision) still show as a solid "on" pixel either
+way, OR or replace - only two sprites sharing a byte *without* truly
+overlapping in real screen rows were ever affected.
+
+Diagnosed empirically once static re-derivation of the sprite-mask math
+(checked repeatedly, always found consistent with upstream) failed to
+surface anything - isolated by temporarily disabling obstacle drawing
+entirely and screenshotting the inverted death screen with only the
+player and border visible, which still showed a spurious black square,
+proving obstacles weren't the root cause before the user's own direct
+hints (border overlap; obstacle's own rows "just below" its real visible
+footprint) pinpointed the actual mechanism. Verified after the fix via
+an extended hover-near-the-bottom session with real obstacles live
+(border stayed a continuous, unbroken line at every tap), a real death
+sequence (the inverted flash screen's own black rectangle now sitting
+cleanly on the border with the line still visible), and the perf overlay
+(19-38% CPU, no regression from the `=`-to-`|=` change) - user-confirmed
+fixed ("yup seems fixed now").
+
+Author credit corrected during this same session: the upstream `README`
+only names the GitHub handle `theisolinearchip`, but its own screenshot
+links point at a personal domain (`albertgonzalez.coffee`) suggesting a
+real name - confirmed authoritatively (not just inferred from the URL)
+by checking the repo's own git commit author, which is literally
+`Albert Gonzalez <...@users.noreply.github.com>`. Credited "ALBERT
+GONZALEZ" in the menu accordingly, matching this project's own standing
+preference for a real stated name over a bare handle when one is
+actually available.
+
+Menu thumbnail needed the thumbnails2 atlas to grow a 4th row (3x4=12
+cells was exactly full after ATtiny Snake) - `assets/thumbnails2.png`
+grown from 1024x384 to 1024x512 (still comfortably inside Vircon32's
+1024x1024 texture cap), `THUMBNAIL2_GRID_ROWS`/`THUMBNAIL2_COUNT` bumped
+3->4/12->13 in `portVircon32.c`, matching this project's own established
+grid-growth precedent (Tiny Gilbert, Tiny Dungeon, etc). Verified via
+screenshot that the new thumbnail and "BY ALBERT GONZALEZ" credit render
+correctly, and a spot-checked neighbor (Astro Barrier) is untouched.
+
 ## Licensing
 
 Tiny Invaders v4.2 is GPLv3 (its `tinyJoypadUtils`/driver lineage). Since a
@@ -6971,7 +7084,12 @@ ATtiny Snake is the same author/license again - Sean Price, GPLv3,
 credited "SEAN PRICE" in the menu, sourced from
 `github.com/SeanP2001/attiny-snake` (the renamed/moved location of the
 repo originally found at `SeanP2001/ATtiny_Snake`, same redirect
-situation as Astro Barrier's own repo above). Four in a Row and Dino
+situation as Astro Barrier's own repo above). Meteor Storm is a
+different case again - Unlicense/public domain (confirmed via its own
+repo's real `LICENSE` file, not guessed), author Albert Gonzalez (GitHub
+handle `theisolinearchip` - the repo's own README only names the handle,
+but its own git commit author confirms the real name), credited "ALBERT
+GONZALEZ" in the menu accordingly. Four in a Row and Dino
 Game are the two exceptions to every
 license-family grouping above - neither's own source carries an author
 name or a license statement at all (neither is present in

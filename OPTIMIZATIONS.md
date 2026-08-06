@@ -223,3 +223,16 @@ details/measurements are in `CLAUDE.md`; this is just the summary.
   Measured 20% CPU at rest during play, 28-36% during the attract
   screen's own animation - comfortably under budget both before and
   after the fix.
+- **Meteor Storm** - a small, targeted per-digit hoist (compute each
+  score digit's decimal value once instead of re-dividing it on every one
+  of its own 6 columns) - never measured as a real problem, applied
+  proactively on request. Comfortably under budget throughout (19-38%
+  CPU). The one real fix in this port wasn't a CPU issue at all: a
+  rendering-correctness bug where the border/player/obstacle layers'
+  plain-assignment compositing let one layer's own byte write fully
+  clobber a different layer's bits sharing the same (column, page)
+  address whenever they occupied different real pixel rows within that
+  one byte - switched every layer to OR-based compositing instead. See
+  CLAUDE.md for the full story, including how it was diagnosed after an
+  initial "maybe it's just obstacles" misdiagnosis was directly corrected
+  by the user.
