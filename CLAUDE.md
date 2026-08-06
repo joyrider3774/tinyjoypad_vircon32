@@ -205,11 +205,12 @@ future porting pass doesn't need to re-download anything:
     hardware/license/`ssd1306xled` lineage as Astro Barrier above, a
     full 4-absolute-direction (not relative-turn) Snake. Genre-duplicates
     the already-shipped Oroboros (relative-turn) and SnakeGame85
-    (absolute-direction, like this one) - per this project's own
-    established practice (see the `more games/gametiny/` re-verification
-    note above, where the user explicitly pushed back on genre-alone
-    exclusion), needs a real code-level diff against SnakeGame85 before
-    being ruled a duplicate rather than skipped on genre alone.
+    (absolute-direction, like this one) - confirmed via direct reading (not
+    genre alone) to be a genuinely distinct, from-scratch codebase (its own
+    real singly-linked-list body representation, its own `ssd1306xled`-
+    based 16x8-grid rendering, sharing no code with either sibling).
+    **Ported** as `src/games/gameAttinySnake.c` (menu title "ATTINY SNAKE")
+    - see Status below for the full writeup.
   - `ATtiny-Tetris-Gold` (Jarosław Mazurkiewicz, GitHub `jaromaz`; mixed/
     non-commercial license - the file's own header: "The code that does
     not fall under the licenses of sources listed below can be used
@@ -1343,7 +1344,7 @@ file - both `sdl3`/`sdl2` rebuilt clean.
 ## Status (as of this session)
 
 Shipped and visually verified (WebGL emulator + a Puppeteer screenshot
-harness - see below): the shim architecture, the menu, and 43 full games
+harness - see below): the shim architecture, the menu, and 44 full games
 (NumberPlace, Tiny Invaders, 2048, HollowSeeker, Tiny Pinball, Tiny
 Pacman, Tiny Bomber, Tiny Doc, Tiny Bert, Tiny Tris, Tiny Arkanoid, Tiny
 Trick, Tiny Minez, Tiny Missile, Tiny Bike, Tiny Arena, Tiny Gilbert,
@@ -1351,17 +1352,20 @@ Tiny Pipe, Tiny Morpion, Tiny Plaque, Tiny SQuest, Tiny DDug, Tiny
 Lander, Wren Rollercoaster, Frogger, Bat Bonanza, Stacker, UFO, Tiny
 Dungeon, Oroboros, Run Dude Run, Four in a Row, Dino Game, SnakeGame85,
 Jump Slime, TinyRoG, TinY Fi, Breakout, Space Attack, Falling Blocks,
-Tiny Mania, Blocks Gold, Astro Barrier - both Falling Blocks and Blocks
-Gold's own menu names deliberately avoid naming the falling-block puzzle
-genre they're clones of, a registered trademark (see each one's own
-writeup below for the full naming rationale); Tiny Mania was staged from
-tinyjoypad.com itself mid-session after the user noticed it had just
-been released there, and Blocks Gold/Astro Barrier are the two most
-recent additions, both found via the same direct user request to search
-more broadly for uncatalogued ATtiny85/TinyJoypad games (including non-
-English-language sites) and picked one at a time from that search's own
-staged 4-candidate batch - see each one's own writeup below). Every game
-from the project's original scope
+Tiny Mania, Blocks Gold, Astro Barrier, ATtiny Snake - both Falling
+Blocks and Blocks Gold's own menu names deliberately avoid naming the
+falling-block puzzle genre they're clones of, a registered trademark
+(see each one's own writeup below for the full naming rationale); Tiny
+Mania was staged from tinyjoypad.com itself mid-session after the user
+noticed it had just been released there, and Blocks Gold/Astro Barrier/
+ATtiny Snake are the three most recent additions, all found via the same
+direct user request to search more broadly for uncatalogued ATtiny85/
+TinyJoypad games (including non-English-language sites) and picked one
+at a time from that search's own staged 4-candidate batch - the last
+remaining candidate, `attiny85_microgame_meteor_storm`, is still staged
+but not yet ported (see its own catalog entry above for why it needs
+more adaptation than the other three did) - see each shipped one's own
+writeup below). Every game from the project's original scope
 shipped with Tiny Dungeon (see its own
 writeup below for what's still not independently re-verified about it
 specifically) - Oroboros, Run Dude Run, Four in a Row, and Dino Game
@@ -6813,6 +6817,81 @@ and jingle-sequencing code already proven correct for Level Complete/New
 High Score, so risk is low, but worth a direct check if anything looks
 off.
 
+## ATtiny Snake - the third port from the wider `more games/` search's findings
+
+Picked directly by the user ("port the next game") as the third candidate
+from the same 4-game batch, same author/hardware as the already-shipped
+Astro Barrier. Full technical writeup lives in
+`src/games/gameAttinySnake.c`'s own header comment; this section covers
+the highlights.
+
+**The simplest grid model of any port in this project so far**:
+`Display::block(x,y)` treats `x` as a grid column (0-15, 8px each) and
+`y` as a real PAGE index directly (0-7) - every cell maps onto exactly
+one physical page's own 8-column band, with no rotation or bit-shift
+math anywhere, and `filledBlock`/`blankBlock` both being constant bytes
+(only the apple's own `circle` icon has real per-column variation).
+
+**The snake body is a real singly-linked list upstream** (`new`/`free`
+throughout `Snake.cpp`/`SnakeSegment.cpp`) - this dialect has no dynamic
+allocation at all, so it's ported as a fixed-size shift-array instead
+(`asnkBodyX[128]`/`asnkBodyY[128]`/`asnkLen`), the same established
+pattern already used for this project's own Oroboros port. A real
+occupancy grid (`bool[8][16] asnkGrid`) is maintained incrementally
+(O(1) collision test, not O(length)) rather than rescanned from the body
+array every frame - applied proactively from the start, the same lesson
+Astro Barrier's own CPU fix just re-taught.
+
+**Two real design decisions, not literal 1:1 ports**, both explained in
+full in the file's own header comment: (1) a genuine upstream bug in the
+wraparound-edge detection (`xPos-1<0` is always false for a real AVR
+`uint8_t`, so the intended "wrap to the other edge" branch is dead code
+on real hardware) is ported as the clearly-*intended* correct modulo
+wrap instead of either the broken AVR behavior or an unexamined accident
+of this port's own `int`-widening; (2) upstream's own `grow()` causes the
+snake to advance *two* cells in the same tick when eating an apple (an
+apparent unintended consequence of `move()` running unconditionally
+before the eating check, not a deliberate "bonus dash" feature, traced
+through the linked-list mechanics directly) - simplified to the
+standard, universally-expected single-cell-advance Snake mechanic
+instead, matching this project's own already-shipped Oroboros/
+SnakeGame85 conventions.
+
+**Sound reuses Astro Barrier's own already-derived-and-verified Timer1
+CTC frequency formula and even two of its exact jingle tables** (`Sound.cpp`
+is byte-for-byte the same file, same author) - only the 2-note `eating()`
+blip is new.
+
+**Proactively audited for the same CPU-load shape Astro Barrier needed a
+user report to catch**, per a direct user question ("did you optimize
+it?") asked right after this port first shipped - and it turned out the
+question was warranted: the ATTRACT screen's own "S" logo reveal
+animation had exactly the same O(pixels x objects) issue (checking up to
+19 revealed trail cells against every one of 1024 pixels/frame), just
+not yet reported since the game was brand new. Fixed the same way as
+Astro Barrier, proactively rather than waiting for a report: a small
+occupancy grid (`asnkSGrid`, mirroring `asnkGrid`'s own shape) updated
+once per ~100ms reveal-step instead of rescanned per pixel. The SCREEN-
+mode end-game text layers were also row-and-column-gated to their own
+known footprint at the same time, matching this project's own "audit
+every draw layer, not just the obviously large one" lesson.
+
+Verified via Puppeteer: the menu (alphabetical position, credit line),
+the attract screen's own "S" animation revealing correctly and settling
+into the full "SNAKE" logo, starting a game, movement in all 4
+directions (including a wraparound-edge check via the corrected modulo
+wrap), and CPU measured via the perf overlay throughout (20% at rest
+during play, 28-36% during the attract screen's own animation) -
+comfortably under budget both before and after the proactive S-trail
+fix. **Not independently forced this session**: an actual apple-eating
+event and a game-over (self-collision) - the apple's own placement is
+genuinely randomized each game, and blind scripted movement (including a
+full "lawn mower" sweep of the entire 16x8 board) didn't reliably
+demonstrate crossing it within this session's own time budget; the
+eating/growth/collision logic itself is a direct, low-risk structural
+match to this project's own already-proven Oroboros port, so risk is
+low, but this is a real gap worth a direct playtest.
+
 ## Licensing
 
 Tiny Invaders v4.2 is GPLv3 (its `tinyJoypadUtils`/driver lineage). Since a
@@ -6888,7 +6967,11 @@ PRICE" in the menu, sourced from `github.com/SeanP2001/attiny-astro-
 barrier` (itself the renamed/moved location of the repo originally found
 at `SeanP2001/ATtiny_Astro_Barrier` during the wider search - GitHub's
 own redirect confirmed this is the same repository, not a different one).
-Four in a Row and Dino
+ATtiny Snake is the same author/license again - Sean Price, GPLv3,
+credited "SEAN PRICE" in the menu, sourced from
+`github.com/SeanP2001/attiny-snake` (the renamed/moved location of the
+repo originally found at `SeanP2001/ATtiny_Snake`, same redirect
+situation as Astro Barrier's own repo above). Four in a Row and Dino
 Game are the two exceptions to every
 license-family grouping above - neither's own source carries an author
 name or a license statement at all (neither is present in

@@ -71,6 +71,7 @@
 #include "games/gameTinyMania.c"
 #include "games/gameBlocksGold.c"
 #include "games/gameAstroBarrier.c"
+#include "games/gameAttinySnake.c"
 
 #include "menuGameList.c"
 

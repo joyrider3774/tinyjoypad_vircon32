@@ -211,3 +211,15 @@ details/measurements are in `CLAUDE.md`; this is just the summary.
   user instruction not to test it in the emulator; the user tested it
   independently afterward and confirmed it was fine. See CLAUDE.md for
   the full story.
+- **ATtiny Snake** - the PLAYING-state grid rendering was built with an
+  occupancy grid (O(1) per-cell lookup) from the start, so it never had
+  the O(pixels x objects) issue - but a direct user question right after
+  shipping ("did you optimize it?") prompted a proactive re-check, which
+  found the ATTRACT screen's own "S" logo reveal animation *did* have
+  it: checking up to 19 revealed trail cells against every one of 1024
+  pixels/frame. Fixed the same way, before any user report of it being
+  slow: a small occupancy grid mirroring the PLAYING state's own,
+  updated once per ~100ms reveal-step instead of rescanned per pixel.
+  Measured 20% CPU at rest during play, 28-36% during the attract
+  screen's own animation - comfortably under budget both before and
+  after the fix.
