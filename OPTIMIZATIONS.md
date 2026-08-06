@@ -257,3 +257,9 @@ details/measurements are in `CLAUDE.md`; this is just the summary.
   active gameplay before a later 30fps whole-tick throttle was added (at
   direct user request, to make an already-instant piece-lock-to-next-
   piece transition feel less abrupt - not a CPU fix, see CLAUDE.md).
+- **Laser Pong** - built with per-page compositing from the start (every
+  sprite - paddle/ball/laser - routed through one shared sub-page byte-
+  split helper, the same technique already proven in Meteor Storm/Run
+  Dude Run, so no O(pixels x objects) shape ever existed to retrofit).
+  Measured 28% CPU during active gameplay via the perf overlay -
+  comfortably under budget, no optimization pass needed.

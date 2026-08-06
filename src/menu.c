@@ -4,9 +4,11 @@
 #include "string.h"
 
 // Bumped 32->48 when Dino Game (the 33rd registered game) was silently
-// dropped by addGame()'s own capacity guard below - gives headroom for
-// several more future ports without needing another bump each time.
-#define MAX_GAMES 48
+// dropped by addGame()'s own capacity guard below - then bumped again,
+// 48->64, when Laser Pong (the 49th registered game) hit the exact same
+// silent-drop bug the same way - gives more headroom this time
+// specifically to avoid a third repeat of this same mistake.
+#define MAX_GAMES 64
 
 // How many entries fit in the vertical space between the list's start
 // (y=140) and the bottom of the 360px-tall screen at 24px/row - matches

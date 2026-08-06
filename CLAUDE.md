@@ -460,9 +460,13 @@ guessed from search snippets, and several hardware/launcher projects -
 bundle or reference games already in this project's own catalog).
 
 Before porting any of the remaining staged candidates above (4 survived
-the follow-up feasibility audit, 3 removed - see above; TinyBullsAndCows
-and ATtiny Tetromino were the first two of the 4 to actually ship, see
-their own writeups below - 2 remain: ATTiny85_Pong, attiny85-flappy-bird),
+the follow-up feasibility audit, 3 removed - see above; TinyBullsAndCows,
+ATtiny Tetromino, and ATTiny85_Pong (shipped as "Laser Pong") were the
+first three of the 4 to actually ship, see their own writeups below - 1
+remains: attiny85-flappy-bird, needing a final side-by-side mechanic
+check against the already-shipped Flappy Bird - a genuinely different
+pipe-gap mechanic vs. the shipped row-stepping one, per this file's own
+earlier note on it above - before actually porting it),
 triage each one the same way this file's own porting plan describes, and
 confirm which shim lineage (if any) it's close enough to reuse, matching
 every prior discovery pass in this file.
@@ -1565,7 +1569,7 @@ file - both `sdl3`/`sdl2` rebuilt clean.
 ## Status (as of this session)
 
 Shipped and visually verified (WebGL emulator + a Puppeteer screenshot
-harness - see below): the shim architecture, the menu, and 48 full games
+harness - see below): the shim architecture, the menu, and 49 full games
 (NumberPlace, Tiny Invaders, 2048, HollowSeeker, Tiny Pinball, Tiny
 Pacman, Tiny Bomber, Tiny Doc, Tiny Bert, Tiny Tris, Tiny Arkanoid, Tiny
 Trick, Tiny Minez, Tiny Missile, Tiny Bike, Tiny Arena, Tiny Gilbert,
@@ -1574,7 +1578,8 @@ Lander, Wren Rollercoaster, Frogger, Bat Bonanza, Stacker, UFO, Tiny
 Dungeon, Oroboros, Run Dude Run, Four in a Row, Dino Game, SnakeGame85,
 Jump Slime, TinyRoG, TinY Fi, Breakout, Space Attack, Falling Blocks,
 Tiny Mania, Blocks Gold, Astro Barrier, ATtiny Snake, Meteor Storm,
-Flappy Bird, Tiny Bulls And Cows, ATtiny Tetromino - both Falling Blocks
+Flappy Bird, Tiny Bulls And Cows, ATtiny Tetromino, Laser Pong - both
+Falling Blocks
 and Blocks Gold's own menu names deliberately avoid naming
 the falling-block puzzle genre they're clones of, a registered trademark
 (see each one's own writeup below for the full naming rationale); Tiny
@@ -7532,6 +7537,102 @@ atlas's 4x4 grid, now completely full; the next new game's own thumbnail
 will need either a further grid-growth or a third texture, matching this
 project's own established precedent for when an atlas fills up.
 
+## Laser Pong - the third port from the "very very deep scan" batch
+
+From `more games/ATTiny85_Pong/` (Winston-Lu, MIT). An enhanced Pong: a
+cooldown-gated deflecting "shoot" projectile, a speed-burst "spike"
+ability, and adjustable AI difficulty on top of the classic 2-paddle
+formula. Menu title "LASER PONG" (not the repo's own name,
+`ATTiny85_Pong`) - taken directly from the game's own in-game title
+screen text (`showTitle()`), and chosen specifically to avoid a `pong`
+prefix collision with this project's already-shipped `gamePong.c` (Bat
+Bonanza, a different, unrelated Pong clone) - this port uses `lpg`
+throughout instead. Full technical writeup (button-mapping derivation,
+sub-page sprite compositing, the faithfully-preserved `SPIKESPEED/10`
+integer-truncation bug, the README-vs-code control-mapping discrepancy)
+lives in `src/games/gameLaserPong.c`'s own header comment; this section
+covers the porting-process highlights.
+
+Not `tinyJoypadShim`/`obonoCoreShim` lineage - genuine bespoke hardware
+(an external `ssd1306.h`/`SPRITE` library dependency, not itself needed
+here since this port composites columns directly the same way every
+other game in this project does) reading a single-analog-pin voltage
+ladder decoding up to 4 simultaneous directions. Needed no new shim at
+all: every one of upstream's 9 non-zero ladder bands turns out to be
+some combination of exactly 4 independent booleans, so
+`isUpPressed()`/`isDownPressed()`/`isLeftPressed()`/`isRightPressed()`
+checked independently reproduce every band case exactly, with
+`isFirePressed()` used only for the attract-screen "press to start"
+gesture (unused by native gameplay), matching this project's own
+standing convention. Confirmed via direct source reading
+(`#define HEIGHT 32`) that this targets a genuine 128x32 display -
+placed within Vircon32's fixed 128x64 canvas the same way ATtiny
+Tetromino/Tiny Bulls And Cows were, with pages 4-7 explicitly redrawn
+blank every frame to avoid the VRAM-persistence bug class.
+
+**A real, self-found control-flow bug, caught by the user's own direct
+question rather than a symptom report** ("was lpgMoveBall() called twice
+upstream as well?"): an early draft called `lpgMoveBall()` once directly
+in the state machine's PLAYING branch and a second time from inside what
+was then a combined `lpgUpdatePlaying()` helper - re-checking the real
+upstream source confirmed `moveBall()` is called exactly once per loop
+iteration, at the very top, with the code's own comment explaining why
+("move ball first to avoid pixel overlap bugs with ball size <8"). Fixed
+by renaming that helper to `lpgUpdateInputAndAI()`, removing its internal
+`lpgMoveBall()` call, and restructuring `gameLaserPong_update()`'s
+PLAYING branch to match upstream's real per-tick order exactly: move
+ball -> win-check (using the post-move score) -> if scored, begin the
+score pause and return -> otherwise read input/run AI -> render. The same
+re-read also confirmed `lpgMoveBall()`'s own "ball hit the side, reset
+round" block is a genuinely SEPARATE `if` statement from the paddle-
+bounce/wall-bounce/move logic that follows it (not `if`/`else`) -
+preserved exactly, meaning even on the tick a point is scored, the
+freshly-reset ball still takes one small extra step that same frame,
+matching upstream's real structure rather than the more "obviously
+correct"-looking `if`/`else` shape an early draft had used instead.
+
+Every sprite (paddle/ball/laser) is composited through one shared
+sub-page byte-split helper (`lpgSpriteColByte()`), the same explicit-
+shift-and-mask technique already proven for Meteor Storm/Run Dude Run's
+own sub-page sprite math - built in from the start rather than needing a
+later CPU-load retrofit, per this project's own "check for optimizations
+in each port" standing instruction. The ball's own 8-column bitmap
+(`lpgBallCol[]`) renders as a genuine small heart shape - confirmed, when
+the user asked directly, to be faithful to upstream's own real bitmap
+data (verified via byte-diffing the extracted table against upstream's
+literal binary constants and rendering it as ASCII art), not a porting
+artifact.
+
+**MAX_GAMES silently dropped this game from the menu entirely** - the
+exact same bug class already documented once for Dino Game (32->48).
+Laser Pong is the 49th `addGame()` call, one past the 48-cap set at that
+time; confirmed via `grep -c "addGame("` (49) against `MAX_GAMES` (48),
+fixed by bumping the cap to 64 this time, specifically to leave more
+headroom against a third repeat of the same mistake. **The thumbnail
+atlas needed a genuinely new, third texture**, not just another grid
+cell - `thumbnails2.png` was already completely full (16/16 cells, see
+ATtiny Tetromino's own writeup above) going into this port. Created
+`assets/thumbnails3.png` (a 4x2, 8-cell grid, matching the same
+established pattern from when `thumbnails2.png` itself was first
+created) and wired it through as a genuine 5th cartridge texture id
+(`THUMBNAILS3_TEXTURE_ID`, appended to the end of `rom.xml`'s own
+`<textures>` list - specifically *after* `pixelgrid.vtex`, not before
+it, so `PIXELGRID_TEXTURE_ID` keeps its existing numeric id rather than
+being silently renumbered), `Make.sh`/`Make.bat`'s own PNG-conversion
+step, and a third dispatch range in `md_getThumbnailCount()`/
+`md_drawGameThumbnail()` (`src/portVircon32.c`). Verified via screenshot
+that Laser Pong's own thumbnail (heart-shaped ball, both paddles, live
+score, "BY WINSTON LU" credit) renders correctly and a spot-checked
+neighbor (Meteor Storm, sharing no texture with the new one) is
+untouched.
+
+Verified via a light sanity pass (menu registration on page 2, attract
+screen, and an active-gameplay screenshot showing both paddles, the
+heart-shaped ball, and the live "N:M" score all rendering correctly
+together) per this project's now-standard lighter per-port verification
+approach. CPU measured at 28% during active gameplay via the perf
+overlay - comfortably under budget, no optimization pass needed.
+
 ## Licensing
 
 Tiny Invaders v4.2 is GPLv3 (its `tinyJoypadUtils`/driver lineage). Since a
@@ -7632,7 +7733,10 @@ handle rather than the real name at direct user request, matching the
 attract screen's own "BY SUNPAZED" credit line; its own credited base,
 `jfoucher/attiny-tetris`, states no license at all, but only sunpazed's
 substantially-enhanced fork was actually staged/ported - see this file's
-own catalog entry above for why). Four in a Row
+own catalog entry above for why). Laser Pong is a clean MIT case again -
+`more games/ATTiny85_Pong/`'s own upstream repo (credited "Winston-Lu")
+states MIT directly, credited "WINSTON LU" in the menu (its own real
+stated name, not a bare handle). Four in a Row
 and Dino
 Game are the two exceptions to every
 license-family grouping above - neither's own source carries an author

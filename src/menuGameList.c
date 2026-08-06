@@ -199,4 +199,5 @@ void addGames()
     addGame( "FLAPPY BIRD", "ALEX WULFF", &gameFlappyBird_init, &gameFlappyBird_update, &gameFlappyBird_forceRedraw );
     addGame( "BULLS AND COWS", "DATACUTE", &gameTinyBullsAndCows_init, &gameTinyBullsAndCows_update, &gameTinyBullsAndCows_forceRedraw );
     addGame( "ATTINY TETROMINO", "SUNPAZED", &gameAttinyTetromino_init, &gameAttinyTetromino_update, &gameAttinyTetromino_forceRedraw );
+    addGame( "LASER PONG", "WINSTON LU", &gameLaserPong_init, &gameLaserPong_update, &gameLaserPong_forceRedraw );
 }

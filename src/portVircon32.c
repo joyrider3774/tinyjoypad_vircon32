@@ -114,6 +114,21 @@
 #define THUMBNAIL2_GRID_ROWS 4
 #define THUMBNAIL2_COUNT 16
 
+// Laser Pong (49th game, registration index 48) filled thumbnails2's own
+// last cell in a prior session (see that atlas's own now-completely-full
+// 4x4 grid above) - needed a genuine THIRD texture this time, the same
+// "single-texture atlas hits Vircon32's own 1024x1024 cap or otherwise
+// runs out of room, add a new texture rather than trying to grow the
+// existing one further" precedent as when thumbnails2 itself was first
+// added. A small 4x2 grid (1024x256, 8 cells of headroom for future
+// games before a fourth texture is ever needed) - added as texture id 4
+// (appended after pixelgrid in rom.xml, rather than inserted before it,
+// specifically to avoid renumbering PIXELGRID_TEXTURE_ID below).
+#define THUMBNAILS3_TEXTURE_ID 4
+#define THUMBNAIL3_GRID_COLS 4
+#define THUMBNAIL3_GRID_ROWS 2
+#define THUMBNAIL3_COUNT 1
+
 // Pixel-grid overlay (see drawPixelGridOverlay() below) - one pre-baked
 // 640x320 texture (assets/pixelgrid.png, a transparent background with
 // opaque black 1px lines every TILE_SCALE pixels in both directions,
@@ -172,6 +187,17 @@ void md_initVideo()
         0
     );
 
+    select_texture( THUMBNAILS3_TEXTURE_ID );
+
+    define_region_matrix
+    (
+        0,                                          // first_id == (game index - THUMBNAIL_COUNT - THUMBNAIL2_COUNT)
+        0, 0, THUMBNAIL_W - 1, THUMBNAIL_H - 1,
+        0, 0,
+        THUMBNAIL3_GRID_COLS, THUMBNAIL3_GRID_ROWS,
+        0
+    );
+
     select_texture( PIXELGRID_TEXTURE_ID );
     select_region( 0 );
     define_region( 0, 0, 639, 319, 0, 0 );
@@ -181,17 +207,18 @@ void md_initVideo()
 
 int md_getThumbnailCount()
 {
-    return THUMBNAIL_COUNT + THUMBNAIL2_COUNT;
+    return THUMBNAIL_COUNT + THUMBNAIL2_COUNT + THUMBNAIL3_COUNT;
 }
 
-// Dispatches across the two thumbnail textures, treating gameIndex as one
-// contiguous logical space (0..THUMBNAIL_COUNT-1 in the first/original
-// atlas, THUMBNAIL_COUNT..THUMBNAIL_COUNT+THUMBNAIL2_COUNT-1 in the
-// second) - see this file's own comment above THUMBNAILS_TEXTURE_ID for
-// why a second texture was needed at all.
+// Dispatches across the three thumbnail textures, treating gameIndex as
+// one contiguous logical space (0..THUMBNAIL_COUNT-1 in the first/
+// original atlas, THUMBNAIL_COUNT..+THUMBNAIL2_COUNT-1 in the second,
+// the rest in the third) - see this file's own comments above
+// THUMBNAILS_TEXTURE_ID/THUMBNAILS3_TEXTURE_ID for why each additional
+// texture was needed.
 void md_drawGameThumbnail( int gameIndex, int x, int y )
 {
-    if( gameIndex < 0 || gameIndex >= THUMBNAIL_COUNT + THUMBNAIL2_COUNT )
+    if( gameIndex < 0 || gameIndex >= THUMBNAIL_COUNT + THUMBNAIL2_COUNT + THUMBNAIL3_COUNT )
       return;
 
     if( gameIndex < THUMBNAIL_COUNT )
@@ -199,10 +226,15 @@ void md_drawGameThumbnail( int gameIndex, int x, int y )
         select_texture( THUMBNAILS_TEXTURE_ID );
         select_region( gameIndex );
     }
-    else
+    else if( gameIndex < THUMBNAIL_COUNT + THUMBNAIL2_COUNT )
     {
         select_texture( THUMBNAILS2_TEXTURE_ID );
         select_region( gameIndex - THUMBNAIL_COUNT );
+    }
+    else
+    {
+        select_texture( THUMBNAILS3_TEXTURE_ID );
+        select_region( gameIndex - THUMBNAIL_COUNT - THUMBNAIL2_COUNT );
     }
     draw_region_at( x, y );
 }
