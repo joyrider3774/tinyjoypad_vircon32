@@ -459,17 +459,15 @@ guessed from search snippets, and several hardware/launcher projects -
 `orzel/sygeco`, `SeanP2001/attiny-handheld-games-console` - that only
 bundle or reference games already in this project's own catalog).
 
-Before porting any of the remaining staged candidates above (4 survived
-the follow-up feasibility audit, 3 removed - see above; TinyBullsAndCows,
-ATtiny Tetromino, and ATTiny85_Pong (shipped as "Laser Pong") were the
-first three of the 4 to actually ship, see their own writeups below - 1
-remains: attiny85-flappy-bird, needing a final side-by-side mechanic
-check against the already-shipped Flappy Bird - a genuinely different
-pipe-gap mechanic vs. the shipped row-stepping one, per this file's own
-earlier note on it above - before actually porting it),
-triage each one the same way this file's own porting plan describes, and
-confirm which shim lineage (if any) it's close enough to reuse, matching
-every prior discovery pass in this file.
+All 4 candidates that survived the follow-up feasibility audit (3
+removed - see above) have now shipped: TinyBullsAndCows, ATtiny
+Tetromino, ATTiny85_Pong (shipped as "Laser Pong"), and
+attiny85-flappy-bird (shipped as "Pipe Bird" - confirmed via direct
+source reading, not genre-name alone, to be a genuinely different
+continuous-position pipe-gap mechanic vs. the already-shipped Flappy
+Bird's own discrete row-stepping one) - see each one's own writeup below
+for the full porting story. The "very very deep scan" discovery batch is
+now fully closed out.
 
 Most of the Daniel-C `tinyJoypadShim`-lineage titles and all three Obono
 `TinyJoypadWorks` games in this folder are shipped now (22 games total -
@@ -1569,7 +1567,7 @@ file - both `sdl3`/`sdl2` rebuilt clean.
 ## Status (as of this session)
 
 Shipped and visually verified (WebGL emulator + a Puppeteer screenshot
-harness - see below): the shim architecture, the menu, and 49 full games
+harness - see below): the shim architecture, the menu, and 50 full games
 (NumberPlace, Tiny Invaders, 2048, HollowSeeker, Tiny Pinball, Tiny
 Pacman, Tiny Bomber, Tiny Doc, Tiny Bert, Tiny Tris, Tiny Arkanoid, Tiny
 Trick, Tiny Minez, Tiny Missile, Tiny Bike, Tiny Arena, Tiny Gilbert,
@@ -1578,8 +1576,8 @@ Lander, Wren Rollercoaster, Frogger, Bat Bonanza, Stacker, UFO, Tiny
 Dungeon, Oroboros, Run Dude Run, Four in a Row, Dino Game, SnakeGame85,
 Jump Slime, TinyRoG, TinY Fi, Breakout, Space Attack, Falling Blocks,
 Tiny Mania, Blocks Gold, Astro Barrier, ATtiny Snake, Meteor Storm,
-Flappy Bird, Tiny Bulls And Cows, ATtiny Tetromino, Laser Pong - both
-Falling Blocks
+Flappy Bird, Tiny Bulls And Cows, ATtiny Tetromino, Laser Pong, Pipe
+Bird - both Falling Blocks
 and Blocks Gold's own menu names deliberately avoid naming
 the falling-block puzzle genre they're clones of, a registered trademark
 (see each one's own writeup below for the full naming rationale); Tiny
@@ -7633,6 +7631,128 @@ together) per this project's now-standard lighter per-port verification
 approach. CPU measured at 28% during active gameplay via the perf
 overlay - comfortably under budget, no optimization pass needed.
 
+## Pipe Bird - the last candidate from the "very very deep scan" batch
+
+From `more games/attiny85-flappy-bird/` (Ioannis Lampropoulos, GitHub
+`Lampropoulosss` - the repo's own commit author, since no name is stated
+anywhere in the source or in a README/LICENSE file). This was the one
+remaining staged candidate flagged since the deep-scan batch's own initial
+triage as needing "a final side-by-side mechanic check against the
+already-shipped Flappy Bird" before porting - confirmed via direct source
+reading to be genuinely different, not a duplicate: a true continuous-
+position pipe-gap flyer with real gravity/velocity physics and a hold-
+any-button-to-flap gesture, much closer to the original mobile game's own
+feel, versus the already-shipped port's discrete one-row-per-press
+stepping avoider with no gravity at all. Menu title "PIPE BIRD" (not
+"FLAPPY BIRD 2" or similar), picked via a direct AskUserQuestion to the
+user specifically to avoid colliding with the already-shipped game's own
+menu title, since the repo itself has no title screen/branding of its own
+to draw a name from.
+
+A plain AVR-GCC/Makefile project (not an Arduino `.ino` sketch) with its
+own minimal, from-scratch SSD1306 driver - the same toolchain shape
+already proven portable for Meteor Storm. `oled_show_page(page,
+buffer[128])` streams one full 128-byte page at a time, the same "one
+byte per (column, page)" model `md_drawColumn()` already handles, so no
+new shim primitives were needed. Not `tinyJoypadShim`/`obonoCoreShim`
+lineage - a single-analog-pin voltage ladder decoding 4 discrete buttons
+with no separate Fire pin at all. Upstream's own flap gesture is "ANY of
+the 4 buttons, newly pressed" - ported as an edge-detected OR of
+`isUpPressed()`/`isDownPressed()`/`isLeftPressed()`/`isRightPressed()`,
+faithfully reproducing "any button flaps" rather than picking one
+arbitrary direction; `isFirePressed()` (unused by native gameplay, since
+this hardware has no such button) is used only for this port's own added
+attract-screen/game-over-to-attract gestures, matching every other
+beyond-scope port's own standing convention of adding a genuine attract
+screen where upstream has none at all.
+
+**Two real bugs found and fixed proactively, before ever compiling,
+extending this project's own "AVR-implicit-narrow-type-reliance" bug
+family with a new mechanism**: `pipe_x` is `uint16_t` upstream, and its
+own reset check (`if (pipe_x > 128<<2) { pipe_x = 128<<2; score++; ...
+}`) relies on real unsigned hardware wraparound-on-decrement to detect
+"the pipe just went past the left edge" - `avrCompat.h` aliases
+`uint16_t` to a plain, non-wrapping 32-bit `int`, so a negative
+`pipbPipeX` would just stay negative forever instead of wrapping back
+above the 512 threshold, permanently freezing the pipe off-screen and
+halting scoring entirely. **Fixed** by replacing the wraparound-reliant
+`> 512` check with a direct `< 0` sign check instead - mathematically
+equivalent to "the moment the pipe's real position would go negative"
+without depending on unsigned overflow to detect it. A smaller instance
+of the same family: `prng_state` is `uint8_t` upstream (a classic 8-bit
+LCG relying on wraparound to stay bounded), fixed with an explicit
+`& 0xFF` mask after each update; the real-hardware-timer entropy
+injection on flap (`prng_state ^= TCNT0;`, no Vircon32 equivalent) was
+replaced with `arand(256)`, the same "swap a hardware-timer-register
+entropy source for the shared RNG" treatment already used elsewhere in
+this project.
+
+**A third bug, the same logical-vs-arithmetic-right-shift hazard already
+found in HollowSeeker/Tiny Pipe/TinY Fi**, also caught by inspection
+before compiling: `bird_y` can go genuinely negative for exactly the one
+frame a ceiling collision is detected, and `(bird_y >> 4) < 0` would
+silently fail to register that collision under Vircon32's documented
+*logical* (not arithmetic) `>>`. **Fixed** by testing `pipbBirdY < 0`
+directly instead of shifting first - mathematically equivalent for a
+pure sign check, avoiding the shift-semantics question entirely for this
+one comparison. Confirmed this is the only site where a negative
+`bird_y` can ever reach a shift - rendering never sees a negative
+`bird_y` at all, since the ceiling check ends the game the same tick,
+before the next render call.
+
+Upstream's own sub-page bird-sprite compositing already explicitly widens
+each 16-bit sprite column into a 32-bit temporary before shifting, with
+an explicit `& 0xFF` mask on each of the 3 possible output bytes - the
+same byte-truncation-avoidance technique this project's own history
+established as necessary, just already present in the *original* AVR
+source this time rather than something this port needed to add. `tiny_font`/
+`bird_bitmap` were byte-diff-verified against upstream via a small Python
+script before ever being pasted in; the standard 95-char `ssd1306xled`
+font (already proven for Oroboros/Run Dude Run/Dino Game/Astro Barrier/
+ATtiny Snake/Flappy Bird) was reused for this port's own added attract
+screen, since upstream's own tiny 5-column font only covers digits plus
+the specific letters its own "GAME OVER"/"SCORE"/"HIGH" screen needs -
+that screen itself was ported as a direct 1:1 translation of upstream's
+own `render_frame()` game-over branch, unchanged in structure. EEPROM
+high-score persistence dropped (session-in-memory only), matching every
+other port's precedent.
+
+**A genuine hardware-timer-driven ~30fps, not the "no timing model
+whatsoever upstream" category this port was initially (incorrectly)
+assumed to fall into** - found via a direct user request right after
+shipping ("limit game to 30 fps"), which prompted re-checking
+`main.c`'s own `ISR(TIMER0_OVF_vect)` more carefully: it's explicitly
+commented "automatically triggered ~30 times a second by the hardware",
+gating every real `update_physics()`/`render_frame()` call to that
+genuine rate - unlike the several other beyond-scope ports in this
+project whose own upstream truly has no timing model at all. Shipping
+this port at the engine's native 60fps ran gravity/velocity/pipe-speed
+exactly 2x faster than the original hardware - a real miss at initial
+port time, not caught proactively. **Fixed** with `PIPB_TICK_DIVISOR=2`,
+a whole-function tick-skip gating the entire `gamePipeBird_update()` body
+(including the attract/game-over screens, matching the majority "gate
+the whole tick" precedent in this project) rather than a movement-only
+split, since there were no pre-existing 60fps-tuned wait constants in
+this port that needed to stay unrescaled.
+
+Verified via a light sanity pass (menu registration on page 3, attract
+screen, and a genuine mid-flight gameplay screenshot showing the bird
+sprite and an oncoming pipe both rendering correctly) per this project's
+now-standard lighter per-port verification approach - two earlier
+gameplay captures during this same verification pass showed the GAME
+OVER screen instead of mid-air flight, which read as suspicious at first
+but traced back (via code inspection, not further testing) to the test
+script's own timing rather than a real bug: with zero or with rapid,
+unmoderated flap input, the real ported physics genuinely crash the bird
+into the floor or ceiling well within a second, exactly matching
+upstream's own real difficulty - not a porting defect. The GAME OVER
+screen itself was independently confirmed correctly rendered by both of
+those captures regardless. Menu thumbnail added to `assets/thumbnails3.png`'s
+cell 1 (second cell of its 4x2 grid, right after Laser Pong's own cell 0)
+- no atlas growth needed. This closes out the "very very deep scan"
+discovery batch entirely - all 4 staged candidates (Tiny Bulls And Cows,
+ATtiny Tetromino, Laser Pong, Pipe Bird) have now shipped.
+
 ## Licensing
 
 Tiny Invaders v4.2 is GPLv3 (its `tinyJoypadUtils`/driver lineage). Since a
@@ -7736,7 +7856,14 @@ substantially-enhanced fork was actually staged/ported - see this file's
 own catalog entry above for why). Laser Pong is a clean MIT case again -
 `more games/ATTiny85_Pong/`'s own upstream repo (credited "Winston-Lu")
 states MIT directly, credited "WINSTON LU" in the menu (its own real
-stated name, not a bare handle). Four in a Row
+stated name, not a bare handle). Pipe Bird is a different case again -
+a known author (Ioannis Lampropoulos, confirmed via the repo's own real
+git commit author, the same identification method already used for
+Meteor Storm's own credit) but no license statement anywhere in the
+game's own code or in a README/LICENSE file - the same "known author,
+unstated license" situation as Jump Slime/TinyRoG/TinY Fi/Flappy Bird
+above, credited "IOANNIS LAMPROPOULOS" in the menu and listed as "None
+specified" in the README for licensing purposes only. Four in a Row
 and Dino
 Game are the two exceptions to every
 license-family grouping above - neither's own source carries an author

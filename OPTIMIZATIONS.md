@@ -263,3 +263,15 @@ details/measurements are in `CLAUDE.md`; this is just the summary.
   Dude Run, so no O(pixels x objects) shape ever existed to retrofit).
   Measured 28% CPU during active gameplay via the perf overlay -
   comfortably under budget, no optimization pass needed.
+- **Pipe Bird** - built with per-page compositing from the start (the
+  bird sprite's own sub-page compositing was already present in upstream's
+  own source, just ported directly; the pipe is a plain solid-fill column
+  range). No O(pixels x objects) shape existed to retrofit, so CPU was not
+  separately measured for this port. The one real fix here wasn't a CPU
+  issue either: upstream itself runs at a genuine hardware-timer-driven
+  ~30fps, not the "no timing model" category several sibling ports fall
+  into - shipping at the engine's native 60fps first ran gravity/pipe
+  speed 2x too fast, fixed with a whole-tick 2x throttle at direct user
+  request. See CLAUDE.md for the full diagnostic story, including two
+  unsigned-integer-wraparound-reliance bugs and a logical-vs-arithmetic-
+  shift hazard found and fixed before ever compiling.

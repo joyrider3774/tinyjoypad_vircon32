@@ -2,7 +2,7 @@
 
 ![Menu screenshot](metadata/menu.png)
 
-A single [Vircon32](https://www.vircon32.com/) cartridge that ports **49
+A single [Vircon32](https://www.vircon32.com/) cartridge that ports **50
 games** originally written for the [TinyJoypad](https://www.tinyjoypad.com/)
 ATtiny85 + SSD1306 128x64 OLED handheld onto Vircon32's 640x360 GPU, behind
 one shared game-select menu. Vircon32's GPU is a texture-region blitter with
@@ -74,6 +74,7 @@ Click a thumbnail for the full-size screenshot.
 | Meteor Storm | Albert Gonzalez | Unlicense (public domain) | [attiny85_microgame_meteor_storm](https://github.com/theisolinearchip/attiny85_microgame_meteor_storm) | [<img src="metadata/screenshots/METEOR%20STORM.png" width="160">](metadata/screenshots/METEOR%20STORM.png) |
 | NumberPlace | Obono | MIT | [TinyJoypadWorks](https://github.com/obono/TinyJoypadWorks) | [<img src="metadata/screenshots/NUMBERPLACE.png" width="160">](metadata/screenshots/NUMBERPLACE.png) |
 | Oroboros | Ilya Titov | Non-commercial, with attribution | [AttinyArcade](https://github.com/webboggles/AttinyArcade) | [<img src="metadata/screenshots/OROBOROS.png" width="160">](metadata/screenshots/OROBOROS.png) |
+| Pipe Bird | Ioannis Lampropoulos | None specified | [attiny85-flappy-bird](https://github.com/Lampropoulosss/attiny85-flappy-bird) | [<img src="metadata/screenshots/PIPE%20BIRD.png" width="160">](metadata/screenshots/PIPE%20BIRD.png) |
 | Run Dude Run | Ilya Titov | Non-commercial, with attribution | [AttinyArcade](https://github.com/webboggles/AttinyArcade) | [<img src="metadata/screenshots/RUN%20DUDE%20RUN.png" width="160">](metadata/screenshots/RUN%20DUDE%20RUN.png) |
 | SnakeGame85 | terezaza | GPLv3 | [SnakeGame85](https://github.com/terezaza/SnakeGame85) | [<img src="metadata/screenshots/SNAKEGAME85.png" width="160">](metadata/screenshots/SNAKEGAME85.png) |
 | Space Attack | Andy Jackson | Non-commercial, with attribution | [Attiny-Arduino-Games](https://github.com/andyhighnumber/Attiny-Arduino-Games) | [<img src="metadata/screenshots/SPACE%20ATTACK.png" width="160">](metadata/screenshots/SPACE%20ATTACK.png) |

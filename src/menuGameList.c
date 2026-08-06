@@ -200,4 +200,7 @@ void addGames()
     addGame( "BULLS AND COWS", "DATACUTE", &gameTinyBullsAndCows_init, &gameTinyBullsAndCows_update, &gameTinyBullsAndCows_forceRedraw );
     addGame( "ATTINY TETROMINO", "SUNPAZED", &gameAttinyTetromino_init, &gameAttinyTetromino_update, &gameAttinyTetromino_forceRedraw );
     addGame( "LASER PONG", "WINSTON LU", &gameLaserPong_init, &gameLaserPong_update, &gameLaserPong_forceRedraw );
+    // No onResume needed - gamePipeBird_update() calls pipbRenderFrame()
+    // unconditionally in every state, confirmed correct not an oversight.
+    addGame( "PIPE BIRD", "IOANNIS LAMPROPOULOS", &gamePipeBird_init, &gamePipeBird_update, NULL );
 }

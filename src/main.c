@@ -77,6 +77,7 @@
 #include "games/gameTinyBullsAndCows.c"
 #include "games/gameAttinyTetromino.c"
 #include "games/gameLaserPong.c"
+#include "games/gamePipeBird.c"
 
 #include "menuGameList.c"
 
