@@ -198,8 +198,9 @@ future porting pass doesn't need to re-download anything:
     structurally close to TinyJoypad's own scheme - real multi-file C++
     (`Bullet`/`Player`/`Target`/`Screens`/`Sound` classes each their own
     `.h`/`.cpp`), not a single-file sketch. The closest hardware match of
-    the 4 - likely the lowest-effort of this batch to port whenever this
-    is picked up.
+    the 4 - and it turned out to be the lowest-effort of this batch, as
+    expected. **Ported** as `src/games/gameAstroBarrier.c` - see Status
+    below for the full writeup.
   - `attiny-snake` (Sean Price, GitHub `SeanP2001`, GPLv3) - same author/
     hardware/license/`ssd1306xled` lineage as Astro Barrier above, a
     full 4-absolute-direction (not relative-turn) Snake. Genre-duplicates
@@ -1342,7 +1343,7 @@ file - both `sdl3`/`sdl2` rebuilt clean.
 ## Status (as of this session)
 
 Shipped and visually verified (WebGL emulator + a Puppeteer screenshot
-harness - see below): the shim architecture, the menu, and 42 full games
+harness - see below): the shim architecture, the menu, and 43 full games
 (NumberPlace, Tiny Invaders, 2048, HollowSeeker, Tiny Pinball, Tiny
 Pacman, Tiny Bomber, Tiny Doc, Tiny Bert, Tiny Tris, Tiny Arkanoid, Tiny
 Trick, Tiny Minez, Tiny Missile, Tiny Bike, Tiny Arena, Tiny Gilbert,
@@ -1350,15 +1351,17 @@ Tiny Pipe, Tiny Morpion, Tiny Plaque, Tiny SQuest, Tiny DDug, Tiny
 Lander, Wren Rollercoaster, Frogger, Bat Bonanza, Stacker, UFO, Tiny
 Dungeon, Oroboros, Run Dude Run, Four in a Row, Dino Game, SnakeGame85,
 Jump Slime, TinyRoG, TinY Fi, Breakout, Space Attack, Falling Blocks,
-Tiny Mania, Blocks Gold - both Falling Blocks and Blocks Gold's own menu
-names deliberately avoid naming the falling-block puzzle genre they're
-clones of, a registered trademark (see each one's own writeup below for
-the full naming rationale); Tiny Mania was staged from tinyjoypad.com
-itself mid-session after the user noticed it had just been released
-there, and Blocks Gold is the newest addition, found via a direct user
-request to search more broadly for uncatalogued ATtiny85/TinyJoypad
-games (including non-English-language sites) - see each one's own
-writeup below). Every game from the project's original scope
+Tiny Mania, Blocks Gold, Astro Barrier - both Falling Blocks and Blocks
+Gold's own menu names deliberately avoid naming the falling-block puzzle
+genre they're clones of, a registered trademark (see each one's own
+writeup below for the full naming rationale); Tiny Mania was staged from
+tinyjoypad.com itself mid-session after the user noticed it had just
+been released there, and Blocks Gold/Astro Barrier are the two most
+recent additions, both found via the same direct user request to search
+more broadly for uncatalogued ATtiny85/TinyJoypad games (including non-
+English-language sites) and picked one at a time from that search's own
+staged 4-candidate batch - see each one's own writeup below). Every game
+from the project's original scope
 shipped with Tiny Dungeon (see its own
 writeup below for what's still not independently re-verified about it
 specifically) - Oroboros, Run Dude Run, Four in a Row, and Dino Game
@@ -6723,6 +6726,93 @@ reuse the exact same `gldClearFullRows()`/`gldBeginGameOver()` logic
 already proven correct in the sibling Falling Blocks port, so risk is
 low, but worth a direct check if anything looks off.
 
+## Astro Barrier - the second port from the wider `more games/` search's findings
+
+Picked directly by the user ("port next game") as the next candidate from
+the same 4-game batch Blocks Gold came from, following this project's own
+earlier assessment that it was the closest hardware match and likely the
+lowest-effort of the four - confirmed true once actually ported. Full
+technical writeup lives in `src/games/gameAstroBarrier.c`'s own header
+comment; this section covers the post-port CPU fix found via direct user
+report.
+
+**A genuinely different, and simpler, rendering model than every other
+AttinyArcade-family game in this project** - confirmed by reading the
+bundled `ssd1306xled-master.zip` source directly rather than assumed:
+`ssd1306_draw_bmp(x0,y0,x1,y1,bitmap)` treats `y0`/`y1` as real PAGE
+indices and streams bitmap data in plain row-major page order - the same
+"one byte = 8 vertical pixels of one column" model this whole project's
+`md_drawColumn()` already handles, with no rotation or bit-shift trickery
+needed at all (unlike Falling Blocks'/Blocks Gold's own sideways-driven
+engine). Text similarly uses the library's own standard, non-rotated
+`ssd1306_string_font6x8()` - confirmed to be the exact same 95-char font
+table already extracted and proven for Oroboros/Run Dude Run/Dino Game,
+reused directly rather than re-extracted.
+
+**One deliberate, documented deviation from a literal port**: upstream's
+own `loop()` has no "press start" gate at all - it shows the title screen
+for a fixed 2-second `delay()` and unconditionally begins level 1 every
+single time, looping forever with no player input required to (re)start.
+Every other game in this cartridge instead waits on its own attract
+screen for an explicit Fire press - added the same gate here for UX
+consistency with the rest of the menu, the only place this port's control
+flow diverges from upstream's literal structure.
+
+**Sound needed a genuinely different derivation than most other ports in
+this project**: `Sound.cpp`'s own `note(n,octave)` is a real ATtiny85
+Timer1 CTC tone generator (David Johnson-Davies' "Tiny Tune" design, not
+a NOP-loop beep), so rather than the usual "no exact real-Hz equivalent"
+heuristic, the exact frequency formula was derived from the register math
+and *numerically verified* against real musical pitches before trusting
+it: `freq = F_CPU / (2^(11-octave) * scale[n%12])` with F_CPU assumed at
+8MHz gives `note(0,4)` = 261.51Hz (essentially exact middle C) and
+`note(9,4)` = 440.14Hz (essentially exact concert-pitch A4) - both
+confirming the 8MHz assumption and the formula itself rather than just
+trusting it on paper.
+
+**A real CPU-load problem, found via direct user report right after
+shipping** ("check for optimizations during certain levels 100% cpu is
+reached (don't test yourself)") - diagnosed and fixed via code inspection
+only, per the user's explicit instruction. `barrRenderFrame()`'s own
+PLAYING branch had the exact same O(pixels x objects) shape this project
+has found and fixed repeatedly elsewhere: `barrBulletByte()`/
+`barrTargetByte()` (the latter called 3 times, once per target) were
+called unconditionally for every one of 1024 pixels/frame, each a full
+function call with its own struct-pointer dereference, even though each
+object only ever occupies a small fraction of the screen - levels with a
+32x32 large target or multiple simultaneous targets would pay this cost
+worst, matching the reported "certain levels" symptom exactly. **Fixed**
+with `barrComposePlayingRow()`, a per-page composite buffer (matching the
+same technique already proven in Falling Blocks/Blocks Gold) writing each
+object - player, bullet, all 3 targets, the bullet-count text - directly
+into a shared row buffer, gated to its own real bounding box (a literal
+duplicate of the old bounds checks the removed `barrSpriteByte()`/
+`barrTargetByte()`/`barrBulletByte()` functions used to perform, not an
+approximation, so it cannot change what renders, only how many times it's
+computed). Verified compiling clean; **not tested in the emulator by
+Claude**, per the user's own explicit instruction - the user independently
+tested it themselves afterward and confirmed it was fine, then separately
+asked to double-check the bullet's own behavior specifically stayed
+identical, which was re-confirmed by tracing both the old and new code's
+exact visibility condition, column range, and sprite-byte lookup formula
+side by side (all three match exactly - see the file's own render
+functions).
+
+Verified via Puppeteer (both before and after the CPU fix, using the
+already-optimized build for the post-fix pass): the attract screen (logo
+art, ship graphic), the level-intro screen ("Level N"/"Nx Bullets" text,
+exact upstream positions), active gameplay (player movement, a bullet
+firing and hitting a target, all 3 target sizes - 8x8/16x16/32x32 -
+rendering correctly across different levels), level completion (correct
+score formula, `bulletsLeft * levelNo`), and an extended soak test
+spanning multiple level transitions and level-wrap-arounds with no
+crashes or rendering corruption. Not independently forced this session:
+a genuine Game Over (running out of bullets) and Game Complete (clearing
+all 17 levels) - both reuse the exact same score/high-score line-building
+and jingle-sequencing code already proven correct for Level Complete/New
+High Score, so risk is low, but worth a direct check if anything looks
+off.
+
 ## Licensing
 
 Tiny Invaders v4.2 is GPLv3 (its `tinyJoypadUtils`/driver lineage). Since a
@@ -6792,7 +6882,13 @@ what the header says, using multiple names when warranted" convention as
 Tiny Invaders'/Tiny Minez's own credits above), and - same as Falling
 Blocks - its menu name and every mention in this project's own
 documentation deliberately avoid the trademarked genre name its own
-upstream repo/title spells out. Four in a Row and Dino
+upstream repo/title spells out. Astro Barrier is a plain, single-author
+case again - Sean Price (GitHub `SeanP2001`), GPLv3, credited "SEAN
+PRICE" in the menu, sourced from `github.com/SeanP2001/attiny-astro-
+barrier` (itself the renamed/moved location of the repo originally found
+at `SeanP2001/ATtiny_Astro_Barrier` during the wider search - GitHub's
+own redirect confirmed this is the same repository, not a different one).
+Four in a Row and Dino
 Game are the two exceptions to every
 license-family grouping above - neither's own source carries an author
 name or a license statement at all (neither is present in

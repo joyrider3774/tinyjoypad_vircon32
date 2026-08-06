@@ -198,3 +198,16 @@ details/measurements are in `CLAUDE.md`; this is just the summary.
   (pitch unchanged) rather than downsampled by skipping notes, since it's
   a real composed tune worth keeping intact rather than a computed sweep.
   See CLAUDE.md for the full story.
+- **Astro Barrier** - the render loop called `barrBulletByte()`/
+  `barrTargetByte()` (the latter 3x, once per target) unconditionally for
+  every one of 1024 pixels/frame, each a full function call with its own
+  struct-pointer dereference - levels with a 32x32 large target or
+  multiple simultaneous targets paid this worst, matching a direct user
+  report of certain levels hitting 100%. Fixed with a per-page composite
+  buffer (the same technique already proven in Falling Blocks/Blocks
+  Gold) writing each object - player, bullet, all 3 targets, the bullet-
+  count text - directly into a shared row buffer, gated to its own real
+  bounding box. Diagnosed and fixed via code inspection only, per direct
+  user instruction not to test it in the emulator; the user tested it
+  independently afterward and confirmed it was fine. See CLAUDE.md for
+  the full story.

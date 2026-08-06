@@ -2,7 +2,7 @@
 
 ![Menu screenshot](metadata/menu.png)
 
-A single [Vircon32](https://www.vircon32.com/) cartridge that ports **42
+A single [Vircon32](https://www.vircon32.com/) cartridge that ports **43
 games** originally written for the [TinyJoypad](https://www.tinyjoypad.com/)
 ATtiny85 + SSD1306 128x64 OLED handheld onto Vircon32's 640x360 GPU, behind
 one shared game-select menu. Vircon32's GPU is a texture-region blitter with
@@ -57,6 +57,7 @@ Click a thumbnail for the full-size screenshot.
 | Game (in-cartridge title) | Original Author | License | Source | Screenshot |
 |---|---|---|---|---|
 | 2048 | Obono | MIT | [TinyJoypadWorks](https://github.com/obono/TinyJoypadWorks) | [<img src="metadata/screenshots/2048.png" width="160">](metadata/screenshots/2048.png) |
+| Astro Barrier | Sean Price | GPLv3 | [attiny-astro-barrier](https://github.com/SeanP2001/attiny-astro-barrier) | [<img src="metadata/screenshots/ASTRO%20BARRIER.png" width="160">](metadata/screenshots/ASTRO%20BARRIER.png) |
 | Bat Bonanza | Andy Jackson | Non-commercial, with attribution | [Attiny-Arduino-Games](https://github.com/andyhighnumber/Attiny-Arduino-Games) | [<img src="metadata/screenshots/BAT%20BONANZA.png" width="160">](metadata/screenshots/BAT%20BONANZA.png) |
 | Blocks Gold | Andy Jackson / Jarosław Mazurkiewicz | Non-commercial | [ATtiny-Tetris-Gold](https://github.com/jaromaz/ATtiny-Tetris-Gold) | [<img src="metadata/screenshots/BLOCKS%20GOLD.png" width="160">](metadata/screenshots/BLOCKS%20GOLD.png) |
 | Breakout | Ilya Titov | Non-commercial, with attribution | [AttinyArcade](https://github.com/webboggles/AttinyArcade) | [<img src="metadata/screenshots/BREAKOUT.png" width="160">](metadata/screenshots/BREAKOUT.png) |

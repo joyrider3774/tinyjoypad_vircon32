@@ -184,4 +184,8 @@ void addGames()
     // has no timer of its own (waits for a fire press) - forceRedraw is
     // wired for a genuine reason, matching Falling Blocks' own precedent.
     addGame( "BLOCKS GOLD", "ANDY JACKSON / JAROMAZ", &gameBlocksGold_init, &gameBlocksGold_update, &gameBlocksGold_forceRedraw );
+    // Astro Barrier: BARR_STATE_ATTRACT has no timer of its own (waits for
+    // a fire press) - forceRedraw is wired for a genuine reason, matching
+    // every other attract-screen-waits-on-input game in this project.
+    addGame( "ASTRO BARRIER", "SEAN PRICE", &gameAstroBarrier_init, &gameAstroBarrier_update, &gameAstroBarrier_forceRedraw );
 }

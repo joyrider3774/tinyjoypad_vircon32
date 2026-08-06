@@ -70,6 +70,7 @@
 #include "games/gameFallingBlocks.c"
 #include "games/gameTinyMania.c"
 #include "games/gameBlocksGold.c"
+#include "games/gameAstroBarrier.c"
 
 #include "menuGameList.c"
 
