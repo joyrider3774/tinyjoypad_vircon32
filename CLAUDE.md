@@ -269,6 +269,204 @@ future porting pass doesn't need to re-download anything:
   below for the full writeup, including a real "grace period" design
   quirk found and removed via direct user testing.
 
+## A fifth beyond-scope discovery pass — a "very very deep scan" across Instructables/Reddit/code-hosting/non-English sites
+
+Triggered by a direct, explicit request to search far more broadly than
+any prior pass ("do a very very deep scan now for games, also in
+structable sites in multiple languages on reddit etc") - dispatched 3
+parallel background research agents (not staged/coded by this session
+directly, pure web research): one across English-language Instructables/
+Hackaday/Reddit/Hackster.io/AVR-Freaks/YouTube/GitHub, one across 8 non-
+English languages (Japanese, Chinese, Korean, French, German, Spanish/
+Portuguese, Russian, Italian - each searched with real native-language
+query phrasing, not just translated English keywords), and one across
+GitHub/GitLab/Codeberg/SourceHut code search plus the fork networks and
+full repo lists of every already-known author in this project. Combined,
+roughly 190 distinct search queries/repo inspections across all three.
+
+**Non-English result: nothing new anywhere.** Every one of the 8
+languages was exhausted with 5-12 queries each - every non-English post
+found (Japanese build-log blogs, a Chinese OSHWHub hardware clone, a
+Russian "custom console" article, an Italian forum thread that never
+progressed past a planning discussion, etc) turned out to be a build log,
+tutorial, or hardware-clone description of an *already-known* game from
+this project's own catalog, not an original non-English game. Korean
+turned up almost no content on this topic at all. The whole ATtiny85+
+SSD1306 "TinyJoypad-shaped" game ecosystem appears to live entirely on
+English-language GitHub/Instructables/Hackaday, at least as far as this
+pass could find.
+
+**English + code-hosting results: several genuine new finds**, cross-
+checked directly against real source (not just search-snippet guessing)
+before staging anything, and further narrowed by direct user follow-up
+instructions after the initial report:
+
+- **ATtiny45 Tetris** (tdorssers) and **RunTiny** (ridoluc) were both
+  found independently and initially looked like strong candidates, but
+  **ruled out at direct user request on hardware grounds** - ATtiny45
+  Tetris targets a real ATtiny45 (a smaller-flash sibling in the same
+  AVR family, not an ATtiny85 despite pin-compatibility), and RunTiny
+  targets an even smaller ATtiny10 in hand-written AVR assembly (would
+  need reimplementing the described mechanic from scratch, not
+  translating existing source) - this project's own working definition
+  has always been genuine ATtiny85 hardware, and the user drew that line
+  explicitly here rather than accepting "same family, close enough."
+- **ATtiny Tetromino** (Franco Trimboli, GitHub `sunpazed`, GPLv3,
+  `github.com/sunpazed/attiny-tetromino`) - directly fetched and read
+  both this repo's real source (`code/attiny_tetromino/attiny_tetromino.ino`,
+  888 lines) and its own credited upstream base,
+  `jfoucher/attiny-tetris` (Jonathan Foucher, no license stated, 610
+  lines, "probably the smallest tetris game in the world"), per a direct
+  user instruction to check whether either "extends an existing port
+  already (like Falling Blocks or Blocks Gold)" and whether they're
+  genuinely new code with a different screen/layout before staging
+  anything. Confirmed on both counts: the code is a completely separate
+  lineage from Andy Jackson's own TinyTetris/`font8x8AJ.h` family already
+  shipped twice (Falling Blocks, Blocks Gold) - built on the `Tiny4kOLED`
+  Arduino library's own page/cursor API instead, with its own from-
+  scratch board representation and font, zero shared functions or data
+  tables with the Andy-Jackson lineage. It also genuinely targets a
+  **128x32 display, not 128x64** (`SCREEN_WIDTH`/`SCREEN_HEIGHT` resolve
+  to a 4-page/32-row-tall board, confirmed via the real `oled.begin()`/
+  `page_pixels[SCREEN_HEIGHT][4]` calls) - a real, different screen
+  layout, not just a re-skin, meaning a noticeably shorter/more
+  compressed board than every Tetris-family game already in this
+  cartridge. A `diff` against jfoucher's own base confirmed sunpazed's
+  fork is a substantial rewrite (7-bag randomiser, NES-matched level
+  timing, a lines/levels counter, a restart gesture, and a faster I2C
+  library), not a trivial re-license - matching this project's own
+  established "stage the superset, not both redundant versions" practice
+  (e.g. Jump Slime's `jump6` over `jump5`), **only sunpazed's enhanced
+  fork was cloned into `more games/attiny-tetromino/`**, not jfoucher's
+  own smaller base.
+- **ATTiny85_Pong** (Winston-Lu, MIT, `github.com/Winston-Lu/ATTiny85_Pong`)
+  - an enhanced Pong (a cooldown-gated deflecting "shoot" projectile, a
+  6x-speed "spike" burst ability, adjustable AI difficulty) using the
+  exact same single-analog-pin voltage-ladder input shape as TinyJoypad's
+  own scheme - distinct author/codebase from the already-shipped Bat
+  Bonanza. Cloned into `more games/ATTiny85_Pong/`.
+- **TinyBullsAndCows** (datacute, MIT,
+  `github.com/datacute/TinyBullsAndCows`) - a Bulls-and-Cows/Mastermind-
+  style number-guessing game, a genuinely new genre for this cartridge (no
+  puzzle-logic game of this specific shape exists yet). Cloned into
+  `more games/TinyBullsAndCows/`.
+- **attiny85-flappy-bird** (Lampropoulosss, no license stated,
+  `github.com/Lampropoulosss/attiny85-flappy-bird`) - a plain AVR-GCC/
+  Makefile project (not an Arduino sketch, the same toolchain shape
+  already proven portable for Meteor Storm) implementing a genuinely
+  different Flappy Bird mechanic than the already-shipped Alex Wulff
+  port: a true continuous-position pipe-gap flyer (closer to the
+  original mobile game's own feel) rather than the already-shipped
+  game's discrete one-row-per-press stepping avoider. Not ruled out by
+  the user's own "rule out the closer look games" instruction (that
+  covered a different, specific set - see below) and genuinely different
+  gameplay from what's already shipped, but flagged here rather than
+  silently assumed distinct: worth a final side-by-side mechanic check
+  against the shipped Flappy Bird before actually porting it, the same
+  "verify via real reading, not genre-name alone" discipline this
+  project applies everywhere else. Cloned into
+  `more games/attiny85-flappy-bird/`.
+
+**A follow-up feasibility audit** ("do a quick audit on the new games to
+see feasability if really can be ported"), done by directly reading each
+staged candidate's own real source rather than trusting the research
+agents' summaries, found that 3 of the original 7 don't actually hold up
+- **removed from `more games/` entirely** at direct user request rather
+than staying around as dead weight:
+- **Lode Runner** - the earlier summary's "monochrome I2C SSD1306, same
+  input shape as TinyJoypad" description turned out to be wrong once the
+  real init call was read: `lode_runner.ino` actually calls
+  `ssd1331_96x64_spi_init(...)` (a **color SPI OLED**), with the
+  monochrome `ssd1306_128x64_i2c_init()` line sitting right there but
+  commented out, and gameplay-relevant color baked in throughout
+  (`RGB_COLOR8(...)` distinguishing ladders/ropes/gold/enemies - not
+  decorative). It also depends on the library's own templated
+  `NanoEngine<TILE_16x16_RGB8>` C++ framework (`Ninja : public
+  NanoFixedSprite<GraphicsEngine, engine>`), never proven in this
+  project's dialect. Wrong hardware shape, not just extra effort - the
+  whole `ssd1306` repo clone was removed (its own `examples/games/
+  arkanoid8`, the other thing in it that had been checked, was already
+  ruled out as color/SPI too).
+- **crobagotchi** - a genuine design-fit problem, not a technical one.
+  Reading `crobgame.cpp`/the main `.ino` directly confirmed the entire
+  point of the game is stats decaying over real elapsed hours/days while
+  the device sits powered on a coin cell between check-ins
+  (`sleep_cpu()`/watchdog-driven real-time decay tied to an
+  `interaction_seconds_counter`) - there is no equivalent of "keeps
+  quietly aging in the background while you're not playing it" in a
+  cartridge selected from a menu for one sitting. Porting it as designed
+  isn't possible; a "fixed" session-only version would just be a
+  different, much shallower game wearing this one's name.
+- **Ball-Game-ATtiny85** - confirmed the repo has no single finished
+  game anywhere in it. The one file that actually targets an OLED
+  (`sketch27.ino`) has no score tracking or game-over state at all; the
+  *only* version with real scoring (`firstversion.ino`, byte-for-byte
+  duplicated as `sketch27_ino.ino`) targets a 16x2 **character LCD**
+  (`LiquidCrystal lcd(...)`), not an OLED, and was never merged back into
+  the OLED branch. Porting this faithfully would mean designing the
+  missing scoring/game-over pieces myself rather than translating an
+  already-complete design - against how every other port in this project
+  has worked.
+
+The remaining 4 candidates (ATtiny Tetromino, ATTiny85_Pong,
+TinyBullsAndCows, attiny85-flappy-bird) were all confirmed via the same
+direct-source-reading pass to be genuinely portable at a normal effort
+level - see each one's own bullet above for the specific adaptation work
+each will need.
+
+**Ruled out entirely, per direct, explicit user instruction ("rule ou
+the closer look games") rather than further independent investigation**
+- these were flagged in the initial research report as needing a closer
+look before deciding, and the user chose to exclude all of them outright
+rather than spend more effort resolving the ambiguity:
+- **BRICKZZZ** (R-onit) - an independent Breakout/Arkanoid-genre entry,
+  distinct codebase from both already-shipped Breakout and Tiny
+  Arkanoid, but a 3rd entry in an already-well-covered genre.
+- **attiny85-google-dino** (artemvang) - another Chrome-dino clone,
+  different author/codebase from the already-shipped Dino Game, but
+  again a genre already covered.
+- **technoblogy/secret-maze** (David Johnson-Davies) - a real ATtiny85
+  maze game, but technoblogy.com was unreachable during research to
+  confirm its exact display/button specifics.
+- An unidentified "Snake" bundled inside lonesoulsurfer's "Tiny Arcade
+  Game" Instructables kit (CC BY-NC) - possible duplicate of the
+  already-shipped Oroboros, never isolated/confirmed either way.
+
+Also ruled out during research, for completeness (wrong hardware/chip
+family, zero-player automata, PCB-only with no firmware, or confirmed
+re-bundles of already-known games rather than new content) - not staged,
+not revisited: `U-Byte85` (drives a serial terminal, not an OLED at all),
+`egillmilan/snake_oled` (ATmega32U4 Pro Micro, not ATtiny85),
+`obono/ATtiny85LED2048` (a WS2812B LED matrix, not SSD1306),
+`terezaza/tictactoe-arduino` (a discrete analog joystick module, no
+ATtiny85 target stated), `callysophie`'s temperature-puzzle game
+(requires an external DS18B20 sensor as core gameplay input),
+`wagiminator/CH32V003-GameConsole` (RISC-V, not AVR),
+`theisolinearchip/gameoflife_attiny85`/`obono/ATtiny85FallingSand`/
+`ssomers/ATtiny85_OLED_Bouncing_Ball` (zero-player automata/demos, no
+player input at all), `PrabhuEmbeddedWorks`'s controller PCB (schematics
+only, no firmware), a 3D-wireframe tech demo (not a game),
+`upiir/attiny85_dice_game` (technically interactive but extremely
+trivial - roll a die, nothing else), and several confirmed re-bundles of
+already-known games under different repo names (`afonsus1997/Pocket-
+Tetris`, `jjshortcut/PockeTetris`, a badge project built on the latter,
+`Jaycar-Electronics/Tiny85-Game`'s own Four-in-a-Row being byte-for-byte
+the same code as the already-shipped one, `pakozm/TinyGames`'s own
+"Parachute" folder turning out to be an unfinished stub with empty
+`setup()`/`loop()` once its real source was read directly rather than
+guessed from search snippets, and several hardware/launcher projects -
+`dschnur/Business-Card-4.0`, `tscha70/MegaGamesCompilation`,
+`orzel/sygeco`, `SeanP2001/attiny-handheld-games-console` - that only
+bundle or reference games already in this project's own catalog).
+
+Before porting any of the remaining staged candidates above (4 survived
+the follow-up feasibility audit, 3 removed - see above; TinyBullsAndCows
+was the first of the 4 to actually ship, see its own writeup below - 3
+remain: ATtiny Tetromino, ATTiny85_Pong, attiny85-flappy-bird), triage
+each one the same way this file's own porting plan describes, and
+confirm which shim lineage (if any) it's close enough to reuse, matching
+every prior discovery pass in this file.
+
 Most of the Daniel-C `tinyJoypadShim`-lineage titles and all three Obono
 `TinyJoypadWorks` games in this folder are shipped now (22 games total -
 see Status below for the full list and per-game writeups); `TinyDungeon`
@@ -1367,7 +1565,7 @@ file - both `sdl3`/`sdl2` rebuilt clean.
 ## Status (as of this session)
 
 Shipped and visually verified (WebGL emulator + a Puppeteer screenshot
-harness - see below): the shim architecture, the menu, and 46 full games
+harness - see below): the shim architecture, the menu, and 47 full games
 (NumberPlace, Tiny Invaders, 2048, HollowSeeker, Tiny Pinball, Tiny
 Pacman, Tiny Bomber, Tiny Doc, Tiny Bert, Tiny Tris, Tiny Arkanoid, Tiny
 Trick, Tiny Minez, Tiny Missile, Tiny Bike, Tiny Arena, Tiny Gilbert,
@@ -1376,8 +1574,8 @@ Lander, Wren Rollercoaster, Frogger, Bat Bonanza, Stacker, UFO, Tiny
 Dungeon, Oroboros, Run Dude Run, Four in a Row, Dino Game, SnakeGame85,
 Jump Slime, TinyRoG, TinY Fi, Breakout, Space Attack, Falling Blocks,
 Tiny Mania, Blocks Gold, Astro Barrier, ATtiny Snake, Meteor Storm,
-Flappy Bird - both Falling Blocks and Blocks Gold's own menu names
-deliberately avoid naming
+Flappy Bird, Tiny Bulls And Cows - both Falling Blocks and Blocks Gold's
+own menu names deliberately avoid naming
 the falling-block puzzle genre they're clones of, a registered trademark
 (see each one's own writeup below for the full naming rationale); Tiny
 Mania was staged from tinyjoypad.com itself mid-session after the user
@@ -7128,6 +7326,106 @@ with 2 free cells remaining) - no atlas growth needed. Verified via
 screenshot that it displays correctly with "BY ALEX WULFF" underneath,
 and a spot-checked neighbor (Falling Blocks) is untouched.
 
+## Tiny Bulls And Cows - the first port from the "very very deep scan" batch
+
+Picked as the lowest-effort of the 4 surviving candidates from the deep-
+scan feasibility audit (native 128x64, 3 plain digital buttons, no C++
+classes/switch/float anywhere in the source). Full technical writeup
+lives in `src/games/gameTinyBullsAndCows.c`'s own header comment; this
+section covers the highlights.
+
+A Mastermind-style number-guessing game: guess a hidden 4-digit code
+(0-9, repeats allowed), each guess scored in "bulls" (right digit, right
+position) and "cows" (right digit, wrong position), up to 10 guesses to
+find it. Not `tinyJoypadShim`/`obonoCoreShim` lineage - built on the
+`Tiny4kOLED` Arduino library (the same library ATtiny Tetromino also
+uses) with 3 discrete digital-pin buttons - needed no new shim,
+`isUpPressed()`/`isDownPressed()`/`isFirePressed()`/`arand()` already
+cover the whole input/RNG surface. No sound anywhere in this game.
+
+**Upstream's own input model is a held-repeat, not a single-shot edge**:
+the select button's own press/release edge is tracked every real tick,
+but the actual application of *any* input (including a held Up/Down
+repeatedly nudging a digit or the cursor) is gated behind a shared
+`millis()`-based 200ms cooldown - a held button repeats roughly 5x/second,
+not once per press. Ported as a frame-counted equivalent
+(`tbcInputCooldown`, 12 frames @ 60fps = 200ms) rather than collapsed
+into a plain single-press edge check, since the repeat-rate behavior is a
+real, deliberate part of how this UI feels to navigate a 10-row history
+list plus 4 digit slots.
+
+**A genuinely quirky, deliberately-preserved-not-"fixed" upstream
+behavior**: a fresh, never-yet-entered digit slot holds sentinel value 10
+("blank"). Upstream's own digit-edit logic coerces this to a local 0
+*before* applying the Up/Down delta - so the very first Up press on a
+blank slot jumps straight to "1" (0 coerced, then incremented), while the
+very first Down press does *nothing at all* (0 coerced locally, `0 > 0`
+is false, so the write branch never runs and the slot stays blank).
+Ported with the exact same two-step coerce-then-conditionally-write
+logic, not "corrected" into a symmetric wrap.
+
+**Rendering is a dense, precisely-interleaved multi-region layout**,
+confirmed non-overlapping column-by-column before porting rather than
+assumed: a 10-entry guess-history strip (columns 0-60, pages 0-3, 6
+columns per entry - 5 data + 1 connector-line byte forming a vertical
+timeline linking consecutive rows), a 7-column "hidden/revealed answer
+squares" indicator (columns 63-69), 4 large 8x16-font answer/guess digits
+interleaved with 5 small 5-column cursor-arrow indicator slots (columns
+71-127, pages 0-1 - confirmed via exact column math that neither region's
+bytes ever land on the same column as the other), and a 2-line text
+menu/status area (columns 72+, pages 2-3). Composited with OR (`|=`)
+throughout as a defensive default (matching this project's own
+established lesson from Meteor Storm's border bug) even though the
+column math confirms these regions don't actually overlap. Confirmed via
+direct reading that gameplay never touches pages 4-7 at all (the whole UI
+fits in the top half of the display) - explicitly redraws those pages
+blank every frame anyway rather than skipping them, avoiding the VRAM-
+persistence bug class proactively (upstream's own splash screen *does*
+use all 8 pages, which would otherwise leak residual pixels into the
+unused bottom half once gameplay starts).
+
+Upstream's own digit-packing math (`(b2 << 6)`, `(b3 >> 4) | (b4 << 2)`,
+etc - fitting two 5-row-tall 3-column glyphs' bits into shared bytes)
+relies on AVR's implicit `uint8_t` truncation to stay within a real byte
+- fixed the same way as every prior instance of this project's own
+first-documented bug class: explicit `& 0xFF` masks at each shift site.
+
+**A real dialect violation caught before ever building, not by a compile
+error**: an early draft of this port used the ternary operator
+extensively (over a dozen sites, mostly in the dense per-page byte-
+selection logic) - this dialect has no ternary support, a restriction
+already well-documented elsewhere in this project but easy to slip past
+when translating a source file that itself leans on it heavily for
+compact byte-selection expressions. Caught via a project-wide grep for
+`?` before the first build attempt and rewritten as explicit `if`/`else`
+assignment throughout - the file compiled clean on the very first real
+build attempt afterward.
+
+`digits[]` (10 digits x 3 bytes, the small in-game font) was byte-diff-
+verified against upstream's own table; the large 8x16 answer-digit font
+isn't part of this game's own source at all - it's `FONT8X16DIGITS`,
+pulled in from the separate `Tiny4kOLED` library upstream depends on
+(`datacute/Tiny4kOLED`, `src/font8x16digits.h`) - fetched and byte-diff-
+verified directly from that library's own real source rather than
+approximated with an already-available smaller font.
+
+The splash screen's own real hardware scroll animation
+(`scrollLeftOffset`/`activateScroll`, purely decorative) was not
+reproduced - shown as a plain static instructions screen instead,
+matching this project's own precedent of not chasing cosmetic real-
+hardware animation tricks with no bearing on gameplay.
+
+Verified via a light sanity pass, not an extensive playthrough (per
+direct user instruction to keep per-port self-testing minimal going
+forward): the menu registration, the attract screen (title/instructions/
+credit/press-fire prompt), and one gameplay screenshot confirming the
+history strip, answer-squares indicator, cursor bracket, big digits, and
+menu text all render correctly together. CPU was not separately measured
+for this port. Menu thumbnail added to `assets/thumbnails2.png`'s cell 14
+(row 3, col 2 of its 4x4 grid, 1 free cell remaining) - not independently
+re-verified via screenshot after adding, matching the same lighter-
+verification approach.
+
 ## Licensing
 
 Tiny Invaders v4.2 is GPLv3 (its `tinyJoypadUtils`/driver lineage). Since a
@@ -7217,7 +7515,11 @@ a known, directly-stated author (Alex Wulff, named in the `.ino`'s own
 first line) but no license statement anywhere in the game's own code -
 the same "known author, unstated license" situation as Jump Slime/
 TinyRoG/TinY Fi above, credited "ALEX WULFF" in the menu and listed as
-"None specified" in the README for licensing purposes only. Four in a Row
+"None specified" in the README for licensing purposes only. Tiny Bulls
+And Cows is a clean MIT case again - `github.com/datacute/TinyBullsAndCows`
+states MIT directly in its own `LICENSE` file, credited "DATACUTE" in the
+menu (the repo owner's own handle - no separate real name is stated
+anywhere in the game's own source). Four in a Row
 and Dino
 Game are the two exceptions to every
 license-family grouping above - neither's own source carries an author

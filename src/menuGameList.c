@@ -197,4 +197,5 @@ void addGames()
     // every other attract-screen-waits-on-input game in this project.
     addGame( "METEOR STORM", "ALBERT GONZALEZ", &gameMeteorStorm_init, &gameMeteorStorm_update, &gameMeteorStorm_forceRedraw );
     addGame( "FLAPPY BIRD", "ALEX WULFF", &gameFlappyBird_init, &gameFlappyBird_update, &gameFlappyBird_forceRedraw );
+    addGame( "BULLS AND COWS", "DATACUTE", &gameTinyBullsAndCows_init, &gameTinyBullsAndCows_update, &gameTinyBullsAndCows_forceRedraw );
 }

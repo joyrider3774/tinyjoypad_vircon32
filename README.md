@@ -2,7 +2,7 @@
 
 ![Menu screenshot](metadata/menu.png)
 
-A single [Vircon32](https://www.vircon32.com/) cartridge that ports **46
+A single [Vircon32](https://www.vircon32.com/) cartridge that ports **47
 games** originally written for the [TinyJoypad](https://www.tinyjoypad.com/)
 ATtiny85 + SSD1306 128x64 OLED handheld onto Vircon32's 640x360 GPU, behind
 one shared game-select menu. Vircon32's GPU is a texture-region blitter with
@@ -81,6 +81,7 @@ Click a thumbnail for the full-size screenshot.
 | Tiny Bert | Daniel C | GPLv3 | [tinyjoypad.com](https://www.tinyjoypad.com/tinyjoypad_attiny85) | [<img src="metadata/screenshots/TINY%20BERT.png" width="160">](metadata/screenshots/TINY%20BERT.png) |
 | Tiny Bike | Daniel C | GPLv3 | [tinyjoypad.com](https://www.tinyjoypad.com/tinyjoypad_attiny85) | [<img src="metadata/screenshots/TINY%20BIKE.png" width="160">](metadata/screenshots/TINY%20BIKE.png) |
 | Tiny Bomber | Daniel C | GPLv3 | [tinyjoypad.com](https://www.tinyjoypad.com/tinyjoypad_attiny85) | [<img src="metadata/screenshots/TINY%20BOMBER.png" width="160">](metadata/screenshots/TINY%20BOMBER.png) |
+| Tiny Bulls And Cows | Datacute | MIT | [TinyBullsAndCows](https://github.com/datacute/TinyBullsAndCows) | [<img src="metadata/screenshots/TINY%20BULLS%20AND%20COWS.png" width="160">](metadata/screenshots/TINY%20BULLS%20AND%20COWS.png) |
 | Tiny DDug | Daniel C | GPLv3 | [tinyjoypad.com](https://www.tinyjoypad.com/tinyjoypad_attiny85) | [<img src="metadata/screenshots/TINY%20DDUG.png" width="160">](metadata/screenshots/TINY%20DDUG.png) |
 | Tiny Doc | Daniel C | GPLv3 | [tinyjoypad.com](https://www.tinyjoypad.com/tinyjoypad_attiny85) | [<img src="metadata/screenshots/TINY%20DOC.png" width="160">](metadata/screenshots/TINY%20DOC.png) |
 | Tiny Dungeon | Sven B / Lorandil | MIT | [TinyDungeon](https://github.com/Lorandil/TinyDungeon) | [<img src="metadata/screenshots/TINY%20DUNGEON.png" width="160">](metadata/screenshots/TINY%20DUNGEON.png) |
