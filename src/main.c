@@ -69,6 +69,7 @@
 #include "games/gameSpaceAttack.c"
 #include "games/gameFallingBlocks.c"
 #include "games/gameTinyMania.c"
+#include "games/gameBlocksGold.c"
 
 #include "menuGameList.c"
 

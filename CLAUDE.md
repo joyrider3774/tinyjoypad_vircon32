@@ -170,6 +170,79 @@ future porting pass doesn't need to re-download anything:
     download `sample3.zip`, plus an embedded Wokwi simulator (noted by
     the author as slower than real hardware). **Ported** as
     `src/games/gameTinyRoG.c` - see Status below for the full writeup.
+- A fourth beyond-scope discovery pass (staged 2026-08-06), triggered by a
+  direct user request to search more broadly for ATtiny85/TinyJoypad-
+  compatible games - including Chinese/Japanese/Korean-language sites,
+  since the project's prior beyond-scope searches (see "Beyond the
+  original scope" below) had been English/GitHub-only. Every Chinese/
+  Japanese/Korean-language result found (Zhihu, CSDN, Bilibili, several
+  hatenablog/note.com/Qiita/ameblo posts, inajob's blog) turned out to be
+  a build log or hardware clone for playing the *already-known*
+  tinyjoypad.com game library, not a source of new original games -
+  chasing GitHub's own long tail of forks/derivatives (checked and ruled
+  out as pure re-bundles of already-catalogued games: `RoboCY/Tinycade`,
+  `PraneelBhatia/GameIT-Retro-Gameboy`, `rzeldent/attiny85-arcade`,
+  `pyropotato/ATTiny85-game-console`, `upiir/tinycade_attiny85_games`;
+  ruled out as wrong hardware shape: `shepherdingelectrons/ATtiny85Mario`
+  needs *twin* OLEDs, `1d438ef6/AtTiny-1D-GameConsole` is a WS2812 LED-
+  strip console not SSD1306; ruled out as not a real game collection:
+  `bitbank2/oled_sprites`, a rendering library with no bundled game; ruled
+  out as already-excluded-by-precedent: `EthanDP/mini-arcade`'s Simon,
+  same reasoning as tinyjoypad.com's own already-excluded Simon/VU-Meter)
+  is what turned up 4 real, previously-uncatalogued candidates instead:
+  - `attiny-astro-barrier` (Sean Price, GitHub `SeanP2001`, GPLv3) - a
+    17-level shooter (move left/right, shoot 3 fixed targets per level
+    before running out of bullets, EEPROM high score). Uses the exact
+    same `ssd1306xled` driver family already in this project's shim, and
+    a 3-button analog voltage ladder (`A2`=direction, `A3`=action)
+    structurally close to TinyJoypad's own scheme - real multi-file C++
+    (`Bullet`/`Player`/`Target`/`Screens`/`Sound` classes each their own
+    `.h`/`.cpp`), not a single-file sketch. The closest hardware match of
+    the 4 - likely the lowest-effort of this batch to port whenever this
+    is picked up.
+  - `attiny-snake` (Sean Price, GitHub `SeanP2001`, GPLv3) - same author/
+    hardware/license/`ssd1306xled` lineage as Astro Barrier above, a
+    full 4-absolute-direction (not relative-turn) Snake. Genre-duplicates
+    the already-shipped Oroboros (relative-turn) and SnakeGame85
+    (absolute-direction, like this one) - per this project's own
+    established practice (see the `more games/gametiny/` re-verification
+    note above, where the user explicitly pushed back on genre-alone
+    exclusion), needs a real code-level diff against SnakeGame85 before
+    being ruled a duplicate rather than skipped on genre alone.
+  - `ATtiny-Tetris-Gold` (Jarosław Mazurkiewicz, GitHub `jaromaz`; mixed/
+    non-commercial license - the file's own header: "The code that does
+    not fall under the licenses of sources listed below can be used
+    non-commercially with or without attribution") - built directly on
+    Andy Jackson's/Neven Boyanov's own lineage (its own header credits
+    "Andy Jackson, Anthony Russell, Tobozo, Neven Boyanov, Jarosław
+    Mazurkiewicz"; wired to the same `SSD1306_SCL`/`SSD1306_SDA` pins as
+    webboggles' own AttinyArcade board) - a heavily extended fork of the
+    same falling-block-puzzle base as this project's already-shipped
+    "Falling Blocks" (itself also Andy-Jackson-lineage), adding a ghost
+    piece, a "challenge mode", real music, and an EEPROM high score on
+    top. A genre-duplicate of "Falling Blocks" but a meaningfully
+    distinct, substantially-enhanced codebase - same "verify via real
+    diff before dismissing on genre alone" treatment as `attiny-snake`
+    above. Its own `font8x8AJ.h` turned out, once actually opened during
+    porting (not just assumed from the shared filename), to be a
+    genuinely different, cleaner 66-glyph table than the Bat Bonanza/
+    Stacker/Breakout family's own "hacked" 51-glyph one - a correction to
+    this entry's own earlier, filename-only guess at staging time.
+    **Ported** as `src/games/gameBlocksGold.c` (menu title "BLOCKS GOLD" -
+    see that file's own header for the full writeup, including the
+    trademark-avoidance rename and a real title-theme timing bug found
+    via direct user report after shipping).
+  - `attiny85_microgame_meteor_storm` (theisolinearchip, Unlicense/public
+    domain) - a single-button Flappy-Bird-style avoider (hold to rise,
+    release to fall, dodge square "meteors"). The outlier of the batch:
+    a plain AVR-GCC/Makefile project (not an Arduino `.ino` sketch, the
+    build toolchain every other game in this whole project uses) with
+    its own custom, non-`ssd1306xled` minimal SSD1306 driver, and only
+    one physical button - would need the most adaptation of the 4 to
+    port (both a toolchain conversion and a control-scheme remap, the
+    latter similar in shape to this project's own already-solved UFO
+    hold-to-fly remap), but is a genuinely different, previously-
+    uncatalogued game.
 
 Most of the Daniel-C `tinyJoypadShim`-lineage titles and all three Obono
 `TinyJoypadWorks` games in this folder are shipped now (22 games total -
@@ -1269,7 +1342,7 @@ file - both `sdl3`/`sdl2` rebuilt clean.
 ## Status (as of this session)
 
 Shipped and visually verified (WebGL emulator + a Puppeteer screenshot
-harness - see below): the shim architecture, the menu, and 41 full games
+harness - see below): the shim architecture, the menu, and 42 full games
 (NumberPlace, Tiny Invaders, 2048, HollowSeeker, Tiny Pinball, Tiny
 Pacman, Tiny Bomber, Tiny Doc, Tiny Bert, Tiny Tris, Tiny Arkanoid, Tiny
 Trick, Tiny Minez, Tiny Missile, Tiny Bike, Tiny Arena, Tiny Gilbert,
@@ -1277,12 +1350,15 @@ Tiny Pipe, Tiny Morpion, Tiny Plaque, Tiny SQuest, Tiny DDug, Tiny
 Lander, Wren Rollercoaster, Frogger, Bat Bonanza, Stacker, UFO, Tiny
 Dungeon, Oroboros, Run Dude Run, Four in a Row, Dino Game, SnakeGame85,
 Jump Slime, TinyRoG, TinY Fi, Breakout, Space Attack, Falling Blocks,
-Tiny Mania - this second-to-last one's own menu name deliberately avoids
-naming the falling-block puzzle genre it's a clone of, a registered
-trademark (see its own writeup below for the full naming rationale);
-Tiny Mania is the newest addition, staged from tinyjoypad.com itself
-mid-session after the user noticed it had just been released there - see
-its own writeup below). Every game from the project's original scope
+Tiny Mania, Blocks Gold - both Falling Blocks and Blocks Gold's own menu
+names deliberately avoid naming the falling-block puzzle genre they're
+clones of, a registered trademark (see each one's own writeup below for
+the full naming rationale); Tiny Mania was staged from tinyjoypad.com
+itself mid-session after the user noticed it had just been released
+there, and Blocks Gold is the newest addition, found via a direct user
+request to search more broadly for uncatalogued ATtiny85/TinyJoypad
+games (including non-English-language sites) - see each one's own
+writeup below). Every game from the project's original scope
 shipped with Tiny Dungeon (see its own
 writeup below for what's still not independently re-verified about it
 specifically) - Oroboros, Run Dude Run, Four in a Row, and Dino Game
@@ -6553,6 +6629,100 @@ header comment) and re-confirmed still accurate, not a newly-found gap.
 No new bugs found in this pass - a clean audit, not just an absence of
 complaints.
 
+## Blocks Gold - ported from the wider `more games/` search's own findings
+
+Picked directly by the user ("port the next game also about tetris gold
+remember to rename the word tetris") from the 4 candidates staged during
+the earlier wider ATtiny85/TinyJoypad search (see `more games/`'s own
+catalog entry above). Full technical writeup lives in
+`src/games/gameBlocksGold.c`'s own header comment; this section covers
+what happened *after* the initial port, via direct user testing.
+
+**Confirmed, before writing a line of port code, that this is almost
+data-table-for-data-table the same underlying engine as the already-
+shipped Falling Blocks** - both credit Andy Jackson, and extracting every
+data table from both upstream sources and diffing them showed
+`miniBlock`/`blocks`/`blockout`/`ghostout`/`brickLogo` and the attract-
+screen text call-site positions are all byte-for-byte identical between
+the two repos. Reused Falling Blocks' own already-solved rotated-
+rendering technique, bit-grid-to-`bool`-grid conversion (avoiding the
+same shift-arithmetic hazard that game's own header already documents),
+and even its exact derived `gldHappyNotes`/`gldGameOverNotes` sound
+tables (the underlying `beep(30,i)`/`beep(50,i)` loop shapes are
+literally the same lines of code in both upstream sources) rather than
+re-solving already-solved problems. The two genuinely new pieces beyond
+that shared base - a real Tetris-theme melody and two single-shot UI
+beeps - needed their own new sequencer/heuristic work (see the file's own
+header for the exact derivations).
+
+**Trademark-avoidance naming went through two rounds, both at direct user
+request.** Confirmed first that the on-screen word was a plain font-
+rendered string (`ssd1306_char_f8x8(1,64,"TETRIS")`), not baked bitmap
+data, so - same as Falling Blocks - it needed changing in the source, not
+just at the menu-title level. The first shipped version replaced it with
+"GOLD" (to avoid literally duplicating Falling Blocks' own "BLOCKS" word
+on screen) and dropped upstream's own separate "GOLD" splash before a
+normal game starts as now-redundant. A direct follow-up request revised
+this: the main title word is "BLOCKS" after all, with "GOLD" given its
+own dedicated line below "Attiny"/"Arcade" (a blank spacer column
+standing in for a newline) and vertically centered within the same page
+span the other three lines use - preserving the fork's own real brand
+word without duplicating "GOLD" twice on screen or making "BLOCKS" the
+only thing distinguishing the two games' title screens from each other.
+
+**A real, if upstream-original, "how long should a title jingle really
+run" issue, found via direct user report right after the first
+successful playtest** ("the opening music on start game takes a while is
+it playing at normal speed?"). Traced precisely rather than guessed:
+upstream's own `soundPlay(note,duration)` loop increments a real
+microsecond counter by exactly `note*2` per iteration until it reaches
+`duration*1000` - meaning each call genuinely blocks for `duration` real
+milliseconds on actual AVR hardware too, not just in this port. Summing
+every note's own real `duration` value from the 50-pair table gives a
+real ~12.9 seconds (ghost off, the 25-note half-tune) to ~25.8 seconds
+(ghost on, the full 50-note tune) - not a porting artifact, baked
+directly into the original author's own note-duration numbers, and
+confirmed by testing that gameplay genuinely does start correctly once
+the theme finishes (so the state machine itself was never the problem,
+only the wait). When the user pushed back a second time ("I can't
+imagine this taking so long on original hardware or it even blocking the
+start of gameplay"), re-verified the exact same math rather than just
+reasserting it - it holds up: this really does appear to be a genuine,
+likely-unnoticed-by-its-own-author quirk of a solo hobbyist sketch, not
+a mistranscription. **Fixed** with a `GLD_MUSIC_SPEEDUP` (0.3x) constant
+applied only to each note's own real-time duration (pitch/frequency
+untouched) inside `gldAdvanceMusic()` - deliberately *not* the same
+"downsample by skipping notes" technique this project uses for computed
+sweeps elsewhere, since this is a genuine composed melody with a real
+shape worth preserving, not an arbitrary loop; uniformly speeding the
+whole thing up keeps the tune's relative rhythm intact while landing at
+~3.9s/~7.75s, comparable to this project's other title jingles (Tiny
+Pacman's own ~4.4s, for one). Verified via Puppeteer with a generous
+poll: the full (ghost-on) theme now lands gameplay at right around the
+predicted ~7.75s mark, confirmed with a screenshot showing the falling
+piece and next-piece preview already rendering by the 7.5s checkpoint.
+User confirmed by ear afterward ("yes music is better now").
+
+Verified via Puppeteer throughout: the attract screen (border, brick
+logo, "BLOCKS"/"Attiny"/"Arcade"/"GOLD" text all rendering correctly, no
+trace of the trademarked word anywhere), the 2-second hold-gesture
+(correctly toggling the ghost piece off, confirmed via a "GHOST"/"OFF"
+splash), the full music-then-play transition, movement/rotation/soft-
+drop, and an extended soak test (repeated hard-drops with alternating
+left/right nudges to spread pieces across the board) showing a densely-
+packed board with no crashes or rendering corruption, ghost-piece
+outlines rendering correctly around the falling piece, and the next-
+piece preview updating correctly. CPU measured via the perf overlay: 64%
+on the attract screen, 55% during dense gameplay - both comfortably under
+budget with no optimization pass needed, since the per-page composite
+rendering technique (reused from Falling Blocks) was already efficient
+from the start. A genuine line-clear and a full game-over sequence were
+not independently forced to completion this session (the soak test
+densely packed the board but didn't happen to clear a full row) - both
+reuse the exact same `gldClearFullRows()`/`gldBeginGameOver()` logic
+already proven correct in the sibling Falling Blocks port, so risk is
+low, but worth a direct check if anything looks off.
+
 ## Licensing
 
 Tiny Invaders v4.2 is GPLv3 (its `tinyJoypadUtils`/driver lineage). Since a
@@ -6611,7 +6781,18 @@ license family as Wren/Frogger/Bat Bonanza/Stacker/Space Attack, credited
 entry above) - its own writeup above covers why its menu name and every
 mention in this project's own documentation deliberately avoid the
 trademarked genre name its upstream folder name and header comment both
-use. Four in a Row and Dino
+use. Blocks Gold is a different case again - its own upstream repo
+(`ATtiny-Tetris-Gold`) credits multiple people ("Andy Jackson, Anthony
+Russell, Tobozo, Neven Boyanov, Jarosław Mazurkiewicz"), under a mixed
+license ("the code that does not fall under the licenses of sources
+listed below can be used non-commercially with or without attribution") -
+credited in the menu as "ANDY JACKSON / JAROMAZ" (the base engine's own
+author plus this specific fork's own author, the same "credit exactly
+what the header says, using multiple names when warranted" convention as
+Tiny Invaders'/Tiny Minez's own credits above), and - same as Falling
+Blocks - its menu name and every mention in this project's own
+documentation deliberately avoid the trademarked genre name its own
+upstream repo/title spells out. Four in a Row and Dino
 Game are the two exceptions to every
 license-family grouping above - neither's own source carries an author
 name or a license statement at all (neither is present in

@@ -2,7 +2,7 @@
 
 ![Menu screenshot](metadata/menu.png)
 
-A single [Vircon32](https://www.vircon32.com/) cartridge that ports **41
+A single [Vircon32](https://www.vircon32.com/) cartridge that ports **42
 games** originally written for the [TinyJoypad](https://www.tinyjoypad.com/)
 ATtiny85 + SSD1306 128x64 OLED handheld onto Vircon32's 640x360 GPU, behind
 one shared game-select menu. Vircon32's GPU is a texture-region blitter with
@@ -58,6 +58,7 @@ Click a thumbnail for the full-size screenshot.
 |---|---|---|---|---|
 | 2048 | Obono | MIT | [TinyJoypadWorks](https://github.com/obono/TinyJoypadWorks) | [<img src="metadata/screenshots/2048.png" width="160">](metadata/screenshots/2048.png) |
 | Bat Bonanza | Andy Jackson | Non-commercial, with attribution | [Attiny-Arduino-Games](https://github.com/andyhighnumber/Attiny-Arduino-Games) | [<img src="metadata/screenshots/BAT%20BONANZA.png" width="160">](metadata/screenshots/BAT%20BONANZA.png) |
+| Blocks Gold | Andy Jackson / Jarosław Mazurkiewicz | Non-commercial | [ATtiny-Tetris-Gold](https://github.com/jaromaz/ATtiny-Tetris-Gold) | [<img src="metadata/screenshots/BLOCKS%20GOLD.png" width="160">](metadata/screenshots/BLOCKS%20GOLD.png) |
 | Breakout | Ilya Titov | Non-commercial, with attribution | [AttinyArcade](https://github.com/webboggles/AttinyArcade) | [<img src="metadata/screenshots/BREAKOUT.png" width="160">](metadata/screenshots/BREAKOUT.png) |
 | Dino Game | tiny-handheld project (original) | None specified | [tiny-handheld](https://github.com/Yevgeniy-Olexandrenko/tiny-handheld) | [<img src="metadata/screenshots/DINO%20GAME.png" width="160">](metadata/screenshots/DINO%20GAME.png) |
 | Falling Blocks | Andy Jackson | Non-commercial, with attribution | [Attiny-Arduino-Games](https://github.com/andyhighnumber/Attiny-Arduino-Games) | [<img src="metadata/screenshots/FALLING%20BLOCKS.png" width="160">](metadata/screenshots/FALLING%20BLOCKS.png) |

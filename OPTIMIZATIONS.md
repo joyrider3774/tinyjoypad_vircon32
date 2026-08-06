@@ -187,3 +187,14 @@ details/measurements are in `CLAUDE.md`; this is just the summary.
   during this same pass (an instant-game-over state-machine bug, and a
   62-note sound sequence stretched to 13.6x its real duration), in
   CLAUDE.md.
+- **Blocks Gold** - none needed. Built on the same per-page composite
+  rendering technique already proven in the sibling Falling Blocks (both
+  share the same underlying engine), so it was efficient from the start:
+  measured 64% CPU on the attract screen, 55% during dense gameplay -
+  both comfortably under budget. The one real fix in this port wasn't a
+  CPU issue at all: the title-screen melody genuinely blocked gameplay
+  start for ~12.9-25.8 real seconds (traced directly to upstream's own
+  per-note duration values, not a porting artifact) - scaled down 0.3x
+  (pitch unchanged) rather than downsampled by skipping notes, since it's
+  a real composed tune worth keeping intact rather than a computed sweep.
+  See CLAUDE.md for the full story.

@@ -177,4 +177,11 @@ void addGames()
     // this port, so NULL here is correct by the same reasoning as Tiny Fi
     // above, not an oversight.
     addGame( "TINY MANIA", "DANIEL C", &gameTinyMania_init, &gameTinyMania_update, NULL );
+    // Menu title/attract-screen text deliberately avoid the trademarked
+    // genre name this game's own upstream title spells out - see
+    // gameBlocksGold.c's own header comment (same treatment already
+    // established for Falling Blocks above). gldState==GLD_STATE_ATTRACT
+    // has no timer of its own (waits for a fire press) - forceRedraw is
+    // wired for a genuine reason, matching Falling Blocks' own precedent.
+    addGame( "BLOCKS GOLD", "ANDY JACKSON / JAROMAZ", &gameBlocksGold_init, &gameBlocksGold_update, &gameBlocksGold_forceRedraw );
 }
