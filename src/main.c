@@ -75,6 +75,7 @@
 #include "games/gameMeteorStorm.c"
 #include "games/gameFlappyBird.c"
 #include "games/gameTinyBullsAndCows.c"
+#include "games/gameAttinyTetromino.c"
 
 #include "menuGameList.c"
 

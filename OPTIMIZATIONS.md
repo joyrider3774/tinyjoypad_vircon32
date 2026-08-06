@@ -247,3 +247,13 @@ details/measurements are in `CLAUDE.md`; this is just the summary.
   without game over happening") rather than a deliberate mercy window.
   See CLAUDE.md for the full diagnostic story, including the deterministic
   tests used to first rule out an actual collision-formula bug.
+- **Tiny Bulls And Cows** - no optimization needed; built with per-page
+  compositing from the start (the game's own dense, precisely-interleaved
+  multi-region UI layout was designed with column ranges confirmed non-
+  overlapping before writing any render code). CPU not separately
+  measured for this port.
+- **ATtiny Tetromino** - built with per-page compositing from the start
+  (no O(pixels x objects) shape to retrofit). Measured 43% CPU during
+  active gameplay before a later 30fps whole-tick throttle was added (at
+  direct user request, to make an already-instant piece-lock-to-next-
+  piece transition feel less abrupt - not a CPU fix, see CLAUDE.md).

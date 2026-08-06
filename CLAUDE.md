@@ -461,9 +461,9 @@ bundle or reference games already in this project's own catalog).
 
 Before porting any of the remaining staged candidates above (4 survived
 the follow-up feasibility audit, 3 removed - see above; TinyBullsAndCows
-was the first of the 4 to actually ship, see its own writeup below - 3
-remain: ATtiny Tetromino, ATTiny85_Pong, attiny85-flappy-bird), triage
-each one the same way this file's own porting plan describes, and
+and ATtiny Tetromino were the first two of the 4 to actually ship, see
+their own writeups below - 2 remain: ATTiny85_Pong, attiny85-flappy-bird),
+triage each one the same way this file's own porting plan describes, and
 confirm which shim lineage (if any) it's close enough to reuse, matching
 every prior discovery pass in this file.
 
@@ -1565,7 +1565,7 @@ file - both `sdl3`/`sdl2` rebuilt clean.
 ## Status (as of this session)
 
 Shipped and visually verified (WebGL emulator + a Puppeteer screenshot
-harness - see below): the shim architecture, the menu, and 47 full games
+harness - see below): the shim architecture, the menu, and 48 full games
 (NumberPlace, Tiny Invaders, 2048, HollowSeeker, Tiny Pinball, Tiny
 Pacman, Tiny Bomber, Tiny Doc, Tiny Bert, Tiny Tris, Tiny Arkanoid, Tiny
 Trick, Tiny Minez, Tiny Missile, Tiny Bike, Tiny Arena, Tiny Gilbert,
@@ -1574,8 +1574,8 @@ Lander, Wren Rollercoaster, Frogger, Bat Bonanza, Stacker, UFO, Tiny
 Dungeon, Oroboros, Run Dude Run, Four in a Row, Dino Game, SnakeGame85,
 Jump Slime, TinyRoG, TinY Fi, Breakout, Space Attack, Falling Blocks,
 Tiny Mania, Blocks Gold, Astro Barrier, ATtiny Snake, Meteor Storm,
-Flappy Bird, Tiny Bulls And Cows - both Falling Blocks and Blocks Gold's
-own menu names deliberately avoid naming
+Flappy Bird, Tiny Bulls And Cows, ATtiny Tetromino - both Falling Blocks
+and Blocks Gold's own menu names deliberately avoid naming
 the falling-block puzzle genre they're clones of, a registered trademark
 (see each one's own writeup below for the full naming rationale); Tiny
 Mania was staged from tinyjoypad.com itself mid-session after the user
@@ -7426,6 +7426,112 @@ for this port. Menu thumbnail added to `assets/thumbnails2.png`'s cell 14
 re-verified via screenshot after adding, matching the same lighter-
 verification approach.
 
+## ATtiny Tetromino - the second port from the "very very deep scan" batch
+
+Full technical writeup lives in `src/games/gameAttinyTetromino.c`'s own
+header comment; this section covers the highlights.
+
+An enhanced falling-block puzzle game (Franco Trimboli, GitHub
+`sunpazed`, GPLv3), built directly on `jfoucher/attiny-tetris` (Jonathan
+Foucher's own minimal base, no license stated) - a 7-bag randomiser, an
+NES-matched level speed curve, a lines/levels counter, and a restart
+gesture were all added on top by sunpazed's own fork. Confirmed via
+direct source reading (per the feasibility audit's own "check if it
+extends an existing port already" discipline) to share zero code/data
+with Andy Jackson's own TinyTetris lineage already shipped twice in this
+project (Falling Blocks, Blocks Gold) - built on the `Tiny4kOLED` Arduino
+library instead, with its own from-scratch board representation and font.
+
+**Confirmed via direct source reading that this targets a genuine 128x32
+display, not 128x64** - placed within Vircon32's fixed 128x64 canvas the
+same way Tiny Bulls And Cows' own top-half-only UI was handled (gameplay
+only touches pages 0-3, with pages 4-7 explicitly redrawn blank every
+frame to avoid the VRAM-persistence bug class).
+
+**The board is genuinely rendered rotated 90 degrees from a normal top-
+down Tetris view** - traced the exact byte layout (not assumed) and
+confirmed the board's own Y axis (gravity) maps to real screen *columns*,
+while its own X axis (native Left/Right movement) maps to real screen
+*pages*. On an unrotated Vircon32 screen, a piece falls left-to-right,
+and upstream's own Left/Right buttons visually move a piece up/down, not
+left/right. **Controls were deliberately remapped to match what the
+player actually sees** rather than upstream's literal button wiring -
+confirmed directly with the user first, since this is a genuine UX
+judgment call with no single obviously-correct answer (unlike Falling
+Blocks/Blocks Gold, whose own native wiring happened to already feel
+natural post-port, so was left untouched - this game's didn't, so it
+wasn't). Up/Down move the piece, Fire rotates (with upstream's own wall-
+kick logic preserved exactly), Left/Right both soft-drop.
+
+**A real AVR-specific software-reset trick, not portable at all**:
+upstream's own `void(*resetFunc)(void)=0; resetFunc();` is a classic AVR
+null-function-pointer jump to the reset vector - ported as a normal
+state-machine transition back to the attract screen instead, since a
+null-pointer call has no meaningful Vircon32 equivalent and would simply
+crash.
+
+**A diagonally-shifted, dual-digit-per-page number rendering
+technique**, used for the score/high-score/level+lines displays: each of
+the 4 hardware pages shows a *blend* of two adjacent decimal digits, bit-
+shifted by different amounts per page and OR-combined. Traced the exact
+divisor-stepping logic (including a deliberate double-step quirk at page
+1 that intentionally skips one digit's own "primary" page slot) and
+ported it verbatim rather than reimplementing a more conventional digit
+layout, since the real visual result depends on this exact bit-
+interleaving scheme - the intermediate shift values can exceed a real
+byte's own width before the final `& 0xff` mask, which upstream already
+had at the same site (its own intermediate values are AVR's real 16-bit
+`int`s, not `uint8_t`) - kept the identical mask rather than needing an
+additional one.
+
+Binary literals (two small decorative label bitmaps) were converted to
+hex, matching this dialect's lack of `0b` support - byte-diff-verified
+against upstream via a Python script, along with every other data table
+in the file (piece shapes, digit font, shift table), all confirmed
+correct on the first attempt. Upstream's own bit-packed board (1 bit per
+cell) was ported as a plain `bool[16][24]` grid instead, matching Falling
+Blocks' own identical precedent (bit-packing has no benefit on Vircon32
+and avoids the whole shift-arithmetic hazard class). `struct
+activePiece`'s own C++ pointer-reassignment pattern (`active.piece`
+pointed at whichever of several buffers was currently relevant) was
+replaced with one persistent, in-place-mutated array instead, avoiding an
+unproven pattern for a purely internal implementation detail.
+
+**A real dialect violation caught before ever building**, matching the
+exact same lesson from Tiny Bulls And Cows' own port immediately before
+this one in the same session: an early draft leaned on the ternary
+operator in a few of the dense byte-selection sites - caught via a grep
+for `?` before the first build attempt, none reached an actual compile
+error.
+
+**A genuine "does upstream actually gate this" question, answered by
+re-reading the source rather than guessed**, from a direct user report
+right after shipping ("if i keep pressing down and a block hits the
+bottom the next block quickly advanced already into play was there a
+gatekeep upstream?"): confirmed there is no delay between a piece locking
+and its replacement becoming controllable in upstream's own code either -
+the next piece is spawned and made active within the same tick, on real
+hardware only gated by however fast the bare loop naturally runs (the
+same "no timing model whatsoever upstream" category several other ports
+in this project already fall into). Not a porting bug - added a
+`TRMO_TICK_DIVISOR=2` (30fps) whole-tick throttle at direct user request
+anyway, purely to make that already-instant transition feel less abrupt,
+matching the majority "gate the whole tick, not just movement" precedent
+in this project. Every existing frame-counted constant in the file was
+deliberately left unrescaled, so they simply now take twice as long in
+real time.
+
+Verified via a light sanity pass (menu registration, attract screen,
+gameplay screenshot showing the board/next-piece preview/level+lines/
+score all rendering correctly together) per the same lighter per-port
+verification approach now standard for this project. CPU measured at
+43% during active gameplay before the 30fps throttle was added -
+comfortably under budget, no optimization pass needed. Menu thumbnail
+added to `assets/thumbnails2.png`'s cell 15 - the last free cell in that
+atlas's 4x4 grid, now completely full; the next new game's own thumbnail
+will need either a further grid-growth or a third texture, matching this
+project's own established precedent for when an atlas fills up.
+
 ## Licensing
 
 Tiny Invaders v4.2 is GPLv3 (its `tinyJoypadUtils`/driver lineage). Since a
@@ -7519,7 +7625,14 @@ TinyRoG/TinY Fi above, credited "ALEX WULFF" in the menu and listed as
 And Cows is a clean MIT case again - `github.com/datacute/TinyBullsAndCows`
 states MIT directly in its own `LICENSE` file, credited "DATACUTE" in the
 menu (the repo owner's own handle - no separate real name is stated
-anywhere in the game's own source). Four in a Row
+anywhere in the game's own source). ATtiny Tetromino is GPLv3 - its own
+`LICENSE.txt` states it directly - credited "SUNPAZED" in the menu (the
+GitHub handle of Franco Trimboli, the fork's own author - kept as the
+handle rather than the real name at direct user request, matching the
+attract screen's own "BY SUNPAZED" credit line; its own credited base,
+`jfoucher/attiny-tetris`, states no license at all, but only sunpazed's
+substantially-enhanced fork was actually staged/ported - see this file's
+own catalog entry above for why). Four in a Row
 and Dino
 Game are the two exceptions to every
 license-family grouping above - neither's own source carries an author
