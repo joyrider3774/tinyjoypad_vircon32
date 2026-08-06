@@ -250,6 +250,24 @@ future porting pass doesn't need to re-download anything:
     **Ported** as `src/games/gameMeteorStorm.c` (menu title "METEOR
     STORM") - see Status below for the full writeup, including a real
     rendering bug found via live user play well after initial shipping.
+- `FlappyBird` (Alex Wulff, www.AlexWulff.com - the sole attribution
+  anywhere in the source; no license statement anywhere in the game's own
+  code) - placed directly into the repo by the user (not staged/downloaded
+  by this session), with a `source.txt` pointing at the original
+  Instructables writeup
+  (instructables.com/Flappy-Bird-on-ATtiny85-and-OLED-Display-SSD1306) -
+  the `.ino`'s own header comment already names the real author directly,
+  so no further identification work was needed beyond confirming no
+  license is stated anywhere. A two-button (not hold-to-fly) Flappy Bird
+  clone: step the bird up/down by exactly one row per press, dodging a
+  stream of wall gaps that scroll in from the right at a steadily
+  accelerating rate. The simplest rendering model found in this whole
+  project - every draw call upstream is one full, page-and-column-aligned
+  8x8 grid cell (no sub-pixel/sub-page positioning anywhere at all, unlike
+  Meteor Storm's own sub-page sprite math). **Ported** as
+  `src/games/gameFlappyBird.c` (menu title "FLAPPY BIRD") - see Status
+  below for the full writeup, including a real "grace period" design
+  quirk found and removed via direct user testing.
 
 Most of the Daniel-C `tinyJoypadShim`-lineage titles and all three Obono
 `TinyJoypadWorks` games in this folder are shipped now (22 games total -
@@ -1349,7 +1367,7 @@ file - both `sdl3`/`sdl2` rebuilt clean.
 ## Status (as of this session)
 
 Shipped and visually verified (WebGL emulator + a Puppeteer screenshot
-harness - see below): the shim architecture, the menu, and 45 full games
+harness - see below): the shim architecture, the menu, and 46 full games
 (NumberPlace, Tiny Invaders, 2048, HollowSeeker, Tiny Pinball, Tiny
 Pacman, Tiny Bomber, Tiny Doc, Tiny Bert, Tiny Tris, Tiny Arkanoid, Tiny
 Trick, Tiny Minez, Tiny Missile, Tiny Bike, Tiny Arena, Tiny Gilbert,
@@ -1357,8 +1375,9 @@ Tiny Pipe, Tiny Morpion, Tiny Plaque, Tiny SQuest, Tiny DDug, Tiny
 Lander, Wren Rollercoaster, Frogger, Bat Bonanza, Stacker, UFO, Tiny
 Dungeon, Oroboros, Run Dude Run, Four in a Row, Dino Game, SnakeGame85,
 Jump Slime, TinyRoG, TinY Fi, Breakout, Space Attack, Falling Blocks,
-Tiny Mania, Blocks Gold, Astro Barrier, ATtiny Snake, Meteor Storm - both
-Falling Blocks and Blocks Gold's own menu names deliberately avoid naming
+Tiny Mania, Blocks Gold, Astro Barrier, ATtiny Snake, Meteor Storm,
+Flappy Bird - both Falling Blocks and Blocks Gold's own menu names
+deliberately avoid naming
 the falling-block puzzle genre they're clones of, a registered trademark
 (see each one's own writeup below for the full naming rationale); Tiny
 Mania was staged from tinyjoypad.com itself mid-session after the user
@@ -7005,6 +7024,110 @@ grid-growth precedent (Tiny Gilbert, Tiny Dungeon, etc). Verified via
 screenshot that the new thumbnail and "BY ALBERT GONZALEZ" credit render
 correctly, and a spot-checked neighbor (Astro Barrier) is untouched.
 
+## Flappy Bird - a user-supplied folder, not from any of this project's own staged search batches
+
+Ported directly on user request ("in more games\FlappyBird there is a
+flappy bird game now check it out also fetch page from source.txt to
+find author / more info and port it") - the folder was placed straight
+into the repo by the user, not staged/downloaded by this or any prior
+session, and isn't part of the `more games/gametiny`/wider-search
+batches every other recent port in this file came from. Full technical
+writeup lives in `src/games/gameFlappyBird.c`'s own header comment; this
+section covers the highlights plus a real design-quirk bug found via
+direct user play after shipping.
+
+**Author identification needed no web fetch in the end** - `source.txt`
+pointed at the original Instructables writeup, but the `.ino`'s own first
+line already states the author directly ("Created by Alex Wulff:
+www.AlexWulff.com"), which is more authoritative than anything the
+Instructables page itself would add - confirmed no license is stated
+anywhere in the game's own code (only the bundled low-level SSD1306/I2C
+driver libraries carry their own separate BSD/LGPL licenses, and none of
+that driver code was actually ported - see this file's own header
+comment for why).
+
+**The simplest rendering model of any port in this project so far**:
+every upstream draw call (`drawWallSequence()`'s own `oled.drawImage(...,
+column*8, page, 8, 1)`) is exactly one full, page-and-column-aligned 8x8
+grid cell - the whole game logically operates on a 16-column x 8-page
+grid with no sub-pixel/sub-page positioning anywhere at all (unlike
+Meteor Storm's own sub-page sprite math, ported just before this one in
+the same session) - so no byte-truncation/shift-safety concerns applied
+here either. `flpyComposeRow()` just resolves, for each of the 128 real
+columns, which 8x8 grid cell it belongs to and what that cell currently
+shows. Not `tinyJoypadShim`/`obonoCoreShim` lineage - genuine bespoke
+#AttinyArcade-style hardware (two discrete digital-pin buttons read via a
+pin-change interrupt) - needed no new shim, `isUpPressed()`/
+`isDownPressed()`/`arand()` already covered the whole input/RNG surface.
+No sound of any kind exists anywhere in this game (confirmed by grep) -
+the second port in this project needing zero sound work, after Meteor
+Storm.
+
+Upstream's own real accelerating wall-speed formula (`300 -
+10*elapsedSeconds`, floored at 50ms) was ported as a genuine frame-
+counted equivalent rather than approximated with one representative
+rate, since it's a real, deliberate difficulty curve worth preserving.
+Upstream's own explicit render-order comment - "we don't want our bird to
+disappear when a wall goes over it, so it's re-drawn every time there is
+a wall at column 0" - was also preserved structurally: `flpyComposeRow()`
+always resolves the bird's own cell last, unconditionally overwriting
+whatever a wall byte computed for that exact position, the same real
+design intent achieved via a full every-frame redraw instead of
+upstream's own incremental one-cell overwrite (avoiding the VRAM-
+persistence bug class proactively, per this project's own now-standing
+practice, rather than needing a later fix). Upstream's own `gameOver()`
+loops forever with no restart short of a hard power cycle - added a
+genuine attract screen (upstream has none at all) and a Fire-to-restart
+gesture on the game-over screen, matching the UX convention already
+established for every other recent port in this file.
+
+**A real, genuine gameplay bug found via direct user report right after
+shipping** ("on certain occasions / certain walls / player positions the
+bird can fly through walls without gameover happening"). Investigated
+methodically rather than guessing: three separate deterministic tests
+(a debug build with the bird pinned at a fixed unsafe row against a
+forced wall-hole value, covering both boundary hole positions 0 and 6
+plus a middle value of 3) all correctly triggered a game over, ruling out
+a broken collision formula. An extended stress test with real random
+hole positions and erratic real button-driven movement also died
+correctly across multiple rounds, ruling out a general "collision never
+fires" bug. This pointed at something conditional rather than a plain
+formula error - re-reading `flpyMoveWallsStep()`'s own ported grace-
+period gate line by line surfaced it: upstream's own `moveWalls()` gates
+every single collision check behind `millis() > 8000L`, a genuine 8-
+second immunity window every fresh game starts with, during which
+**no** wall reaching column 0 can ever trigger a collision, regardless of
+the bird's position - ported faithfully at first (matching this
+project's own default "preserve upstream behavior" stance), but this
+reads as a real bug rather than a deliberate mercy window once actually
+played: walls start scrolling in almost immediately at the start of a
+game, so several of them can reach column 0 completely "for free" inside
+that first 8 seconds - very easy to misread as broken collision
+detection, especially phrased as "on certain occasions" (in practice:
+every single fresh game, for its own first several walls) rather than
+"in the first 8 seconds of a new game." Confirmed by testing a debug
+build with a shortened 1-second grace period (worked correctly) against
+the real 8-second one (an obviously-unsafe pinned wall/bird combo
+sailing through with no game over for the whole window) side by side,
+which the user confirmed matched what they'd been seeing. **Fixed** by
+removing the grace-period gate entirely, at direct user request ("remove
+that grace period") - re-verified with the same pinned-bird debug
+scenario dying correctly on the very first unsafe wall (~4.2s in, no
+longer waiting out a free 8-second window first).
+
+Verified via Puppeteer throughout: the attract screen (bird/wall art,
+title, credit line, "PRESS FIRE" prompt), active gameplay (up/down
+stepping, wall scrolling, gap navigation, the accelerating speed curve),
+the game-over skull screen, and - via the debug pinned-bird scenario used
+to find and verify the grace-period fix - the corrected immediate-death
+behavior. CPU measured via the perf overlay: 26% during active gameplay,
+comfortably under budget with no optimization pass needed given the
+simple grid-aligned rendering model. Menu thumbnail added to
+`assets/thumbnails2.png`'s cell 13 (row 3, col 1 of its 4x4 grid, still
+with 2 free cells remaining) - no atlas growth needed. Verified via
+screenshot that it displays correctly with "BY ALEX WULFF" underneath,
+and a spot-checked neighbor (Falling Blocks) is untouched.
+
 ## Licensing
 
 Tiny Invaders v4.2 is GPLv3 (its `tinyJoypadUtils`/driver lineage). Since a
@@ -7089,7 +7212,13 @@ different case again - Unlicense/public domain (confirmed via its own
 repo's real `LICENSE` file, not guessed), author Albert Gonzalez (GitHub
 handle `theisolinearchip` - the repo's own README only names the handle,
 but its own git commit author confirms the real name), credited "ALBERT
-GONZALEZ" in the menu accordingly. Four in a Row and Dino
+GONZALEZ" in the menu accordingly. Flappy Bird is a different case again -
+a known, directly-stated author (Alex Wulff, named in the `.ino`'s own
+first line) but no license statement anywhere in the game's own code -
+the same "known author, unstated license" situation as Jump Slime/
+TinyRoG/TinY Fi above, credited "ALEX WULFF" in the menu and listed as
+"None specified" in the README for licensing purposes only. Four in a Row
+and Dino
 Game are the two exceptions to every
 license-family grouping above - neither's own source carries an author
 name or a license statement at all (neither is present in

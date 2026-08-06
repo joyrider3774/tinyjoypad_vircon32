@@ -2,7 +2,7 @@
 
 ![Menu screenshot](metadata/menu.png)
 
-A single [Vircon32](https://www.vircon32.com/) cartridge that ports **45
+A single [Vircon32](https://www.vircon32.com/) cartridge that ports **46
 games** originally written for the [TinyJoypad](https://www.tinyjoypad.com/)
 ATtiny85 + SSD1306 128x64 OLED handheld onto Vircon32's 640x360 GPU, behind
 one shared game-select menu. Vircon32's GPU is a texture-region blitter with
@@ -64,6 +64,7 @@ Click a thumbnail for the full-size screenshot.
 | Breakout | Ilya Titov | Non-commercial, with attribution | [AttinyArcade](https://github.com/webboggles/AttinyArcade) | [<img src="metadata/screenshots/BREAKOUT.png" width="160">](metadata/screenshots/BREAKOUT.png) |
 | Dino Game | tiny-handheld project (original) | None specified | [tiny-handheld](https://github.com/Yevgeniy-Olexandrenko/tiny-handheld) | [<img src="metadata/screenshots/DINO%20GAME.png" width="160">](metadata/screenshots/DINO%20GAME.png) |
 | Falling Blocks | Andy Jackson | Non-commercial, with attribution | [Attiny-Arduino-Games](https://github.com/andyhighnumber/Attiny-Arduino-Games) | [<img src="metadata/screenshots/FALLING%20BLOCKS.png" width="160">](metadata/screenshots/FALLING%20BLOCKS.png) |
+| Flappy Bird | Alex Wulff | None specified | [Instructables](https://www.instructables.com/Flappy-Bird-on-ATtiny85-and-OLED-Display-SSD1306/) | [<img src="metadata/screenshots/FLAPPY%20BIRD.png" width="160">](metadata/screenshots/FLAPPY%20BIRD.png) |
 | Four in a Row | Unknown | None specified | [tiny-handheld](https://github.com/Yevgeniy-Olexandrenko/tiny-handheld) | [<img src="metadata/screenshots/FOUR%20IN%20A%20ROW.png" width="160">](metadata/screenshots/FOUR%20IN%20A%20ROW.png) |
 | Frogger | Andy Jackson (art: @senkunmusashi) | Non-commercial, with attribution | [Attiny-Arduino-Games](https://github.com/andyhighnumber/Attiny-Arduino-Games) | [<img src="metadata/screenshots/FROGGER.png" width="160">](metadata/screenshots/FROGGER.png) |
 | HollowSeeker | Obono | MIT | [TinyJoypadWorks](https://github.com/obono/TinyJoypadWorks) | [<img src="metadata/screenshots/HOLLOWSEEKER.png" width="160">](metadata/screenshots/HOLLOWSEEKER.png) |

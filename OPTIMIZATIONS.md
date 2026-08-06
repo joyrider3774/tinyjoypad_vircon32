@@ -236,3 +236,14 @@ details/measurements are in `CLAUDE.md`; this is just the summary.
   CLAUDE.md for the full story, including how it was diagnosed after an
   initial "maybe it's just obstacles" misdiagnosis was directly corrected
   by the user.
+- **Flappy Bird** - no optimization needed at all; the simplest rendering
+  model in this project (a plain 16x8 grid, fully page/column-aligned, no
+  sub-pixel sprite math anywhere) measured 26% CPU during active gameplay
+  from the start. The one real fix in this port wasn't a CPU issue either:
+  upstream's own real 8-second "grace period" (no collision can register
+  at all during a fresh game's first 8 real seconds) was ported faithfully
+  at first, then removed entirely after direct user testing showed it
+  reads as broken collision detection ("the bird can fly through walls
+  without game over happening") rather than a deliberate mercy window.
+  See CLAUDE.md for the full diagnostic story, including the deterministic
+  tests used to first rule out an actual collision-formula bug.

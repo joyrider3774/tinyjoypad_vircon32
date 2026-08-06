@@ -73,6 +73,7 @@
 #include "games/gameAstroBarrier.c"
 #include "games/gameAttinySnake.c"
 #include "games/gameMeteorStorm.c"
+#include "games/gameFlappyBird.c"
 
 #include "menuGameList.c"
 
