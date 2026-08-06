@@ -934,6 +934,13 @@ void gldBeginGameOver()
     {
         gldTop = gldScore;
         gldNewHigh = true;
+        // Direct translation of upstream's own 2-byte big-endian
+        // EEPROM.write topScore save. Upstream also persists a separate
+        // RNG seed at addr 0x03 via raw avr-libc eeprom_read_word/
+        // write_word - not restored here, since it isn't a high score
+        // (just a minor start-of-session variety tweak) and this pass is
+        // scoped to score persistence specifically.
+        eeprom_write_word( 0, gldTop );
     }
     else gldNewHigh = false;
 
@@ -946,7 +953,11 @@ void gldBeginGameOver()
 
 void gameBlocksGold_init()
 {
-    gldTop = 0;
+    // Direct translation of upstream's own topScore = EEPROM.read(0)<<8 |
+    // EEPROM.read(1), guarded against a never-written slot's own virgin
+    // 65535 read the same way as every other game in this pass.
+    gldTop = eeprom_read_word( 0 );
+    if( gldTop == 65535 ) gldTop = 0;
     gldChallengeMode = false;
     gldGhostEnabled = true;
     gldSeqActive = 0;

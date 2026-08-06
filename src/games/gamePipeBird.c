@@ -115,8 +115,9 @@
 // sub-page compositing - which does its own separate, always-safe shift -
 // never sees a negative value).
 //
-// EEPROM high-score persistence dropped (session-in-memory only),
-// matching every other port's precedent. `tiny_font`/`bird_bitmap` were
+// EEPROM high-score persistence restored (see the project-wide "Real
+// persistent high-score saving" section in CLAUDE.md - a single byte at
+// address 0, matching upstream exactly). `tiny_font`/`bird_bitmap` were
 // byte-diff-verified against upstream via a small Python script before
 // ever being pasted in; the standard 95-char `ssd1306xled` font (already
 // proven for Oroboros/Run Dude Run/Dino Game/Astro Barrier/ATtiny Snake/
@@ -496,9 +497,16 @@ void pipbBeginPlaying()
     pipbState = PIPB_STATE_PLAYING;
 }
 
+// Direct translation of update_physics()'s own game_over branch: only
+// writes back to EEPROM on an actual new high score, matching upstream's
+// own eeprom_update_byte((uint8_t*)0, high_score) call site exactly.
 void pipbBeginGameOver()
 {
-    if( pipbScore > pipbHighScore ) pipbHighScore = pipbScore;
+    if( pipbScore > pipbHighScore )
+    {
+        pipbHighScore = pipbScore;
+        eeprom_update_byte( 0, pipbHighScore );
+    }
     pipbPrevFire = true; // arm against whatever press caused the collision
     pipbState = PIPB_STATE_GAMEOVER;
 }
@@ -506,9 +514,14 @@ void pipbBeginGameOver()
 #define PIPB_TICK_DIVISOR 2
 int pipbTickSkipCounter;
 
+// Direct translation of upstream's own setup(): high_score =
+// eeprom_read_byte((uint8_t*)0); if (high_score == 255) high_score = 0;
+// - 255 is EEPROM's own real "never written" sentinel (see eepromShim.c's
+// own header comment for why fresh cells default to 255, not 0).
 void gamePipeBird_init()
 {
-    pipbHighScore = 0;
+    pipbHighScore = eeprom_read_byte( 0 );
+    if( pipbHighScore == 255 ) pipbHighScore = 0;
     pipbTickSkipCounter = 0;
     pipbBeginAttract();
 }

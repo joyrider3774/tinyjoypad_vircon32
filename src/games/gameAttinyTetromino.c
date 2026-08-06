@@ -194,7 +194,6 @@ int trmoScore;
 int trmoHighScore;
 int trmoLevel;
 int trmoLinesCleared;
-bool trmoMadeLine;
 
 // Frame-counted equivalents of upstream's own real millis()-gated timers.
 int trmoFallCountdown;
@@ -350,13 +349,24 @@ void trmoSpawnPiece()
     trmoReadPiece( trmoNextPiece, trmoNextId );
 }
 
+// Single choke point for every trmoScore increase (line-clear bonus in
+// trmoLockPieceAndAdvance(), soft-drop bonus in trmoUpdatePlaying()) -
+// so the high-score comparison can never again be missed by a scoring
+// path that doesn't happen to also run through the line-clear function
+// (exactly the gap a direct user report caught: holding the drop button
+// increases trmoScore on its own, with no line clear involved at all).
+void trmoAddScore( int amount )
+{
+    trmoScore += amount;
+    if( trmoScore > trmoHighScore ) trmoHighScore = trmoScore;
+}
+
 void trmoInitGame()
 {
     trmoInitBoard();
     trmoScore = 0;
     trmoLevel = 0;
     trmoLinesCleared = 0;
-    trmoMadeLine = false;
 
     trmoInitBag();
     trmoShuffleBag();
@@ -395,7 +405,6 @@ bool trmoLockPieceAndAdvance()
         if( full )
         {
             nlines++;
-            trmoMadeLine = true;
             int y2;
             for( y2 = y; y2 >= 2; y2-- )
             {
@@ -409,16 +418,13 @@ bool trmoLockPieceAndAdvance()
     if( nlines > 0 )
     {
         trmoLinesCleared += nlines;
-        if( nlines == 1 ) trmoScore += 40 * ( trmoLevel + 1 );
-        else if( nlines == 2 ) trmoScore += 100 * ( trmoLevel + 1 );
-        else if( nlines == 3 ) trmoScore += 300 * ( trmoLevel + 1 );
-        else if( nlines == 4 ) trmoScore += 1200 * ( trmoLevel + 1 );
+        if( nlines == 1 ) trmoAddScore( 40 * ( trmoLevel + 1 ) );
+        else if( nlines == 2 ) trmoAddScore( 100 * ( trmoLevel + 1 ) );
+        else if( nlines == 3 ) trmoAddScore( 300 * ( trmoLevel + 1 ) );
+        else if( nlines == 4 ) trmoAddScore( 1200 * ( trmoLevel + 1 ) );
     }
 
     bool gameOver = ( trmoActiveY <= 1 );
-
-    if( trmoMadeLine )
-      if( trmoScore > trmoHighScore ) trmoHighScore = trmoScore;
 
     trmoSpawnPiece();
 
@@ -714,11 +720,6 @@ void trmoRenderFrame( int mode )
 // Returns true if locking a piece this tick caused a game over.
 bool trmoUpdatePlaying()
 {
-    if( trmoMadeLine )
-    {
-        trmoMadeLine = false;
-    }
-
     if( trmoMoveCooldown > 0 ) trmoMoveCooldown--;
     else
     {
@@ -736,7 +737,7 @@ bool trmoUpdatePlaying()
     bool dropHeld = isLeftPressed() || isRightPressed();
     if( dropHeld )
     {
-        trmoScore += 1;
+        trmoAddScore( 1 );
         trmoAwaitFrames = trmoMsToFrames( 8 );
     }
 
@@ -836,7 +837,18 @@ void trmoBeginPlaying()
 
 void gameAttinyTetromino_init()
 {
-    trmoHighScore = 0;
+    // Direct translation of upstream's own btm=EEPROM.read(4);
+    // top=EEPROM.read(12); highScore=10*(btm+(top<<8)) - note addr 4 is
+    // the LOW byte and addr 12 is the HIGH byte (upstream's own reversed
+    // naming), plus the real *10 scale factor. Upstream's own guard
+    // against a never-written slot is dead/commented-out code
+    // ("//if (highScore == 0xffffffff)..."); restored here (checking
+    // top==255, matching this pass's established virgin-cell convention)
+    // since leaving it out would read a virgin slot as a real 655350.
+    int btm = eeprom_read_byte( 4 );
+    int top = eeprom_read_byte( 12 );
+    trmoHighScore = 10 * ( btm + ( top << 8 ) );
+    if( top == 255 ) trmoHighScore = 0;
     trmoBeginAttract();
 }
 
@@ -868,6 +880,17 @@ void gameAttinyTetromino_update()
 
         bool gameOver = trmoUpdatePlaying();
         trmoRenderFrame( TRMO_MODE_PLAYING );
-        if( gameOver ) trmoBeginAttract();
+        if( gameOver )
+        {
+            // Direct translation of upstream's own save-at-game-end (not
+            // per-line, matching its own comment "High score is written
+            // to EEPROM when the game ends instead of when a line is
+            // scored") - EEPROM_ADDR's own peculiar addr4=low/addr12=high
+            // scheme with a /10 scale factor, ported byte-for-byte.
+            int toWrite = trmoHighScore / 10;
+            eeprom_update_byte( 12, ( toWrite >> 8 ) & 0xFF );
+            eeprom_update_byte( 4, toWrite & 0xFF );
+            trmoBeginAttract();
+        }
     }
 }

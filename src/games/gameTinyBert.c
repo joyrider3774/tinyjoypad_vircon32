@@ -375,6 +375,29 @@ int bertHighScore( int d3, int d2, int d1, int d0 )
     return d0 + ( d1 * 10 ) + ( d2 * 100 ) + ( d3 * 1000 );
 }
 
+// EEPROM persistence added new here - upstream itself never persisted
+// this game's own high score at all (confirmed via a direct check of the
+// real .ino, zero EEPROM references anywhere in it), unlike every other
+// game in this project's own "Real persistent high-score saving" pass,
+// which restored something upstream already did. Stored as one combined
+// 5-digit value (bertHD4 is the ten-thousands digit, included here for a
+// faithful save/restore round-trip even though bertHighScore()'s own
+// comparison formula above only ever checks 4 of the 5 digits - an
+// upstream quirk in the *comparison* logic, left exactly as-is) via
+// eeprom_read_dword()/eeprom_write_dword(), not the word helpers most
+// other games use, since a genuine 5-digit score (up to 99999) can
+// exceed a 2-byte word's own 65535 ceiling.
+void bertLoadHighScore()
+{
+    int combined = eeprom_read_dword( 0 );
+    if( combined == -1 ) combined = 0; // virgin slot (all bytes still 0xFF)
+    bertHD0 = combined % 10; combined = combined / 10;
+    bertHD1 = combined % 10; combined = combined / 10;
+    bertHD2 = combined % 10; combined = combined / 10;
+    bertHD3 = combined % 10; combined = combined / 10;
+    bertHD4 = combined % 10;
+}
+
 void bertRecupeHighScore()
 {
     int score1 = bertHighScore( bertD3, bertD2, bertD1, bertD0 );
@@ -382,6 +405,8 @@ void bertRecupeHighScore()
     if( score1 > score2 )
     {
         bertHD0 = bertD0; bertHD1 = bertD1; bertHD2 = bertD2; bertHD3 = bertD3; bertHD4 = bertD4;
+        int combined = bertHD0 + ( bertHD1 * 10 ) + ( bertHD2 * 100 ) + ( bertHD3 * 1000 ) + ( bertHD4 * 10000 );
+        eeprom_write_dword( 0, combined );
     }
 }
 
@@ -1117,6 +1142,7 @@ void bertBeginAttract()
 void gameTinyBert_init()
 {
     InitTinyJoypad();
+    bertLoadHighScore();
     bertSprite[ 0 ].sw = 1; bertSprite[ 0 ].timerNewLive = BERT_DEFAULT_SPEED;
     bertSprite[ 1 ].sw = 1; bertSprite[ 1 ].timerNewLive = BERT_DEFAULT_SPEED;
     bertSprite[ 2 ].sw = 1; bertSprite[ 2 ].timerNewLive = BERT_DEFAULT_SPEED;

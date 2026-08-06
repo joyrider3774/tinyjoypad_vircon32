@@ -26,6 +26,8 @@
 #include "tinyJoypadShim.c"
 #include "obonoCoreShim.h"
 #include "obonoCoreShim.c"
+#include "eepromShim.h"
+#include "eepromShim.c"
 
 // ---- Ported games (add more #includes here as you port them) ----
 #include "games/gameNumberPlace.c"

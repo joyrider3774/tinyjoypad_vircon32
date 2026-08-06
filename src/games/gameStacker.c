@@ -59,9 +59,12 @@
 //   with the same priority (score digits win over the locked-row pattern
 //   at row 7, not OR-combined, since OR-ing bit patterns would produce a
 //   corrupted hybrid rather than either genuine image).
-// - EEPROM high-score persistence dropped (session-only), matching every
-//   other port's precedent - the "hold fire ~2s to mute/unmute" gesture is
-//   kept (in-memory flag); the combined-cartridge-specific "hold fire+up/
+// - EEPROM high-score persistence restored (see the project-wide "Real
+//   persistent high-score saving" section in CLAUDE.md - a 2-byte big-
+//   endian score at address 2/3, not 0/1, since this game shares one
+//   combined cartridge's own EEPROM layout with UFO's own addr 0/1) -
+//   the "hold fire ~2s to mute/unmute" gesture is kept (in-memory flag);
+//   the combined-cartridge-specific "hold fire+up/
 //   down at boot to reset both games' high scores" gesture doesn't apply
 //   to a single standalone menu entry and is dropped outright.
 // - The `runCounter` idle-kill (ends the game after 20 full sweep cycles
@@ -474,7 +477,10 @@ void stkBeginNewHighWait()
 
 void stkEndGame()
 {
-    if( stkScore > stkTop ) { stkTop = stkScore; stkNewHigh = 1; } else stkNewHigh = 0;
+    // Direct translation of upstream's own topScoreB, stored at EEPROM
+    // addr 2/3 (not 0/1) since this game shares one combined cartridge's
+    // EEPROM layout with UFO_Stacker_Attiny's own UFO half.
+    if( stkScore > stkTop ) { stkTop = stkScore; stkNewHigh = 1; eeprom_write_word( 2, stkTop ); } else stkNewHigh = 0;
     stkBeginGameOverWait();
 }
 
@@ -619,7 +625,11 @@ void stkPlayingTick()
 void gameStacker_init()
 {
     stkMute = 0;
-    stkTop = 0;
+    // Direct translation of upstream's own topScoreB = EEPROM.read(2)<<8 |
+    // EEPROM.read(3), guarded against a never-written slot's own virgin
+    // 65535 read the same way as every other game in this pass.
+    stkTop = eeprom_read_word( 2 );
+    if( stkTop == 65535 ) stkTop = 0;
     stkSeqActive = 0;
     stkBeginAttract();
 }

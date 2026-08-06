@@ -84,11 +84,11 @@
 //   tone" finding already documented for every other oversized upstream
 //   sound loop in this project), so reproducing every step's own call
 //   would be pure wasted work for an inaudible result.
-// - EEPROM high-score persistence dropped, matching every other port's
-//   own precedent (`top` tracked in-memory for the cartridge session
-//   only) - the "hold fire 2s to reset high score" secret menu action
-//   still works, it just resets the session-local value instead of a
-//   persisted one.
+// - EEPROM high-score persistence restored (see the project-wide "Real
+//   persistent high-score saving" section in CLAUDE.md - a 2-byte big-
+//   endian score at address 0, matching upstream exactly) - the "hold
+//   fire 2s to reset high score" secret menu action now resets the real
+//   persisted value too, not just the in-memory one.
 // =============================================================================
 
 // -----------------------------------------------------------------------------
@@ -667,7 +667,11 @@ void wrenPlayingTick()
 
 void gameWrenRollercoaster_init()
 {
-    wrenTop = 0;
+    // Direct translation of upstream's own top = EEPROM.read(0)<<8 |
+    // EEPROM.read(1), guarded against a never-written slot's own virgin
+    // 65535 read the same way as every other game in this pass.
+    wrenTop = eeprom_read_word( 0 );
+    if( wrenTop == 65535 ) wrenTop = 0;
     wrenMute = 0;
     wrenSeqActive = 0;
     wrenBeginAttract();
@@ -698,6 +702,7 @@ void gameWrenRollercoaster_update()
                 if( isLeftPressed() || isRightPressed() )
                 {
                     wrenTop = 0;
+                    eeprom_write_word( 0, 0 ); // matches this gesture's own real EEPROM reset upstream
                     wrenAttractOverlay = 1;
                 }
                 else if( wrenMute == 0 )
@@ -785,7 +790,9 @@ void gameWrenRollercoaster_update()
         if( wrenWaitFrames > 0 ) wrenWaitFrames--;
         else
         {
-            if( wrenScore > wrenTop ) { wrenTop = wrenScore; wrenNewHigh = 1; }
+            // Direct translation of upstream's own 2-byte big-endian
+            // EEPROM.write(0,...)/EEPROM.write(1,...) top save.
+            if( wrenScore > wrenTop ) { wrenTop = wrenScore; wrenNewHigh = 1; eeprom_write_word( 0, wrenTop ); }
             else { wrenNewHigh = 0; }
             wrenBeginGameOverSequence();
         }

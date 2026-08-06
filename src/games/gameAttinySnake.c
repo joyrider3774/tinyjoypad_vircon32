@@ -544,6 +544,9 @@ void asnkBeginPlaying()
 void asnkBeginNewHigh()
 {
     asnkTopScore = asnkScore;
+    // Direct translation of upstream's own EEPROM.put(0, highScore) - a
+    // plain 2-byte int, matching eeprom_write_word()'s own byte pairing.
+    eeprom_write_word( 0, asnkTopScore );
 
     int i;
     int* t = "New High Score";
@@ -577,7 +580,11 @@ void asnkBeginGameOver()
 
 void gameAttinySnake_init()
 {
-    asnkTopScore = 0;
+    // Direct translation of upstream's own EEPROM.get(0, highScore),
+    // guarded against a never-written slot's own virgin 65535 read the
+    // same way as every other game in this pass.
+    asnkTopScore = eeprom_read_word( 0 );
+    if( asnkTopScore == 65535 ) asnkTopScore = 0;
     asnkSeqActive = 0;
     asnkBeginAttract();
 }

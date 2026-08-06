@@ -40,10 +40,14 @@
 //    `Sound()` calls) - both AVR performance compromises this project's
 //    fast real-60fps model doesn't need, same reasoning as every other
 //    port here.
-//  - EEPROM-backed high-score persistence (a 4-slot checksummed backup
-//    scheme) is dropped for now, same as this project's other high-score
-//    handling (Tiny Invaders, Tiny Tris' own bit-packed grid, etc.) -
-//    tracked in-memory for the cartridge session only.
+//  - EEPROM-backed high-score persistence restored (see the project-wide
+//    "Real persistent high-score saving" section in CLAUDE.md) - ported as
+//    a single level/lines/score triple rather than upstream's own 4-slot
+//    checksummed backup scheme, since that redundancy exists purely to
+//    guard against real AVR EEPROM wear/corruption, a concern this port's
+//    own memory-card-backed shim doesn't share (it already checksums the
+//    whole slot on every load) - see `trisRecupeHighscore()`/
+//    `trisCheckNewRecord()`'s own comments for the full reasoning.
 //  - `PSEUDO_RND_TTRIS()` is upstream's own rotating 0-6 counter (not a
 //    real `rand()` call), so none of this project's usual `arand()` range
 //    fix applies here - ported as-is.
@@ -119,8 +123,8 @@ int trisDeplacementXx;
 int trisDeplacementYy;
 int trisRot;
 
-// In-memory-only high score (see header comment - EEPROM persistence
-// dropped, matching this project's established precedent elsewhere).
+// Loaded from/saved to EEPROM (see header comment and
+// trisRecupeHighscore()/trisCheckNewRecord()) - not in-memory-only anymore.
 int trisHighLevel;
 int trisHighLines;
 int trisHighScore;
@@ -565,10 +569,35 @@ int trisEndPlay()
     return 0;
 }
 
+// Upstream's own recupe_HIGHSCORE_TTRIS() stores the level/lines/score
+// triple redundantly across 4 backup slots (addr 1-9, 11-19, 21-29, 31-39),
+// using whichever copy's own checksum still passes as a guard against real
+// AVR EEPROM wear/corruption - a concern this shim's own memory-card
+// backing store doesn't have (the shim already checksums the whole slot on
+// every load, see eepromShim.c). Ported as a single copy (addr 0=level,
+// 1-2=lines, 3-4=score) relying on that already-existing whole-slot
+// checksum for the same corruption-safety guarantee upstream's own 4x
+// redundancy provided - the same "preserve behavior, not a hardware-
+// specific implementation quirk" precedent already established throughout
+// this project.
 void trisRecupeHighscore()
 {
-    // No EEPROM/memory-card persistence - see header comment. Just carry
-    // over whatever the best in-memory session values are so far.
+    trisHighLevel = eeprom_read_byte( 0 );
+    trisHighLines = eeprom_read_word( 1 );
+    trisHighScore = eeprom_read_word( 3 );
+
+    // A never-written slot reads back as all-0xFF cells (real AVR EEPROM's
+    // own erased state) - 255 is never a real level, so it doubles as this
+    // slot's own "never saved" sentinel. Upstream has no equivalent guard
+    // (its own 4-slot checksum scheme happens to already reject an all-0xFF
+    // copy on its own), but skipping this here would read a nonsense
+    // level/lines/score triple as if it were a real earlier session.
+    if( trisHighLevel == 255 )
+    {
+        trisHighLevel = 0;
+        trisHighLines = 0;
+        trisHighScore = 0;
+    }
 }
 
 void trisCheckNewRecord()
@@ -578,6 +607,10 @@ void trisCheckNewRecord()
         trisHighScore = trisScores;
         trisHighLevel = trisLevel;
         trisHighLines = trisNbOfLineF;
+
+        eeprom_write_byte( 0, trisHighLevel );
+        eeprom_write_word( 1, trisHighLines );
+        eeprom_write_word( 3, trisHighScore );
     }
 }
 
@@ -1066,6 +1099,22 @@ void trisBeginLevelSetup()
 void trisBeginAttract()
 {
     trisRecupeHighscore();
+    // Upstream's own recupe_HIGHSCORE_TTRIS() loads the saved backup
+    // directly into Level_TTRIS/Nb_of_line_F_TTRIS/Scores_TTRIS - the same
+    // live variables the normal in-game HUD already renders via
+    // trisRecupeScores()/trisRecupeNbOfLine()/trisRecupeLevel() (all three
+    // already called unconditionally from trisFlipIntro(), the attract
+    // screen's own render function) - so on real hardware the attract
+    // screen visibly shows the last saved best while idle, and only resets
+    // to 0 once trisResetScore() runs at the start of a real game. This
+    // port kept trisHighScore/trisHighLevel/trisHighLines as a separate
+    // variable set (for a clearer load/compare/save story), but never
+    // mirrored them back into the shared display variables - so the
+    // attract screen loaded and re-saved the high score correctly, but
+    // never actually showed it. Mirroring here matches upstream exactly.
+    trisScores = trisHighScore;
+    trisLevel = trisHighLevel;
+    trisNbOfLineF = trisHighLines;
     trisConvertNbOfLine();
     trisIntroTimer1 = 0;
     trisIntroFrameCounter = 0;
@@ -1078,9 +1127,6 @@ void gameTinyTris_init()
 {
     InitTinyJoypad();
     trisResetValue();
-    trisHighScore = 0;
-    trisHighLevel = 0;
-    trisHighLines = 0;
     trisBeginAttract();
 }
 

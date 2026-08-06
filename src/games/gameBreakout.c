@@ -99,8 +99,10 @@
 //   author/boilerplate lineage) - reused via the same frame-stepped
 //   sequencer approach and the same derived note tables, rather than
 //   re-deriving them from scratch.
-// - EEPROM high-score persistence dropped (session-only), matching every
-//   other port's precedent - the "hold fire ~2s to mute/unmute" gesture is
+// - EEPROM high-score persistence restored (see the project-wide "Real
+//   persistent high-score saving" section in CLAUDE.md - a 2-byte big-
+//   endian score at address 0, matching upstream exactly) - the "hold
+//   fire ~2s to mute/unmute" gesture is
 //   kept (in-memory flag, same shape as Stacker/UFO's own); the combined-
 //   cartridge-specific "hold fire+up/down at boot to reset both games'
 //   high scores" gesture doesn't apply to a single standalone menu entry
@@ -553,6 +555,11 @@ void brkEndGame()
     {
         brkTop = brkScore;
         brkNewHigh = true;
+        // Direct translation of upstream's own 2-byte big-endian
+        // EEPROM.write(0,...)/EEPROM.write(1,...) topScoreB save (this
+        // game's own Breakout half of the combined UFO_Breakout_Arduino
+        // cartridge).
+        eeprom_write_word( 0, brkTop );
     }
     else
       brkNewHigh = false;
@@ -574,7 +581,11 @@ void brkBeginNewHighWait()
 void gameBreakout_init()
 {
     brkMute = false;
-    brkTop = 0;
+    // Direct translation of upstream's own topScoreB = EEPROM.read(0)<<8 |
+    // EEPROM.read(1), guarded against a never-written slot's own virgin
+    // 65535 read the same way as every other game in this pass.
+    brkTop = eeprom_read_word( 0 );
+    if( brkTop == 65535 ) brkTop = 0;
     brkSeqActive = 0;
     brkBeginAttract();
 }

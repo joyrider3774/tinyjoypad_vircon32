@@ -1564,6 +1564,292 @@ confirmed the result felt right. Ported to the SDL sibling project
 (`Tinyjoypad_SDL`) identically once confirmed, same session, same shared
 file - both `sdl3`/`sdl2` rebuilt clean.
 
+## Real persistent high-score saving, restored via a fake `eeprom.h` shim backed by Vircon32's memory card
+
+Every port in this project had dropped its own upstream game's real
+EEPROM-backed high-score persistence, tracking scores in-memory for the
+cartridge session only - `obonoCoreShim.h`'s own `loadRecord`/
+`storeRecord` had sat as an unwired no-op stub since NumberPlace shipped,
+and nearly every other game's own header comment repeated some variant of
+"EEPROM high-score persistence dropped (session-only)". Restored for real
+on direct user request, backed by Vircon32's actual memory card
+(`card_read_data`/`card_write_data`/`card_is_connected`, declared in
+`memcard.h`) via a new compatibility shim, `src/eepromShim.h`/`.c` - a
+"fake eeprom.h" reproducing AVR-libc's own primitive API
+(`eeprom_read_byte`/`eeprom_write_byte`/`eeprom_update_byte`/
+`eeprom_read_word`/`eeprom_write_word`/`eeprom_read_dword`/
+`eeprom_write_dword`/`eeprom_read_block`/`eeprom_write_block`/
+`eeprom_busy_wait`) per direct user request to model it on Arduino's own
+`EEPROM.h` naming - this dialect has no `class`/method support at all
+(confirmed via an empty project-wide and SDK-wide search for `class`), so
+`EEPROM.read(x)`-style dot-call syntax couldn't be preserved literally;
+naming the shim after avr-libc's own underlying primitives instead (what
+Arduino's real `EEPROM.h` is itself built on) meant raw-avr-libc call
+sites port with zero renaming, and Arduino-style call sites need only a
+mechanical rename (`EEPROM.read(x)` -> `eeprom_read_byte(x)`, etc).
+
+**Researched first via a dedicated Explore agent** before writing any
+code, cataloging every already-shipped game's real upstream EEPROM usage
+(address, format, API style) against `more games/`'s own source - this
+surfaced two real, useful negative results before any wiring began:
+NumberPlace/2048/HollowSeeker's shared Obono `loadRecord`/`storeRecord`
+exists upstream but was **never actually called** by any of the three
+games' own source (dead API, confirmed nothing to restore), and TinyMinez
+has **zero** real EEPROM references at all (the only "eeprom" hits are in
+`SerialHexTools.cpp`, a serial-debug dump tool explicitly excluded from
+real ATtiny85 builds via `#if !defined(__AVR_ATtiny85__)`). This left 15
+real candidates, catalogued with their exact upstream address/format
+before any porting began.
+
+**Looked up by each game's own menu title, not its registration index**
+(per direct user request) - so a future reordering of `menuGameList.c`'s
+own `addGame()` calls can never silently swap two games' save data the
+way indexing by raw index would risk. Modeled on the sibling
+`crisp-game-lib-portable_vircon32` project's own single-game save
+discipline (a fixed 20-word `game_signature` identifying "this card was
+written by this program", followed immediately by the real save data,
+with a magic+checksum guarding against a torn write) - extended here to
+a **per-game** open-addressing hash table instead of one single save
+blob, since this cartridge holds many games, not one:
+
+- `struct EepromSlot { int[24] nameTag; int magic; int checksum; int[512] data; }`
+  - one word per conceptual AVR EEPROM byte address (0-511), matching
+    `avrCompat.h`'s own project-wide choice to widen every `uint8_t` to a
+    plain `int` rather than pack bytes - the original AVR hi-byte/lo-byte
+    splitting each upstream game's own multi-byte read/write performed is
+    a hardware artifact, not something worth preserving bit-for-bit; only
+    the *behavior* (does the value survive a reboot) needs to match, the
+    same "preserve behavior, not implementation quirks" precedent already
+    established for the byte-truncation/shift-wraparound/signed-sentinel
+    bug family.
+  - `nameTag` sized 24 words - comfortably over the longest real menu
+    title (19 characters, "WREN ROLLERCOASTER", confirmed via a full
+    listing of every `addGame()` call).
+- Card layout: word 0-19 is a fixed project-wide `game_signature`
+  (`"TINYJOYPADVIRCON01"`, distinct text from cglp's own signature so the
+  same physical card is never confused between the two projects if ever
+  shared), word 20 onward is a flat `MAX_GAMES`(64)-length table of
+  `struct EepromSlot`.
+- `eepromSelectGame( int* title )` (called automatically once, by
+  `portVircon32.c`'s own dispatch loop, right before a newly-chosen
+  game's `init()` runs - not something any game calls itself) computes a
+  simple polynomial hash of the title mod `MAX_GAMES` as a starting probe
+  slot, then linearly probes forward (wrapping) until it finds either a
+  slot whose own stored `nameTag` already matches this exact title (reuse
+  it, verifying its own checksum before trusting it) or a genuinely empty
+  slot (claim it fresh). Open addressing guarantees zero collisions
+  between any two distinct titles as long as the table isn't completely
+  full - trivially true with 64 slots and well under 64 real games using
+  this shim.
+- Every write updates the in-RAM slot copy, recomputes its checksum (a
+  plain running sum over `data[]`, matching cglp's own `calcSaveChecksum()`
+  shape), and writes through immediately (just the one changed word plus
+  the checksum word, not the whole 538-word slot) - matching real
+  EEPROM's own "writes are immediate and durable" semantic, with no
+  separate flush step to forget.
+
+**A real, easy-to-miss correctness detail, caught by re-reading the
+actual upstream call sites rather than assumed**: fresh/never-written
+cells default to **255 (0xFF), not 0** - matching real AVR EEPROM's own
+actual factory-erased state. This matters because multiple upstream
+games explicitly check for a literal 255 as their own "never written"
+sentinel (attiny85-flappy-bird/Pipe Bird's own `if (high_score == 255)
+high_score = 0;`, ATtiny Tetromino's own `if (top == 255) ...`) -
+defaulting to 0 instead would have silently changed what those checks
+detect. A related, broader issue found while wiring the "simple 2-byte
+score" games (9 of the 15): a virgin *pair* of 0xFF cells combines to a
+real `65535` via `eeprom_read_word()` - upstream itself has no guard
+against this for most of these games (only Pipe Bird/ATtiny Tetromino
+happened to check), but leaving it unguarded would make a game's first-
+ever session unable to ever register a new high score (no real score
+reaches 65535) - a genuine regression, not faithful behavior. **Fixed**
+by adding an explicit `if( xxxTop == 65535 ) xxxTop = 0;` guard at every
+one of the 9 affected games' own load site, a deliberate, documented
+deviation from a literal port rather than an oversight.
+
+**Per-game wiring, phased** (proposed and approved via a plan-mode
+review before any code was written, given the scope): proved the shim on
+3 representative upstream shapes first - `gamePipeBird.c` (raw avr-libc,
+a single byte, the simplest case), `gameFrogger.c` (Arduino `EEPROM.h`,
+a 2-byte big-endian score - the shape shared by 8 more games), and
+`gameTinyTris.c` (upstream's own 4-slot checksummed backup scheme, the
+most complex case) - then rolled out to the remaining 12: Space Attack,
+Falling Blocks, Breakout, Stacker (addr 2/3, not 0/1 - shares
+`UFO_Stacker_Attiny`'s own combined-cartridge EEPROM layout with UFO's
+own addr 0/1), UFO, Wren Rollercoaster (also restored its own "hold fire
+2s + left/right" high-score-reset gesture's real EEPROM write, not just
+the in-memory reset it already had), Astro Barrier and ATtiny Snake
+(both `EEPROM.get`/`.put(0, int)` - functionally the same 2-byte value,
+ported through the same `eeprom_read_word`/`eeprom_write_word` helpers),
+Blocks Gold (score only - its own separate persisted RNG seed at `0x03`
+was deliberately left out, not a high score and out of this pass's
+scope), ATtiny Tetromino (its own genuinely different addr-4-is-low/
+addr-12-is-high encoding with a real `/10` scale factor - ported via
+direct `eeprom_read_byte`/`eeprom_update_byte` calls matching upstream's
+exact formula rather than forced through the generic word helper), and
+Tiny Invaders (upstream's own 6-byte `{score,name[3],crcFix}` struct at
+addr 128 - ported as a plain 2-byte score only, since the 3-letter
+initials/name-entry screen that struct's other fields existed for is
+already dropped from this port; the save now fires at the same "NEW
+HISCORE!" banner trigger this port already had, rather than upstream's
+own now-absent name-entry-finished point).
+
+**Bat Bonanza deliberately excluded** - its own upstream EEPROM usage is
+3 settings bytes (mute/difficulty/gameMode), not a score; asked the user
+directly whether to restore these too, and per their answer this pass is
+scoped to high scores only, so Bat Bonanza has nothing to wire.
+
+**Tiny DDug's own `Tiny_DDug.ino` and several other Daniel-C-lineage
+games were not part of this pass at all** - the 15-game candidate list
+above is exhaustive for real upstream EEPROM usage among already-shipped
+games (confirmed via the same cataloging pass), not a partial sample.
+
+Verified in stages: the core infrastructure was smoke-tested first
+(NumberPlace still launches correctly after the new dispatch-loop
+`eepromSelectGame()` hook), then each Phase-A game individually. The one
+thing that couldn't be verified by launching/playing alone -  genuine
+persistence across a real reboot, not just an in-session global surviving
+- was proven with a real two-build test: build 1 temporarily force-wrote
+a known value (111) into Pipe Bird's own slot via a one-line debug
+addition to its `init()`, deployed and launched once (write confirmed via
+screenshot); the temporary line was then removed, build 2 deployed, and
+a **fresh Puppeteer browser instance reusing the same persistent
+`userDataDir`** (so the WebGL harness's own IndexedDB-backed virtual
+memory card - confirmed already built into `MainWeb.cpp`, one card per
+cartridge, auto-created/loaded per game, periodically flushed to
+IndexedDB - survives the reload the same way a real cartridge reinsertion
+would) launched Pipe Bird with zero flap input, reaching its own
+GAME OVER screen within under a second and showing "HIGH 111" - proving
+the value survived a completely fresh WASM/JS instance with no in-memory
+state carried over. A follow-up test in the same reused profile confirmed
+**slot isolation**: launching Frogger (a different game, never before
+selected in that session) showed no trace of Pipe Bird's own 111, and a
+separate fresh-profile test launching Tiny Tris for the first time ever
+on a brand-new card showed a clean `LINES 000`/`SCORE 000000`/`LEVEL 00`
+state - both the "claim a fresh empty slot" and "reuse an existing
+tagged slot" code paths in `eepromSelectGame()` exercised and confirmed
+correct. The remaining Phase-B games were verified via a lighter launch-
+only smoke pass (6 of the 9 spot-checked directly: Astro Barrier, ATtiny
+Snake, ATtiny Tetromino, Blocks Gold, Breakout, plus Bat Bonanza as an
+unmodified control to confirm no dispatch-loop-level regression) -
+each one's own new load-on-init call is the only genuinely new risk
+Phase B introduces beyond the already-proven Phase-A mechanism, and none
+crashed or rendered incorrectly.
+
+**A follow-up audit found two more real gaps and one deliberate
+extension, all from direct user questions rather than a proactive re-
+check**: after fixing all 15 games' own header comments to stop claiming
+"EEPROM dropped" (a genuine miss in the pass above - the actual code was
+restored, but each file's own descriptive comment block still said
+otherwise until the user asked directly), the user asked whether *other*
+already-shipped games display an in-game high score without ever having
+saved it - prompting a project-wide grep across every `src/games/*.c` for
+"HIGH SCORE"/`highScore`/`topScore`-style variable names, not just the
+original 18-game candidate list. This surfaced:
+- **Oroboros and Run Dude Run** - both genuinely missed by the original
+  audit, not because their upstream lacks real EEPROM (it has the exact
+  same 2-byte big-endian shape as most other games in this pass), but
+  because the original project-wide grep across `more games/` was
+  filtered down to a curated candidate list by matching folder names
+  against already-known game titles, and neither of these two games'
+  own AttinyArcade sketch folder names
+  (`attiny_oroboros_vcc_gnd_scl_sda`/`attiny_run_vcc_gnd_scl_sda`)
+  obviously mapped to "Oroboros"/"Run Dude Run" at a glance - a real
+  process gap (the original raw grep output *did* include these files,
+  they just got dropped during manual curation), not a fundamentally
+  different kind of miss than the rest of this pass. Restored the exact
+  same way as every other "simple 2-byte score" game. Run Dude Run's own
+  upstream also has a real `if(topScore<0){...reset to 0...}` guard -
+  worth noting *why* it's real there but not needed verbatim here: on
+  real AVR hardware, a virgin `(0xFF,0xFF)` pair composes into a
+  **negative** 16-bit `int` (0xFF00 has its own sign bit set), not a
+  large positive one - Vircon32's wider 32-bit `int` arithmetic instead
+  composes the same virgin bytes into a large *positive* 65535, so the
+  equivalent guard here checks for that value instead, matching every
+  other game in this pass rather than porting a check that can never
+  actually trigger on this platform.
+- **Tiny Bert** - a genuinely different case: it has real in-memory
+  high-score tracking (`bertHighScore()`/`bertRecupeHighScore()`,
+  comparing digit-by-digit against a tracked best) and displays it on
+  its own title screen, but its *upstream* `.ino` has zero EEPROM
+  references anywhere - confirmed by direct inspection, not assumed -
+  meaning the real ATtiny85 cartridge never persisted this either. Not a
+  restoration, but a deliberate, user-approved *extension* beyond what
+  upstream itself ever did. Stored as one combined 5-digit value via
+  `eeprom_read_dword()`/`eeprom_write_dword()` rather than the word
+  helpers most other games use, since a genuine 5-digit score (up to
+  99999) can exceed a 2-byte word's own 65535 ceiling - the virgin-slot
+  sentinel here is a clean `-1` (all 4 bytes still 0xFF composes to a
+  real all-ones 32-bit value) rather than the word-level games' own
+  65535 check. `bertHighScore()`'s own comparison formula only checks 4
+  of the 5 tracked digits (the ten-thousands digit, `bertHD4`, is
+  tracked and displayed but never actually compared) - a pre-existing
+  upstream quirk unrelated to persistence, left exactly as-is rather
+  than "fixed" while adding unrelated new functionality.
+
+Verified via a light Puppeteer launch pass (all three games: Oroboros,
+Run Dude Run, Tiny Bert) - no crashes, and Tiny Bert's own title screen
+directly confirmed a fresh slot correctly reads back as "00000
+HIGHSCORE" rather than garbage, proving the dword-level virgin-sentinel
+guard works the same way the word-level one already did.
+
+**Two real ATtiny Tetromino scoring bugs found via direct user reports,
+both unrelated to the EEPROM mechanism itself - genuine in-memory logic
+gaps that predated it, only now noticed because the user was actually
+comparing the displayed high score against gameplay.** Diagnosed via
+code inspection only, per explicit user instruction not to test mid-
+investigation. (1) The high-score check
+(`if(trmoScore>trmoHighScore) trmoHighScore=trmoScore;`) was gated
+behind a `trmoMadeLine` flag, so the high score only ever updated on a
+line clear - **fixed** by removing the gate entirely (an unconditional
+check right after the score-increment block in
+`trmoLockPieceAndAdvance()`) and deleting the now-dead `trmoMadeLine`
+variable and all its set/reset sites. (2) A *second*, separate scoring
+path existed - `trmoScore += 1;` inside `trmoUpdatePlaying()`, fired
+every tick while the drop button is held - completely bypassing the
+high-score check above, so drop-bonus points could exceed the high
+score with nothing noticing. **Fixed** by centralizing all score
+mutation through one new helper, `trmoAddScore(int amount)`
+(`trmoScore += amount; if(trmoScore>trmoHighScore) trmoHighScore=trmoScore;`),
+with every scoring site (all 4 line-clear bonuses and the drop-hold
+bonus) routed through it instead of mutating `trmoScore` directly -
+confirmed via a final grep that no direct `trmoScore` mutation remains
+outside the helper (except the legitimate `trmoScore=0;` reset in
+`trmoInitGame()`).
+
+**A genuine "loads and saves correctly but never displays" gap found in
+Tiny Tris**, from a direct user question about where/when the saved
+high score is shown. `trisRecupeHighscore()` (load) and
+`trisCheckNewRecord()` (save) both worked correctly, but a full-file
+grep confirmed `trisHighScore`/`trisHighLevel`/`trisHighLines` had zero
+render call sites anywhere - loaded and kept up to date, never actually
+drawn. Tracing upstream's own `recupe_HIGHSCORE_TTRIS()` explained why
+this port's separate-variable design introduced the gap where upstream
+never had one: upstream doesn't have a separate high-score variable set
+at all - it loads the persisted backup directly into the *same* live
+`Scores_TTRIS`/`Level_TTRIS`/`Nb_of_line_F_TTRIS` variables its own
+in-game HUD already renders (via `recupe_SCORES_TTRIS` etc, already
+called unconditionally from the attract screen's own `Flip_intro_TTRIS`),
+so on real hardware the attract screen visibly shows the last saved best
+while idle, only resetting to 0 once a real game actually starts.
+**Fixed** by mirroring the loaded `trisHighScore`/`trisHighLevel`/
+`trisHighLines` into `trisScores`/`trisLevel`/`trisNbOfLineF` at the end
+of `trisBeginAttract()` (right after `trisRecupeHighscore()`, before
+`trisConvertNbOfLine()` so the digit-conversion table is built from the
+now-correct value) - the already-existing `trisFlipIntro()` render calls
+pick this up for free, with no new render code needed.
+`trisResetScore()` (called on Fire-press before a real game begins)
+already correctly zeroed all three, matching upstream's own reset
+timing. Verified via a fresh-profile screenshot showing the correct
+`LINES 000`/`SCORE 000000`/`LEVEL 00` baseline and a clean rebuild; per
+a direct user instruction to stop testing mid-verification, a full
+save-then-reload round-trip screenshot was not captured for this
+specific fix (unlike the general shim's own earlier two-build Pipe Bird
+proof above) - low risk, since it reuses the exact same
+`trisRecupeHighscore()`/`trisBeginAttract()` call path already proven
+correct by that earlier test, just adding a value copy with no new
+control flow.
+
 ## Status (as of this session)
 
 Shipped and visually verified (WebGL emulator + a Puppeteer screenshot

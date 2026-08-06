@@ -61,8 +61,13 @@
 //   make them flicker/jump instead of sitting still) - generated once via
 //   `arand()` when entering the attract state, cached, and redrawn from
 //   that cache every frame.
-// - EEPROM high-score persistence dropped (session-only), matching every
-//   other port's precedent.
+// - EEPROM high-score persistence restored (see the project-wide "Real
+//   persistent high-score saving" section in CLAUDE.md - a 2-byte big-
+//   endian score at address 0/1, matching upstream exactly; note this
+//   game's own live score can go negative, per the clamps documented
+//   below, but `ufoTop` itself can never actually be written negative,
+//   since a negative live score can never exceed its own starting value
+//   of 0).
 // - **Two defensive clamps added beyond a faithful translation**, since
 //   UFO's own score (unlike every other port's) can genuinely go
 //   negative in real play (firing costs a point, `if(fire==1)score--;`,
@@ -628,7 +633,10 @@ void ufoBeginNewHighWait()
 
 void ufoEndGame()
 {
-    if( ufoScore > ufoTop ) { ufoTop = ufoScore; ufoNewHigh = 1; } else ufoNewHigh = 0;
+    // Direct translation of upstream's own topScoreU, stored at EEPROM
+    // addr 0/1, matching UFO_Stacker_Attiny's own combined-cartridge
+    // layout (Stacker's own half uses addr 2/3 instead).
+    if( ufoScore > ufoTop ) { ufoTop = ufoScore; ufoNewHigh = 1; eeprom_write_word( 0, ufoTop ); } else ufoNewHigh = 0;
     ufoBeginGameOverWait();
 }
 
@@ -752,7 +760,11 @@ void ufoPlayingTick()
 void gameUFO_init()
 {
     ufoMute = 0;
-    ufoTop = 0;
+    // Direct translation of upstream's own topScoreU = EEPROM.read(0)<<8 |
+    // EEPROM.read(1), guarded against a never-written slot's own virgin
+    // 65535 read the same way as every other game in this pass.
+    ufoTop = eeprom_read_word( 0 );
+    if( ufoTop == 65535 ) ufoTop = 0;
     ufoSeqActive = 0;
     ufoBeginAttract();
 }

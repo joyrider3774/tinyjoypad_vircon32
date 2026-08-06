@@ -34,14 +34,13 @@
 //    the shim's isLeftPressed()/isRightPressed()/isFirePressed() etc,
 //    since Vircon32 has real digital gamepad buttons, not an analog
 //    voltage-ladder joystick.
-//  - High-score persistence (EEPROM read/write, the CRC-checked HISCORE
-//    struct, and the 3-letter name-entry screen) is dropped for this
-//    initial port, same deferral as NumberPlace's memory-card support -
-//    the high score is tracked in memory for the current cartridge
-//    session (via a plain global, so it does survive returning to the
-//    menu and playing again - just not a cartridge power-cycle) and
-//    "NEW HIGH SCORE" now just shows a brief banner rather than letting
-//    the player enter initials.
+//  - High-score persistence is restored (see the project-wide "Real
+//    persistent high-score saving" section in CLAUDE.md), but as a plain
+//    2-byte score at upstream's own addr 128, not upstream's full 6-byte
+//    CRC-checked HISCORE struct - the 3-letter name-entry screen that
+//    struct's other fields existed for stays dropped ("NEW HIGH SCORE"
+//    still just shows a brief banner rather than letting the player enter
+//    initials), so there's nothing left for those fields to hold.
 // =============================================================================
 
 // -----------------------------------------------------------------------------
@@ -293,9 +292,10 @@ int tinvRLEdecompressExtended( int* compressedData, int compressedPos, int* unco
 }
 
 // -----------------------------------------------------------------------------
-//   Score / on-screen text (see displayscore.h/.cpp) - simplified: no
-//   EEPROM persistence (see the file header comment), so no CRC/struct
-//   machinery either, just plain in-memory counters.
+//   Score / on-screen text (see displayscore.h/.cpp) - simplified: EEPROM
+//   persistence is restored (see the file header comment) but as a plain
+//   2-byte value, not upstream's own CRC/struct machinery - see
+//   gameTinyInvaders_init()/tinvBeginGameOverDisplay() for the load/save.
 // -----------------------------------------------------------------------------
 
 int tinvScore = 0;
@@ -1356,6 +1356,18 @@ void tinvBeginGameOverDisplay()
     {
         tinvPrintText( 0 * 16 + 2, tinvTxtNewHiScore, 12 );
         tinvConvertValueToDigits( tinvHighScore, tinvTextBuffer, 2 * 16 + 8 );
+
+        // Upstream's own storeHighScoreToEEPROM() only actually runs once
+        // the player finishes entering their 3-letter initials - that
+        // whole name-entry screen is dropped in this port (see this
+        // file's own header comment), so the save happens here instead,
+        // at the same "a new high score was just reached" point this
+        // screen itself already gates on. Stored as a plain 2-byte score
+        // at addr 128 (upstream's own TINY_INVADERS_EEPROM_ADDR) - not
+        // upstream's own 6-byte {score,name[3],crcFix} struct, since the
+        // name/crcFix fields have nothing to persist once the initials
+        // entry UI itself is gone.
+        eeprom_write_word( 128, tinvHighScore );
     }
     else
     {
@@ -1435,6 +1447,14 @@ void gameTinyInvaders_init()
     tinvMyShootReady = TINV_SHOOTS;
     tinvWaitFrames = 0;
     tinvWaitAction = TINV_WAIT_NONE;
+
+    // Direct translation of upstream's own initHighScoreStruct() load - a
+    // plain 2-byte score at addr 128, guarded against a never-written
+    // slot's own virgin 65535 read the same way as every other game in
+    // this pass (upstream's own struct-CRC check served the same purpose
+    // for its own dropped 6-byte struct).
+    tinvHighScore = eeprom_read_word( 128 );
+    if( tinvHighScore == 65535 ) tinvHighScore = 0;
 
     tinvBeginIntro();
 }

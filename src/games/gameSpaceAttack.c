@@ -109,11 +109,13 @@
 //   author/boilerplate lineage) - reused via the same derived note tables
 //   rather than re-deriving them from scratch. The single alien-hit beep
 //   needs no sequencing (only ever one call).
-// - EEPROM high-score persistence dropped (session-only), matching every
-//   other port's precedent - the "hold fire ~2s to mute/unmute" gesture is
-//   kept (in-memory flag); the "hold fire+left/right to reset high score"
-//   gesture doesn't apply to a session-only score and is dropped outright,
-//   matching Stacker/Breakout's own precedent exactly.
+// - EEPROM high-score persistence restored (see the project-wide "Real
+//   persistent high-score saving" section in CLAUDE.md - a 2-byte big-
+//   endian score at address 0, matching upstream exactly). The "hold
+//   fire ~2s" dual gesture is fully restored too, matching upstream's own
+//   exact branching: fire+left/right resets the persisted high score
+//   (`spaShowResetMsg`, a "-HIGH SCORE RESET-" banner); fire alone
+//   toggles mute (a pure in-memory flag, unaffected by the reset branch).
 // - `row[4][10]` is declared upstream but only rows 0-2 (and columns 0-8 of
 //   10) are ever read or written (`resetAliens()`'s own init, every
 //   `lastActiveRow`/`fireYidx` bound check) - row 3 and column 9 are
@@ -211,6 +213,7 @@ int spaNumberByte( int x, int y, int startX, int pageY, int value )
 // -----------------------------------------------------------------------------
 
 int spaMute;
+bool spaShowResetMsg;
 
 // Same beep(bCount,bDelay)->Sound(freq,dur) heuristic as gameStacker.c's own
 // stkBeepOnce()/gameBreakout.c's own brkBeepOnce() (identical author/
@@ -531,6 +534,7 @@ void spaRenderFrame( int mode )
                 else if( y == 4 ) val = val | spaTextByte( x, y, 0, 4, "andh jackson" );
                 else if( y == 6 ) val = val | spaTextByte( x, y, 0, 6, "inspired bh" );
                 else if( y == 7 ) val = val | spaTextByte( x, y, 0, 7, "/ebboggles.com" );
+                else if( y == 0 && spaShowResetMsg ) val = val | spaTextByte( x, y, 8, 0, "-HIGH SCORE RESET-" );
                 else if( y == 0 && spaMute ) val = val | spaTextByte( x, y, 32, 0, "-- MUTE --" );
                 if( y == 7 ) val = val | spaPlatformByte( x - 96 );
             }
@@ -605,6 +609,9 @@ void spaEndGame()
     {
         spaTop = spaScore;
         spaNewHigh = true;
+        // Direct translation of upstream's own 2-byte big-endian
+        // EEPROM.write(0,...)/EEPROM.write(1,...) topScoreB save.
+        eeprom_write_word( 0, spaTop );
     }
     else
       spaNewHigh = false;
@@ -852,7 +859,13 @@ bool spaPlayingTick()
 void gameSpaceAttack_init()
 {
     spaMute = false;
-    spaTop = 0;
+    // Direct translation of upstream's own topScoreB = EEPROM.read(0)<<8 |
+    // EEPROM.read(1). A never-written slot reads back as a real 65535
+    // (both bytes still 0xFF) - guarded to 0 the same way as every other
+    // game in this pass, since leaving it unguarded would make a first-
+    // ever session unable to ever register a new high score.
+    spaTop = eeprom_read_word( 0 );
+    if( spaTop == 65535 ) spaTop = 0;
     spaSeqActive = 0;
     spaBeginAttract();
 }
@@ -879,7 +892,16 @@ void gameSpaceAttack_update()
             if( spaFireHoldTicks >= 120 && !spaMuteActionDone )
             {
                 spaMuteActionDone = 1;
-                if( spaMute == false ) spaMute = true; else spaMute = false;
+                // Direct translation of upstream's own boot-time dual
+                // gesture: fire+left/right resets the persisted high
+                // score, fire alone toggles mute.
+                if( isLeftPressed() || isRightPressed() )
+                {
+                    spaTop = 0;
+                    eeprom_write_word( 0, 0 );
+                    spaShowResetMsg = true;
+                }
+                else if( spaMute == false ) spaMute = true; else spaMute = false;
             }
         }
         else
@@ -891,6 +913,7 @@ void gameSpaceAttack_update()
                 spaRenderFrame( SPA_MODE_LEVELUP );
                 return;
             }
+            if( spaFireHeld ) spaShowResetMsg = false;
             spaFireHoldTicks = 0;
             spaMuteActionDone = 0;
         }

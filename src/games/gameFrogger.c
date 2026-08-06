@@ -97,12 +97,13 @@
 //   is already a truncating integer division before `floor()` ever runs -
 //   ported as plain integer division, the same "already-integer floor()
 //   is a no-op" finding already documented for Wren's own `boost/40`.
-// - EEPROM high-score persistence dropped (score tracked in-memory for
-//   the cartridge session only), matching every other port's precedent.
-//   The "hold fire ~2s to mute/unmute" secret menu action is kept (a
-//   pure in-memory flag); the "hold fire+left/right to reset high score"
-//   variant is dropped outright rather than kept-but-neutered, since
-//   there is no persisted score for it to meaningfully reset.
+// - EEPROM high-score persistence restored (see the project-wide "Real
+//   persistent high-score saving" section in CLAUDE.md - a 2-byte big-
+//   endian score at address 0, matching upstream exactly). The "hold
+//   fire ~2s" dual gesture is fully restored too, matching upstream's own
+//   exact branching: fire+left/right resets the persisted high score
+//   (`frgShowResetMsg`, a "-HIGH SCORE RESET-" banner); fire alone
+//   toggles mute (a pure in-memory flag, unaffected by the reset branch).
 // =============================================================================
 
 // -----------------------------------------------------------------------------
@@ -220,6 +221,7 @@ int[20] frgGameOverNotes =
 #define FRG_GAMEOVER_COUNT 10
 
 int frgMute;
+bool frgShowResetMsg;
 
 int frgSeqActive;
 int* frgSeqNotes;
@@ -796,6 +798,7 @@ void frgRenderFrame( int mode )
                 // here - it maps through frgCharIndex to a *different* font
                 // slot (14, ':') and renders wrong.
                 else if( y == 7 ) val = val | frgTextByte( x, y, 0, 7, "zsenkunmusashi" );
+                else if( y == 0 && frgShowResetMsg ) val = val | frgTextByte( x, y, 8, 0, "-HIGH SCORE RESET-" );
                 else if( y == 0 && frgMute ) val = val | frgTextByte( x, y, 32, 0, "-- MUTE --" );
             }
             else if( mode == FRG_MODE_LEVELUP_TEXT )
@@ -1082,7 +1085,18 @@ void frgPlayingTick()
 
 void gameFrogger_init()
 {
-    frgTopScore = 0;
+    // Direct translation of upstream's own topScore = EEPROM.read(0)<<8 |
+    // EEPROM.read(1) - eeprom_read_word() already combines the byte pair
+    // the same hi-then-lo way. A never-written slot reads back as a real
+    // 65535 (both bytes still their virgin 0xFF, matching real AVR EEPROM's
+    // own erased state - see eepromShim.c) - upstream has no equivalent
+    // guard, but leaving it unguarded here would make a first-ever session
+    // unable to ever register a new high score (no real score reaches
+    // 65535), a genuine regression rather than faithful behavior - treated
+    // the same way Pipe Bird's own upstream already treats its own virgin-
+    // byte sentinel (255) elsewhere in this project.
+    frgTopScore = eeprom_read_word( 0 );
+    if( frgTopScore == 65535 ) frgTopScore = 0;
     frgMute = 0;
     frgSeqActive = 0;
     frgTickCounter = 0;
@@ -1112,7 +1126,16 @@ void gameFrogger_update()
             if( frgFireHoldTicks >= 120 && !frgMuteActionDone )
             {
                 frgMuteActionDone = 1;
-                if( frgMute == 0 ) frgMute = 1; else frgMute = 0;
+                // Direct translation of upstream's own boot-time dual
+                // gesture: fire+left/right resets the persisted high
+                // score, fire alone toggles mute.
+                if( isLeftPressed() || isRightPressed() )
+                {
+                    frgTopScore = 0;
+                    eeprom_write_word( 0, 0 );
+                    frgShowResetMsg = true;
+                }
+                else if( frgMute == 0 ) frgMute = 1; else frgMute = 0;
             }
         }
         else
@@ -1124,6 +1147,7 @@ void gameFrogger_update()
                 frgRenderFrame( FRG_MODE_PLAYING );
                 return;
             }
+            if( frgFireHeld ) frgShowResetMsg = false;
             frgFireHoldTicks = 0;
             frgMuteActionDone = 0;
         }
@@ -1175,7 +1199,10 @@ void gameFrogger_update()
             frgApplyLifeLoss();
             if( frgLives < 0 )
             {
-                if( frgScore > frgTopScore ) { frgTopScore = frgScore; frgNewHigh = 1; } else frgNewHigh = 0;
+                // Direct translation of upstream's own EEPROM.write(1,score&0xFF);
+                // EEPROM.write(0,(score>>8)&0xFF) pair - eeprom_write_word()
+                // already combines a byte pair the same hi-then-lo way.
+                if( frgScore > frgTopScore ) { frgTopScore = frgScore; frgNewHigh = 1; eeprom_write_word( 0, frgTopScore ); } else frgNewHigh = 0;
                 if( frgNewHigh ) frgBeginNewHighWait();
                 else frgBeginGameOverWait();
             }

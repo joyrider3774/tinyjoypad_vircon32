@@ -469,7 +469,9 @@ void rddTick()
 
     if( rddStopAnimate )
     {
-        if( rddScore > rddTopScore ) rddTopScore = rddScore;
+        // Direct translation of upstream's own 2-byte big-endian
+        // EEPROM.write(1,...)/EEPROM.write(0,...) topScore save.
+        if( rddScore > rddTopScore ) { rddTopScore = rddScore; eeprom_write_word( 0, rddTopScore ); }
         rddState = RDD_STATE_GAMEOVER;
         rddStartGameOverSweep();
     }
@@ -635,7 +637,16 @@ void gameRunDudeRun_forceRedraw()
 void gameRunDudeRun_init()
 {
     InitTinyJoypad();
-    rddTopScore = 0;
+    // Direct translation of upstream's own topScore = EEPROM.read(0)<<8 |
+    // EEPROM.read(1). Upstream also has its own explicit "if(topScore<0)
+    // reset to 0" guard here - on real AVR hardware, a virgin (0xFF,0xFF)
+    // read composes into a *negative* 16-bit int (0xFF00 has its sign bit
+    // set), not a large positive one; Vircon32's own wider 32-bit int
+    // arithmetic instead composes the exact same virgin bytes into a
+    // large *positive* 65535, so the equivalent guard here checks for
+    // that value instead, matching every other game in this pass.
+    rddTopScore = eeprom_read_word( 0 );
+    if( rddTopScore == 65535 ) rddTopScore = 0;
     rddResetGame();
 }
 

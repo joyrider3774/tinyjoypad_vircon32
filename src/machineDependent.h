@@ -158,4 +158,30 @@ void md_stopTone();
 // any) is running
 void md_updateAudio();
 
+// =============================================================================
+//   MEMORY CARD (backs eepromShim.h's persistent per-game EEPROM emulation)
+// =============================================================================
+// Thin wrappers around Vircon32's own memcard.h (card_is_connected(),
+// card_read_signature()/card_write_signature()/card_signature_matches(),
+// card_read_data()/card_write_data()) - kept in this machine-dependent layer
+// rather than called directly from eepromShim.c, the same reasoning as every
+// other Vircon32-specific primitive here. offsetWords/sizeWords are in
+// words (Vircon32 ints), not bytes - matching how card_read_data()/
+// card_write_data() and sizeof() already work on this platform project-wide.
+
+bool md_cardIsConnected();
+
+// true only if the connected card's own 20-word signature matches this
+// project's fixed signature (see eepromShim.c) - a card written by an
+// unrelated program, or a blank card, both read as false here rather than
+// risking a misread of foreign data.
+bool md_cardHasOurSignature();
+
+// stamps this project's fixed signature onto the connected card - called
+// once, the first time anything is ever written to a fresh/foreign card.
+void md_cardWriteSignature();
+
+void md_cardReadData( void* dest, int offsetWords, int sizeWords );
+void md_cardWriteData( void* src, int offsetWords, int sizeWords );
+
 #endif

@@ -382,7 +382,9 @@ void orbTick()
 
     if( collided )
     {
-        if( orbScore > orbTopScore ) orbTopScore = orbScore;
+        // Direct translation of upstream's own 2-byte big-endian
+        // EEPROM.write(1,...)/EEPROM.write(0,...) topScore save.
+        if( orbScore > orbTopScore ) { orbTopScore = orbScore; eeprom_write_word( 0, orbTopScore ); }
         orbState = ORB_STATE_GAMEOVER;
         orbStateTimer = 999999; // waits for Fire, see update()
         orbStartGameOverSweep();
@@ -546,7 +548,11 @@ void gameOroboros_forceRedraw()
 void gameOroboros_init()
 {
     InitTinyJoypad();
-    orbTopScore = 0;
+    // Direct translation of upstream's own topScore = EEPROM.read(0)<<8 |
+    // EEPROM.read(1), guarded against a never-written slot's own virgin
+    // 65535 read the same way as every other game in this pass.
+    orbTopScore = eeprom_read_word( 0 );
+    if( orbTopScore == 65535 ) orbTopScore = 0;
     orbResetGame();
 }
 

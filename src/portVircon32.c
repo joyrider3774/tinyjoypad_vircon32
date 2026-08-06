@@ -25,6 +25,7 @@
 #include "input.h"
 #include "audio.h"
 #include "time.h"
+#include "memcard.h"
 #include "../libs/PlayNote/playnote.h"
 
 // -----------------------------------------------------------------------------
@@ -426,6 +427,46 @@ void md_updateAudio()
 }
 
 // -----------------------------------------------------------------------------
+//   MEMORY CARD (backs eepromShim.h)
+// -----------------------------------------------------------------------------
+// Every function here is a thin wrapper around memcard.h's own real
+// functions - eepromShim.c never calls card_*() directly, matching every
+// other Vircon32-specific primitive in this file.
+
+// This project's own fixed 20-word card signature - identifies "this card
+// was written by tinyjoypad_vircon32" as a whole, the same discipline the
+// sibling crisp-game-lib-portable_vircon32 project already uses for its own
+// single-game save (see that project's own saveCardSignature). Distinct
+// text from that project's own signature so the two are never confused if
+// the same physical card is ever used with both cartridges.
+game_signature cardSignature = "TINYJOYPADVIRCON01";
+
+bool md_cardIsConnected()
+{
+    return card_is_connected();
+}
+
+bool md_cardHasOurSignature()
+{
+    return card_signature_matches( &cardSignature );
+}
+
+void md_cardWriteSignature()
+{
+    card_write_signature( &cardSignature );
+}
+
+void md_cardReadData( void* dest, int offsetWords, int sizeWords )
+{
+    card_read_data( dest, offsetWords, sizeWords );
+}
+
+void md_cardWriteData( void* src, int offsetWords, int sizeWords )
+{
+    card_write_data( src, offsetWords, sizeWords );
+}
+
+// -----------------------------------------------------------------------------
 //   TOP-LEVEL DISPATCH: menu <-> games
 // -----------------------------------------------------------------------------
 
@@ -620,6 +661,13 @@ void main()
                 // screen for that one gap tick instead of a clean black
                 // transition.
                 md_beginFrame();
+
+                // Resolve/load this game's own persistent EEPROM slot
+                // (looked up by its title, not by chosen/registration
+                // index - see eepromShim.c) before init() runs, since a
+                // game's own init() is what actually calls
+                // eeprom_read_byte()/etc to load its saved high score.
+                eepromSelectGame( menu_getGame( chosen )->title );
 
                 menu_getGame( chosen )->init();
             }

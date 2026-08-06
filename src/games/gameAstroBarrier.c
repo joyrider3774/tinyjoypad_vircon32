@@ -666,6 +666,9 @@ void barrBeginLevelComplete()
 void barrBeginNewHigh( int afterState )
 {
     barrTopScore = barrScore;
+    // Direct translation of upstream's own EEPROM.put(0, highScore) - a
+    // plain 2-byte int, matching eeprom_write_word()'s own byte pairing.
+    eeprom_write_word( 0, barrTopScore );
     barrNewHigh = true;
     barrAfterHighState = afterState;
 
@@ -710,7 +713,11 @@ void barrBeginGameComplete()
 
 void gameAstroBarrier_init()
 {
-    barrTopScore = 0;
+    // Direct translation of upstream's own EEPROM.get(0, highScore),
+    // guarded against a never-written slot's own virgin 65535 read the
+    // same way as every other game in this pass.
+    barrTopScore = eeprom_read_word( 0 );
+    if( barrTopScore == 65535 ) barrTopScore = 0;
     barrSeqActive = 0;
     barrBeginAttract();
 }
