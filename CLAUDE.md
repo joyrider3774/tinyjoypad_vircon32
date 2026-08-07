@@ -556,16 +556,16 @@ repos are out of scope per this project's own GPU model (procedural
 per-pixel, not discrete objects) - same call as every prior procedural-
 render exclusion here (TinyDungeon's own disabled raycast branch aside).
 
-The two research agents disagreed on one point, not yet resolved by an
-actual code read: whether `game-asteroid` (free-rotate/thrust/shoot, no
-genre-duplicate anywhere in this project's own catalog - Space Attack/
-Tiny Invaders are fixed-lane, Tiny Missile is Missile-Command-style) is
-still present/meaningfully distinct in `BFlight`'s own newer game list,
-or whether it's specifically an `ESP8266GameOn`-only branch that didn't
-carry forward - worth settling with a direct diff before committing
-porting effort to it specifically, the same "verify before dismissing
-*or* committing on genre alone" discipline already established
-repeatedly in this file. `driveGame` and `mazeRunner`/`mazeGenerator`
+The two research agents disagreed on one point, later resolved directly
+by reading the real source rather than diffing repos: `game-asteroid`
+(free-rotate/thrust/shoot, no genre-duplicate anywhere in this project's
+own catalog - Space Attack/Tiny Invaders are fixed-lane, Tiny Missile is
+Missile-Command-style) turned out to be specifically an
+`ESP8266GameOn`-only title, never carried forward into `BFlight` at all
+- confirmed once `ESP8266GameOn`'s own README was actually read ("You
+can see the Asteroids demo on the master branch"), rather than needing a
+diff against `BFlight`'s own file list. Shipped as "Asteroid" - see its
+own writeup further below. `driveGame` and `mazeRunner`/`mazeGenerator`
 were confirmed by both agents as genuinely new genres with no existing
 duplicate in this project's own catalog (Tiny Bike is a structurally
 different side-scrolling motocross game, not a top-down driving/dodging
@@ -626,13 +626,15 @@ documented) that didn't clear the "real, finished, distinct game" bar.
 Staged into `more games/` (git-cloned, `--depth 1`, matching every other
 GitHub-hosted source in this folder): `Arduino-Game-System/` (Helicopter),
 `Esp8266OledGame/` (CarRaceGame, plus 3 likely-duplicate games in the
-same repo), `ESP8266GameOn/`, and `BFlight/` - not yet triaged/ported,
-staged for a future porting pass the same way every other discovery
-batch in this file has been. Before porting anything from this batch:
-resolve the `game-asteroid`/`BFlight` overlap question above via a real
-diff, and code-diff (not just genre-compare) `driveGame`/`mazeRunner`/
-Helicopter against their suspected near-duplicates before committing
-effort, matching this project's own established discipline for every
+same repo), `ESP8266GameOn/`, and `BFlight/`. **Update: `BFlight`
+(Road Rush/DFlight/MRunnr) and `ESP8266GameOn`'s own Asteroid have since
+all shipped** - see each one's own writeup further below. Still
+unported/untriaged from this batch: `Arduino-Game-System`'s own
+Helicopter (still needs a real code-diff against HollowSeeker/UFO before
+committing effort, not just a genre-similarity guess) and
+`Esp8266OledGame`'s own CarRaceGame (only a secondary option, if a
+second driving-game candidate is ever wanted alongside `driveGame`/Road
+Rush) - matching this project's own established discipline for every
 prior "looks like a genre duplicate but hasn't actually been read"
 candidate.
 
@@ -2030,7 +2032,7 @@ control flow.
 ## Status (as of this session)
 
 Shipped and visually verified (WebGL emulator + a Puppeteer screenshot
-harness - see below): the shim architecture, the menu, and 56 full games
+harness - see below): the shim architecture, the menu, and 57 full games
 (NumberPlace, Tiny Invaders, 2048, HollowSeeker, Tiny Pinball, Tiny
 Pacman, Tiny Bomber, Tiny Doc, Tiny Bert, Tiny Tris, Tiny Arkanoid, Tiny
 Trick, Tiny Minez, Tiny Missile, Tiny Bike, Tiny Arena, Tiny Gilbert,
@@ -2041,7 +2043,7 @@ Jump Slime, TinyRoG, TinY Fi, Breakout, Space Attack, Falling Blocks,
 Tiny Mania, Blocks Gold, Astro Barrier, ATtiny Snake, Meteor Storm,
 Flappy Bird, Tiny Bulls And Cows, ATtiny Tetromino, Laser Pong, Pipe
 Bird, Nohzdyve, Gilbert in the Downland, Ardumania, Road Rush, DFlight,
-MRunnr - both Falling Blocks
+MRunnr, Asteroid - both Falling Blocks
 and Blocks Gold's own menu names deliberately avoid naming
 the falling-block puzzle genre they're clones of, a registered trademark
 (see each one's own writeup below for the full naming rationale); Tiny
@@ -9516,6 +9518,186 @@ fills up. `THUMBNAIL3_COUNT` bumped 7->8. This closes out the BFlight
 bundle entirely - every real game in it (Road Rush, DFlight, MRunnr) has
 now shipped.
 
+## Asteroid - the fourth tonym128 port, resolving the game-asteroid/BFlight open question
+
+Ported from `more games/ESP8266GameOn/myGame.cpp`/`.hpp` - a genuinely
+different, OLDER repo than `BFlight` (tonym128's own README describes
+`BFlight` as the newer, consolidated successor) - picked directly by the
+user once this project's own remaining-candidates list was reviewed. A
+real Asteroids clone: rotate/thrust a ship, shoot rocks that split into
+smaller pieces, across 10 waves. This closes out this project's own
+long-standing open question (from the sixth beyond-scope discovery pass
+- see that section above) about whether "game-asteroid" survived into
+`BFlight`'s own newer game list - it did not; `ESP8266GameOn`'s own
+README states directly "You can see the Asteroids demo on the master
+branch," and the repo's own generic "write your own game here" file
+(`myGame.cpp`/`.hpp`) holds the Asteroids demo directly, on the already-
+cloned master branch - no further branch-fetching was ever needed. Menu
+title "ASTEROID" (matching the repo's own scroller text, " -= Asteroid
+=- "), credited "TONYM128"/ESP8266, matching Road Rush/DFlight/MRunnr.
+
+**A genuinely new rendering technique for this project**: every sprite
+(ship, all 3 asteroid sizes) is rendered via real per-pixel 2D image
+rotation (`astRotateObject()`, a direct port of upstream's own
+`rotateObject()`) - for each destination pixel, an inverse rotation
+matrix (real `sin()`/`cos()`, not the fixed-point polynomial
+approximation upstream's own `fixpoint.h` provides for non-Emscripten
+targets - Vircon32 has real hardware floats, matching the by-now-
+standard "fixpoint.h is unnecessary here" finding from Tiny Arena/
+MRunnr) locates the corresponding source pixel and nearest-neighbor-
+samples it. `FIXP_INT_PART`'s own right-shift (floor, not truncate-
+toward-zero, for a value that can be genuinely negative) is reproduced
+faithfully rather than with a plain `(int)` cast.
+
+**Two independent angle fields, ported as two independent fields**:
+`direction` (fixed at spawn for an asteroid, continuously player-steered
+for the ship - degrees, 0-360) drives *movement* via `xVec()`/`yVec()`;
+`rotation` (continuously increasing over time) drives *rendering* via
+`astRotateObject()`. `xVec()`/`yVec()` are themselves a deliberate
+piecewise-linear approximation of a circle (a diamond-shaped direction
+model), preserved exactly rather than "upgraded" to real trig despite
+this same file using real trig for sprite *rotation* just above - traced
+through by hand to confirm this is a deliberate, working design, not
+broken/dead code, matching this project's own "preserve a real,
+functioning, if unusual, choice" precedent. The player's own `rotation`
+field is similarly clamped to `[0,6]` (not `[0,2*pi]`) via an explicit
+bound check rather than a true modulo - ported exactly as upstream has
+it.
+
+Every genuine real-millisecond gate (`firetimeout`/`FIREPACING`,
+`scoreTimeMultiplier`/`SCORETIMEMULTTIMEOUT`, each asteroid's own
+continuously-growing `rotation = getTimeInMillis()/rotateAmount`) was
+converted to a frame-tick equivalent, matching the same conversion
+already established for Road Rush/DFlight/MRunnr - this repo shares the
+identical real `updateMinTime(33)` (~30fps) outer-loop cap (confirmed
+directly in its own `game.cpp`), so the same whole-tick
+`AST_TICK_DIVISOR` throttle applies here too.
+
+Not `tinyJoypadShim`/`obonoCoreShim` lineage - the same bespoke ESP8266
+hardware/button scheme as every other tonym128 port, needing no new
+shim. Both `P2_Right` (`a`, fire) and `P2_Left` (`b`, upstream's own
+secondary thrust alias) are real, live inputs, mapped onto
+`isFirePressed()`/`isFire2Pressed()` respectively - the first BFlight-
+family port in this project to actually need `isFire2Pressed()`
+(previously only used by Tiny Minez's own B-button flag toggle).
+`Alien10x10` (a declared-but-dead 10x10 alien sprite) confirmed dead by
+grep and dropped.
+
+**A genuine, load-bearing upstream quirk, preserved rather than
+"fixed"**: `initAttractMode()` does not zero the whole 90-slot asteroid
+array first, unlike `startLevel()`'s own explicit full clear - it only
+ever touches indices `0` through its own randomly-chosen demo count, so
+the attract screen can in principle show a few leftover asteroids from
+whatever session state preceded it (most visibly after a loss, since a
+game-over never clears the array either). Ported exactly as observed.
+
+**Three real bugs found via direct, live user reports during this port's
+own first playtest session, each fixed in turn**:
+1. *"splitting an asteroid is weird i see pieces briefly being drawn far
+   away from original position"* - a genuine bug. `astSpawnAsteroid()`
+   set the new piece's own float position (`astAstFixX`/`astAstFixY`)
+   correctly but never updated the INTEGER render/collision position
+   (`astAstX`/`astAstY`) - since this is a fixed-size 90-slot pool reused
+   across the whole session, a freshly-claimed slot's `astAstX`/`astAstY`
+   still held whatever screen position that slot's *previous* occupant
+   last had, and `astDisplayPlaying()` renders directly from
+   `astAstX`/`astAstY` (only refreshed from the float position a tick
+   later, inside `astUpdateAsteroidMovement()`) - so a newly-split
+   asteroid rendered at its stale predecessor's old position for exactly
+   one frame before snapping to the correct spot. **Fixed** by deriving
+   `astAstX`/`astAstY` immediately inside `astSpawnAsteroid()` itself,
+   using the identical wrap formula `astUpdateAsteroidMovement()` already
+   uses, closing the one-frame gap entirely.
+2. *"on lvl 3 cpu reaches 100%, find optimizations"* - investigated in
+   several rounds. First, a genuine, safe, always-correct win: 
+   `astDisplayPlaying()`/`astDisplayAttractMode()` were each calling
+   `astRotateObject()` (a full dimW*dimH pass sampling into a scratch
+   array) followed by `astDrawObjectWrap()` (a SECOND full dimW*dimH pass
+   reading that array and writing the framebuffer) for every visible
+   sprite, every frame - two complete sweeps over the same pixel grid
+   where one suffices. Fused into `astRotateAndDrawWrap()`, sampling the
+   rotated source and writing directly to the wrapped framebuffer
+   position in a single pass, used by both display paths (collision
+   detection still needs the separate array-producing form, since
+   `astMaskCollision()` compares two whole arrays). Second, `floor()`
+   itself (called twice per rotated pixel) was found to be a real ASM
+   subroutine (`math.h` defines it via an inline `asm{...}` block, not a
+   compiler intrinsic) - paying real per-call overhead on top of its own
+   instructions, the same "raw per-call overhead dominates without
+   v32opt's inlining" lesson this project has hit repeatedly elsewhere,
+   just via a math-library call this time. Inlined as a plain truncating
+   cast plus a conditional -1 adjustment for negative values, avoiding
+   the call entirely. Several attempts to *measure* the effect of these
+   fixes via a temporary debug hook (forcing a busy scene, disabling
+   collision so it would persist) ended up contaminated by the hook's own
+   side effects (clearing the asteroid array mid-session triggered a
+   false "level cleared" cascade upstream itself would also hit) rather
+   than by anything wrong with the fixes themselves - all debug hooks
+   were fully reverted (confirmed via grep) once that became clear, and a
+   direct follow-up user request to check text/UI rendering specifically
+   (rather than keep chasing the contaminated measurement) found one more
+   real, if small, inefficiency: `astDrawSliderBars()` (the level-slider/
+   game-over sliding-bar animation) iterated `frameCounter` times every
+   single call even though only the most recent 64 iterations ever draw
+   anything (a genuine sliding *window* effect, not a simple fill-up) -
+   fixed by computing the window's own bounds directly instead of
+   scanning down to them from frameCounter every time, removing the
+   wasted tail iterations once frameCounter exceeds 64. The character-
+   drawing functions themselves (`astDrawChar`/`astDrawString`) were
+   individually audited against every one of their ~20 call sites and
+   confirmed already efficient (each string is drawn once per frame, not
+   inside a per-pixel sweep) - not the source of the reported spike. The
+   exact remaining driver of the level-3 CPU report was not conclusively
+   isolated this session (a clean, side-effect-free reproduction was not
+   completed before time ran out) - flagged honestly as a real, open
+   follow-up rather than claimed fixed, though the fusion and floor()
+   fixes above are both real, unconditionally-safe improvements applied
+   regardless.
+3. A direct user question ("how far do bullets shoot?") was answered by
+   tracing the actual ported values rather than guessing: `life` starts
+   at 1000 and decrements by the fixed `AST_FPS`(30) each tick (replacing
+   upstream's own *measured*-FPS decrement, `fire[i].life -=
+   getCurrentFPS()` - this port has no equivalent live-measured value, and
+   the fixed nominal rate is what upstream's own moving-average counter
+   would settle on in steady state anyway), giving roughly 33 ticks
+   (~1.1 real seconds) of flight before a bullet expires - about a
+   quarter of the 128px-wide world at its own fixed unit speed, though a
+   bullet fired while the ship is drifting fast in the same direction
+   travels further, since it inherits the ship's own momentum at the
+   moment of firing (`FIREPOWER`, matching upstream exactly).
+
+Verified via Puppeteer throughout (both before and after every fix
+above): menu registration (page 1, alphabetized between Ardumania and
+Astro Barrier), the boot logo (a real 128x64 "Asteroid!" splash image,
+not text this port drew itself), the attract screen (floating demo
+asteroids + blinking "Press a button to start" + hi-score display), the
+intro scroller, the "Level N" slider, active gameplay (rotation, thrust,
+firing, the ship and asteroids all rendering correctly with the fused
+draw path), and the "Game Over" freeze-frame (confirmed the frozen
+collision-moment scene stays correctly visible underneath the overlaid
+text and slider bars, matching upstream's own `displayClear`-free scene-5
+body exactly - a bug caught and fixed by inspection before ever shipping,
+not by a report, once the equivalent pattern from `astUpdateLevelSlider()`
+was checked against the real upstream source rather than assumed
+identical). Every HUD/UI text string ("Scr N Lvl M", "Level N", "Game
+Over", the attract-screen prompts) was independently re-verified via a
+dedicated clean screenshot pass with the debug perf overlay hidden, after
+an initial ambiguous report turned out to be the overlay's own corner box
+visually covering the "Scr" prefix in those specific captures, not a
+real rendering defect.
+
+**A fourth texture needed for the thumbnail atlas**: `assets/
+thumbnails3.png` was already completely full (8/8 cells) going into this
+port - created `assets/thumbnails4.png` (a fresh 4x2 grid, matching every
+earlier atlas-exhaustion precedent), wired as texture id 5 (appended
+after `thumbnails3` in `rom.xml`, keeping every earlier texture id
+unchanged), with `THUMBNAILS4_TEXTURE_ID`/`THUMBNAIL4_COUNT` added
+alongside the existing three in `portVircon32.c`'s own dispatch chain.
+Asteroid's own thumbnail (ship + one asteroid + "Scr 0 Lvl 1" HUD, "BY
+TONYM128" credit) occupies cell 0; 7 cells of headroom remain. Verified
+via screenshot that it displays correctly and a spot-checked neighbor
+(Astro Barrier) is untouched.
+
 ## Licensing
 
 Tiny Invaders v4.2 is GPLv3 (its `tinyJoypadUtils`/driver lineage). Since a
@@ -9638,14 +9820,16 @@ game's own code or in a README/LICENSE file - the same "known author,
 unstated license" situation as Jump Slime/TinyRoG/TinY Fi/Flappy Bird
 above, credited "IOANNIS LAMPROPOULOS" in the menu and listed as "None
 specified" in the README for licensing purposes only. Road Rush,
-DFlight, and MRunnr are all a clean GPLv3 case - `tonym128/BFlight`'s
-own repo states GPLv3 directly (a real `LICENSE` file, not just a
-claim), all three credited "TONYM128" in the menu (the GitHub handle,
-matching each game's own in-game attract screen "BY TONYM128" credit
-line - the README's own fuller "Tony M (tonym128)" author column adds
-the real name the repo's own README also states, the same "menu gets
-the terse handle, README gets the fuller credit" split already used for
-ATtiny Tetromino's own "SUNPAZED" menu credit). Four in a Row
+DFlight, MRunnr, and Asteroid are all a clean GPLv3 case - both
+`tonym128/BFlight` (Road Rush/DFlight/MRunnr) and its own older sibling
+repo `tonym128/ESP8266GameOn` (Asteroid) state GPLv3 directly (each a
+real `LICENSE` file, not just a claim), all four credited "TONYM128" in
+the menu (the GitHub handle, matching each game's own in-game attract
+screen "BY TONYM128" credit line - the README's own fuller "Tony M
+(tonym128)" author column adds the real name each repo's own README also
+states, the same "menu gets the terse handle, README gets the fuller
+credit" split already used for ATtiny Tetromino's own "SUNPAZED" menu
+credit). Four in a Row
 and Dino
 Game are the two exceptions to every
 license-family grouping above - neither's own source carries an author

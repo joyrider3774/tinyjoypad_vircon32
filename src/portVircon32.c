@@ -130,6 +130,16 @@
 #define THUMBNAIL3_GRID_ROWS 2
 #define THUMBNAIL3_COUNT 8
 
+// Asteroid (57th game) filled thumbnails3's own last cell - same
+// "atlas is full, add a new texture" precedent as every prior grid-
+// exhaustion in this file. A 4x2 grid (1024x256, 8 cells of headroom),
+// added as texture id 5 (appended after thumbnails3 in rom.xml, keeping
+// every earlier texture id unchanged).
+#define THUMBNAILS4_TEXTURE_ID 5
+#define THUMBNAIL4_GRID_COLS 4
+#define THUMBNAIL4_GRID_ROWS 2
+#define THUMBNAIL4_COUNT 8
+
 // Pixel-grid overlay (see drawPixelGridOverlay() below) - one pre-baked
 // 640x320 texture (assets/pixelgrid.png, a transparent background with
 // opaque black 1px lines every TILE_SCALE pixels in both directions,
@@ -199,6 +209,17 @@ void md_initVideo()
         0
     );
 
+    select_texture( THUMBNAILS4_TEXTURE_ID );
+
+    define_region_matrix
+    (
+        0,                                          // first_id == (game index - THUMBNAIL_COUNT - THUMBNAIL2_COUNT - THUMBNAIL3_COUNT)
+        0, 0, THUMBNAIL_W - 1, THUMBNAIL_H - 1,
+        0, 0,
+        THUMBNAIL4_GRID_COLS, THUMBNAIL4_GRID_ROWS,
+        0
+    );
+
     select_texture( PIXELGRID_TEXTURE_ID );
     select_region( 0 );
     define_region( 0, 0, 639, 319, 0, 0 );
@@ -208,18 +229,16 @@ void md_initVideo()
 
 int md_getThumbnailCount()
 {
-    return THUMBNAIL_COUNT + THUMBNAIL2_COUNT + THUMBNAIL3_COUNT;
+    return THUMBNAIL_COUNT + THUMBNAIL2_COUNT + THUMBNAIL3_COUNT + THUMBNAIL4_COUNT;
 }
 
-// Dispatches across the three thumbnail textures, treating gameIndex as
-// one contiguous logical space (0..THUMBNAIL_COUNT-1 in the first/
-// original atlas, THUMBNAIL_COUNT..+THUMBNAIL2_COUNT-1 in the second,
-// the rest in the third) - see this file's own comments above
-// THUMBNAILS_TEXTURE_ID/THUMBNAILS3_TEXTURE_ID for why each additional
-// texture was needed.
+// Dispatches across the four thumbnail textures, treating gameIndex as
+// one contiguous logical space - see this file's own comments above
+// THUMBNAILS_TEXTURE_ID/THUMBNAILS3_TEXTURE_ID/THUMBNAILS4_TEXTURE_ID
+// for why each additional texture was needed.
 void md_drawGameThumbnail( int gameIndex, int x, int y )
 {
-    if( gameIndex < 0 || gameIndex >= THUMBNAIL_COUNT + THUMBNAIL2_COUNT + THUMBNAIL3_COUNT )
+    if( gameIndex < 0 || gameIndex >= THUMBNAIL_COUNT + THUMBNAIL2_COUNT + THUMBNAIL3_COUNT + THUMBNAIL4_COUNT )
       return;
 
     if( gameIndex < THUMBNAIL_COUNT )
@@ -232,10 +251,15 @@ void md_drawGameThumbnail( int gameIndex, int x, int y )
         select_texture( THUMBNAILS2_TEXTURE_ID );
         select_region( gameIndex - THUMBNAIL_COUNT );
     }
-    else
+    else if( gameIndex < THUMBNAIL_COUNT + THUMBNAIL2_COUNT + THUMBNAIL3_COUNT )
     {
         select_texture( THUMBNAILS3_TEXTURE_ID );
         select_region( gameIndex - THUMBNAIL_COUNT - THUMBNAIL2_COUNT );
+    }
+    else
+    {
+        select_texture( THUMBNAILS4_TEXTURE_ID );
+        select_region( gameIndex - THUMBNAIL_COUNT - THUMBNAIL2_COUNT - THUMBNAIL3_COUNT );
     }
     draw_region_at( x, y );
 }

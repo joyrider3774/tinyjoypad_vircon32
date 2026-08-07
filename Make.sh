@@ -52,6 +52,7 @@ png2vircon assets/thumbnails.png -o obj/thumbnails.vtex || abort_build
 png2vircon assets/thumbnails2.png -o obj/thumbnails2.vtex || abort_build
 png2vircon assets/pixelgrid.png -o obj/pixelgrid.vtex || abort_build
 png2vircon assets/thumbnails3.png -o obj/thumbnails3.vtex || abort_build
+png2vircon assets/thumbnails4.png -o obj/thumbnails4.vtex || abort_build
 
 echo
 echo Convert the PlayNote wavetable

@@ -8,6 +8,7 @@
         <texture path="obj/thumbnails2.vtex"/>
         <texture path="obj/pixelgrid.vtex"/>
         <texture path="obj/thumbnails3.vtex"/>
+        <texture path="obj/thumbnails4.vtex"/>
     </textures>
     <sounds>
         <sound path="obj/wt_saw.vsnd"/>

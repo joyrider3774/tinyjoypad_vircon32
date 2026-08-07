@@ -224,4 +224,8 @@ void addGames()
     addGame( "DFLIGHT", "TONYM128", &gameDFlight_init, &gameDFlight_update, &gameDFlight_forceRedraw );
     // Same reasoning again - closes out the BFlight bundle.
     addGame( "MRUNNR", "TONYM128", &gameMazeRunner_init, &gameMazeRunner_update, &gameMazeRunner_forceRedraw );
+    // ESP8266GameOn (tonym128's older, predecessor repo to BFlight) -
+    // its own attract screen has a real, indefinite "press a button"
+    // wait state, same onResume reasoning as every other tonym128 port.
+    addGame( "ASTEROID", "TONYM128", &gameAsteroid_init, &gameAsteroid_update, &gameAsteroid_forceRedraw );
 }

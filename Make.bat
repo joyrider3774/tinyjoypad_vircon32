@@ -49,6 +49,7 @@ png2vircon assets\thumbnails.png -o obj\thumbnails.vtex || goto :failed
 png2vircon assets\thumbnails2.png -o obj\thumbnails2.vtex || goto :failed
 png2vircon assets\pixelgrid.png -o obj\pixelgrid.vtex || goto :failed
 png2vircon assets\thumbnails3.png -o obj\thumbnails3.vtex || goto :failed
+png2vircon assets\thumbnails4.png -o obj\thumbnails4.vtex || goto :failed
 
 echo.
 echo Convert the PlayNote wavetable
