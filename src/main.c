@@ -85,6 +85,7 @@
 #include "games/gameArdumania.c"
 #include "games/gameRoadRush.c"
 #include "games/gameDFlight.c"
+#include "games/gameMazeRunner.c"
 
 #include "menuGameList.c"
 

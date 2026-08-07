@@ -222,4 +222,6 @@ void addGames()
     // Same reasoning as Road Rush above - onResume wired defensively
     // since this game also has an indefinite-wait attract screen.
     addGame( "DFLIGHT", "TONYM128", &gameDFlight_init, &gameDFlight_update, &gameDFlight_forceRedraw );
+    // Same reasoning again - closes out the BFlight bundle.
+    addGame( "MRUNNR", "TONYM128", &gameMazeRunner_init, &gameMazeRunner_update, &gameMazeRunner_forceRedraw );
 }

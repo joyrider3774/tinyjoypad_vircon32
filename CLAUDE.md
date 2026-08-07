@@ -2030,7 +2030,7 @@ control flow.
 ## Status (as of this session)
 
 Shipped and visually verified (WebGL emulator + a Puppeteer screenshot
-harness - see below): the shim architecture, the menu, and 53 full games
+harness - see below): the shim architecture, the menu, and 56 full games
 (NumberPlace, Tiny Invaders, 2048, HollowSeeker, Tiny Pinball, Tiny
 Pacman, Tiny Bomber, Tiny Doc, Tiny Bert, Tiny Tris, Tiny Arkanoid, Tiny
 Trick, Tiny Minez, Tiny Missile, Tiny Bike, Tiny Arena, Tiny Gilbert,
@@ -2040,7 +2040,8 @@ Dungeon, Oroboros, Run Dude Run, Four in a Row, Dino Game, SnakeGame85,
 Jump Slime, TinyRoG, TinY Fi, Breakout, Space Attack, Falling Blocks,
 Tiny Mania, Blocks Gold, Astro Barrier, ATtiny Snake, Meteor Storm,
 Flappy Bird, Tiny Bulls And Cows, ATtiny Tetromino, Laser Pong, Pipe
-Bird, Nohzdyve, Gilbert in the Downland, Ardumania - both Falling Blocks
+Bird, Nohzdyve, Gilbert in the Downland, Ardumania, Road Rush, DFlight,
+MRunnr - both Falling Blocks
 and Blocks Gold's own menu names deliberately avoid naming
 the falling-block puzzle genre they're clones of, a registered trademark
 (see each one's own writeup below for the full naming rationale); Tiny
@@ -9337,6 +9338,184 @@ Menu thumbnail added to `assets/thumbnails3.png`'s cell 6 (the 7th cell
 of its 4x2 grid, now down to 1 free cell) - `THUMBNAIL3_COUNT` bumped
 6->7.
 
+## MRunnr - the third and last port from `BFlight`, closing out the bundle
+
+Ported from `more games/BFlight/mazeRunner.cpp`/`.hpp` +
+`mazeGenerator.cpp`/`.hpp` - the last real game in tonym128's own
+"BFlight" bundle (after Road Rush/driveGame and DFlight/bsideFly). A
+real, texture-mapped first-person maze crawler built on a genuine DDA
+raycaster (the classic lodev.org "flat" tutorial variant, credited
+directly in upstream's own header comment) - freshly generate a 25x25
+maze, race a 120-second countdown to reach a marked exit, with real
+64x64 brick-wall/"DefCon" exit textures sampled per-pixel rather than
+Tiny Arena's own simpler dithered-checkerboard approach. Menu title
+"MRUNNR" (README: "MRunnr"), lifted from the intro scroller's own credit
+line (" -= mRunnr =-  "), the same "read the game's own on-screen text"
+convention as every other BFlight port. Credited "TONYM128"/ESP8266,
+matching Road Rush/DFlight.
+
+**Plain floats replace every bit of upstream's own `FIXPOINT` 32.16
+fixed-point emulation** - Vircon32's real hardware floats make the whole
+`fixpoint.h` layer unnecessary, the same simplification already proven
+by Tiny Arena's own raycaster. `FIXP_MULT`/`FIXP_DIV` become `*`/`/`;
+`FIXP_FIXP_INT_PART` (mask off the fraction, stay in fixed units)
+becomes `floor()`; `FIXP_DEC_PART` (a two's-complement-correct `frac()`
+via a low-16-bits mask) becomes `x - floor(x)`, not a naive truncating
+subtraction; `FIXPOINT_SIN`/`FIXPOINT_COS` (upstream's own comment: "the
+loss of precision is extraordinary!") become real `sin()`/`cos()` calls.
+
+**A deliberate array-indexing unification, chosen specifically to avoid
+a transpose bug before ever writing the raycaster**: upstream's own
+`Maze` class stores `maze[y*WIDTH+x]` internally, but the *separate*
+`worldMap[WIDTH][HEIGHT]` the raycaster actually reads is accessed
+`worldMap[x][y]` - a real C 2D array whose own row-major layout is
+`x*HEIGHT+y`, genuinely different from `maze[]`'s own formula, needing
+upstream's own `copyMaze()` to swap x/y while copying. This port uses
+one single `[x+y*25]` convention for every maze-shaped array
+(`mzGen`/`mzWorld`/`mzTraversal`) - which happens to match upstream's
+own internal `maze[]` layout exactly (`y*WIDTH+x` == `x+y*25` when
+WIDTH==25), so `mzGenerateMaze()`/`mzCarveMaze()` port over with zero
+reindexing, and `mzWorld`'s own copy from `mzGen` becomes a trivial
+direct 625-word loop with no transpose risk at all.
+
+**The per-row wall-texture-Y division was replaced with the standard
+incremental technique, not reproduced literally**: upstream's own
+`display()` computes `texY` via *two* integer divisions on every row of
+every wall stripe, with its own inline comment admitting as much ("TODO:
+avoid the division to speed this up") - exactly the well-known
+lodev.org "flat"-vs-"textured" tutorial distinction, not a novel guess.
+Verified equivalent by direct derivation: since `texW==texH==64` here,
+upstream's own formula algebraically reduces to `texY =
+32*(2y-64+lineHeight)/lineHeight`, which is 0 at the unclamped top of a
+stripe and exactly `texH` at its unclamped bottom - the same two
+boundary conditions the incremental `step=texH/lineHeight;
+texPos=(drawStart-32+lineHeight/2)*step` technique produces by
+construction.
+
+**The uninitialized win/lose text buffer was fixed, not reproduced**:
+upstream's own `char fps[30];` followed by a *commented-out*
+`//sprintf(fps, "YOU WIN!");` and then a `strlen(fps)` read on the
+never-initialized buffer is clearly broken, dead code (real undefined
+behavior even on original hardware, not a deliberate quirk with an
+observable intended result). The commented-out `sprintf` calls make the
+intended text unambiguous, so this port draws "YOU WIN!"/"GAME OVER!"
+directly at the same positions instead of reproducing garbage - the same
+"fix clearly-broken-and-unintended upstream code, don't reproduce
+nondeterministic UB" precedent already used elsewhere in this project.
+
+**A second real upstream bug, this one NOT reproducible in this port at
+all rather than deliberately fixed**: the minimap's own "reveal the 3x3
+area right around the player" window uses `int mapX = int(posX);` - a
+bare C++ functional-style cast on the raw `FIXPOINT` (a scaled
+`int32_t`), with no `FIXP_TO_INT` unscale applied anywhere else in the
+file needs. On real hardware this leaves `mapX` in the hundreds-of-
+thousands range, so the window's own bounds check (`(mapX+i)>0 &&
+<mapWidth`) can never pass - the reveal window silently never activates,
+almost certainly an unintentional upstream typo/omission rather than a
+deliberate choice. Since this port's own `mzPosX`/`mzPosY` were never
+fixed-point-scaled to begin with, a plain `(int)mzPosX` cast here is
+simply *correct* - there's no way to "faithfully preserve" a bug that
+was purely an artifact of a representation this port doesn't use, so the
+reveal window works as evidently intended instead.
+
+Not `tinyJoypadShim`/`obonoCoreShim` lineage - genuine bespoke ESP8266
+hardware, the same `P1_Top/Bottom/Left/Right` mapping as Road Rush/
+DFlight (Up/Down move, Left/Right rotate), needing no new shim. `P2_Left`
+("open") and `P2_Top` (upstream's own "abandon and restart" gesture) are
+both confirmed dead by grep and left unwired, matching Road Rush/
+DFlight's own precedent of not duplicating this cartridge's existing
+Start-button quit dialog. Data tables (both 64x64 textures, plus font
+data reused verbatim from Road Rush/DFlight's own already-verified
+myfont.hpp extraction) extracted via a Python script.
+
+**Two real bugs found and fixed during this port's own first live
+verification pass, both self-caught rather than reported after
+shipping**: (1) `mzUpdateAttract()` checked for a Fire press but never
+actually called `mzDrawAttract()` on any ordinary tick (only
+`gameMazeRunner_forceRedraw()` did) - since `gameMazeRunner_init()` only
+clears the framebuffer once and never draws the attract text itself, the
+attract screen stayed permanently black until this was fixed to match
+DFlight's own `flyUpdateAttract()` shape (call the draw function every
+tick, not just on the state-exit transition). (2) The hand-transcribed
+`mzFontData` table (retyped by reading DFlight's own already-verified
+table through several `Read` calls rather than reusing the same script-
+extracted output already sitting in the scratchpad) was silently
+truncated to 116 of the required 192 lines - the array declaration's own
+`int[6144]` size didn't change, so the dialect zero-padded the missing
+values rather than erroring at compile time, producing readable-but-
+garbled text (correct pixels only for glyphs whose data happened to fall
+within the truncated range, blank/wrong pixels for the rest) rather than
+a build failure or a crash. Caught immediately from a live screenshot
+("MRUNNR" rendering as "M i l NN i") and fixed by diffing the broken
+table against DFlight's own extracted font data programmatically (not
+re-typing by hand a second time) and splicing in the verified-identical
+192-line version - the same "byte-diff transcribed tables, don't trust
+an eyeballed copy" lesson this project has hit repeatedly, here via a
+new failure mode (a partial `Read`-then-`Write` transcription silently
+truncating a large table, rather than a single mistyped value).
+
+**CPU optimization, applied proactively per direct user request the
+moment the port was playable, then confirmed necessary by the user's own
+live report of "100% when turning close to a wall"** - four real,
+verified-safe fixes, in order: (1) `mzCameraX[128]`, a table of
+`2.0*x/128.0-1.0` values precomputed once in `gameMazeRunner_init()`
+instead of recomputed as a fresh division every column, every frame -
+the value depends only on `x`, never on player state; (2)
+`floor(mzPosX)`/`floor(mzPosY)` hoisted to run once per frame instead of
+once per column, for the same reason; (3) the per-row framebuffer
+`idx`/`bit` computation (a multiply-by-128 and a shift-from-scratch
+every row) replaced with an incremental update - `bit` just left-shifts
+each row, only rolling `idx` into the next page once every 8 rows - plus
+`texSize*texY` replaced with `texY<<6` (texSize==64==2^6, a compile-
+time-constant power of 2); (4) the floor fill, originally one fixed
+128x32-pixel block drawn *before* the raycasting loop every frame,
+rewritten to fill only each column's own genuinely-uncovered rows
+(`[max(drawEnd,32), 63]`) *inside* the same loop, right after `drawEnd`
+is known - exactly zero floor pixels get drawn for a column whose wall
+stripe already reaches the bottom of the screen, the precise scenario
+the user's own "close to a wall" report described, and the same "don't
+draw a whole strip about to be completely overdrawn" lesson as Road
+Rush's own road-shoulder fix, just discovered per-column instead of
+per-row. Measured via the perf overlay's own history graph: ordinary
+corridor movement dropped from a sustained pegged 100% down to a mixed
+40-70% range; the single most extreme case (a wall filling nearly the
+entire 128x64 screen, maximum texture magnification, up to ~8000
+per-pixel writes in one frame) still reads 100%. Presented this ceiling
+to the user directly via AskUserQuestion (accept as documented / halve
+render resolution for a real fidelity trade-off / keep chasing smaller
+wins) rather than silently declaring it fixed or unilaterally
+restructuring the renderer - the user chose to accept it as a documented
+ceiling, the same call already made for Tiny Arena's own close-up-sprite
+case and Tiny Bert's ~70-76% baseline: this game does full 128x64
+resolution with real per-pixel texture sampling (4x the raw pixel count
+of Tiny Arena's own half-resolution dithered raycaster, which itself
+never dropped below ~97% in its own worst case even after two rounds of
+optimization), so a ceiling exactly at the ~8000-pixel extreme is
+consistent with, not surprising relative to, that existing precedent. No
+truncation (missing/cut-off content) was observed in any sampled
+close-up frame - the frames render completely, just consuming the full
+per-frame budget.
+
+Verified via Puppeteer: menu registration (page 3, alphabetized between
+Meteor Storm and Nohzdyve), the attract screen (post-fix), the intro
+scroller (apostrophes/lowercase rendering correctly, post-font-fix), the
+"Final Level" bars screen, and active gameplay (real texture-mapped
+brick corridors with correct converging perspective on both sampled DDA
+sides, movement, and rotation) all render correctly. Not independently
+forced this session: reaching the real exit marker (a win), the lose
+timeout, and the lose-scroller's own maze-regeneration restart path -
+all three reuse state-machine plumbing structurally identical to
+DFlight's/Road Rush's own already-proven transitions, so risk is low,
+but worth a direct check if anything looks off.
+
+Menu thumbnail added to `assets/thumbnails3.png`'s cell 7 - the 8th and
+last cell of its 4x2 grid, now completely full; the next new game's own
+thumbnail will need either a further grid-growth or a 4th texture,
+matching this project's own established precedent for when an atlas
+fills up. `THUMBNAIL3_COUNT` bumped 7->8. This closes out the BFlight
+bundle entirely - every real game in it (Road Rush, DFlight, MRunnr) has
+now shipped.
+
 ## Licensing
 
 Tiny Invaders v4.2 is GPLv3 (its `tinyJoypadUtils`/driver lineage). Since a
@@ -9458,15 +9637,15 @@ Meteor Storm's own credit) but no license statement anywhere in the
 game's own code or in a README/LICENSE file - the same "known author,
 unstated license" situation as Jump Slime/TinyRoG/TinY Fi/Flappy Bird
 above, credited "IOANNIS LAMPROPOULOS" in the menu and listed as "None
-specified" in the README for licensing purposes only. Road Rush and
-DFlight are both a clean GPLv3 case - `tonym128/BFlight`'s own repo
-states GPLv3 directly (a real `LICENSE` file, not just a claim), both
-credited "TONYM128" in the menu (the GitHub handle, matching the
-in-game attract screen's own "BY TONYM128" credit line - the README's
-own fuller "Tony M (tonym128)" author column adds the real name the
-repo's own README also states, the same "menu gets the terse handle,
-README gets the fuller credit" split already used for ATtiny Tetromino's
-own "SUNPAZED" menu credit). Four in a Row
+specified" in the README for licensing purposes only. Road Rush,
+DFlight, and MRunnr are all a clean GPLv3 case - `tonym128/BFlight`'s
+own repo states GPLv3 directly (a real `LICENSE` file, not just a
+claim), all three credited "TONYM128" in the menu (the GitHub handle,
+matching each game's own in-game attract screen "BY TONYM128" credit
+line - the README's own fuller "Tony M (tonym128)" author column adds
+the real name the repo's own README also states, the same "menu gets
+the terse handle, README gets the fuller credit" split already used for
+ATtiny Tetromino's own "SUNPAZED" menu credit). Four in a Row
 and Dino
 Game are the two exceptions to every
 license-family grouping above - neither's own source carries an author

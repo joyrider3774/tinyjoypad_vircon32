@@ -2,11 +2,15 @@
 
 ![Menu screenshot](metadata/menu.png)
 
-A single [Vircon32](https://www.vircon32.com/) cartridge that ports **55
-games** originally written for the [TinyJoypad](https://www.tinyjoypad.com/)
-ATtiny85 + SSD1306 128x64 OLED handheld onto Vircon32's 640x360 GPU, behind
-one shared game-select menu. Vircon32's GPU is a texture-region blitter with
-no CPU-writable framebuffer, so every game's display output is routed
+A single [Vircon32](https://www.vircon32.com/) cartridge that ports **56
+games** onto Vircon32's 640x360 GPU, behind one shared game-select menu.
+Most originally targeted the [TinyJoypad](https://www.tinyjoypad.com/)
+itself (an ATtiny85 driving a 128x64 SSD1306 monochrome OLED); the rest
+come from other small handhelds sharing that same 128x64 SSD1306 display/
+button shape but built on a different microcontroller (ESP8266 or ESP8285)
+- see each game's own MCU column in the table below. Vircon32's GPU is a
+texture-region blitter with no CPU-writable framebuffer, so every game's
+display output is routed
 through a 256-tile "column atlas" (one pre-baked texture tile per possible
 SSD1306 byte value) instead of writing pixels directly - see `CLAUDE.md` for
 the full architecture writeup, porting log, and every bug found along the
@@ -75,6 +79,7 @@ Click a thumbnail for the full-size screenshot.
 | Jump Slime | Kondolab (近藤さんちの研究室) | ATtiny85 | None specified | — | [kondolab](https://note.com/kondolab/n/ndc93ac31e555) | [<img src="metadata/screenshots/JUMP%20SLIME.png" width="80">](metadata/screenshots/JUMP%20SLIME.png) |
 | Laser Pong | Winston Lu | ATtiny85 | MIT | — | [ATTiny85 Pong](https://github.com/Winston-Lu/ATTiny85_Pong) | [<img src="metadata/screenshots/LASER%20PONG.png" width="80">](metadata/screenshots/LASER%20PONG.png) |
 | Meteor Storm | Albert Gonzalez | ATtiny85 | Unlicense (public domain) | — | [attiny85 microgame meteor storm](https://github.com/theisolinearchip/attiny85_microgame_meteor_storm) | [<img src="metadata/screenshots/METEOR%20STORM.png" width="80">](metadata/screenshots/METEOR%20STORM.png) |
+| MRunnr | Tony M (tonym128) | ESP8266 | GPLv3 | — | [BFlight](https://github.com/tonym128/BFlight) | [<img src="metadata/screenshots/MRUNNR.png" width="80">](metadata/screenshots/MRUNNR.png) |
 | Nohzdyve | Daniel C | ESP8285 | GPLv3 | ✅ | [Tinyjoypad](https://github.com/phoenixbozo/TinyJoypad/tree/main/TinyJoypad) | [<img src="metadata/screenshots/NOHZDYVE.png" width="80">](metadata/screenshots/NOHZDYVE.png) |
 | NumberPlace | Obono | ATtiny85 | MIT | — | [TinyJoypadWorks](https://github.com/obono/TinyJoypadWorks) | [<img src="metadata/screenshots/NUMBERPLACE.png" width="80">](metadata/screenshots/NUMBERPLACE.png) |
 | Oroboros | Ilya Titov | ATtiny85 | Non-commercial, with attribution | ✅ | [AttinyArcade](https://github.com/webboggles/AttinyArcade) | [<img src="metadata/screenshots/OROBOROS.png" width="80">](metadata/screenshots/OROBOROS.png) |
