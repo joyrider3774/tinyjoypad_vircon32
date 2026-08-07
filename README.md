@@ -54,7 +54,7 @@ license/attribution is preserved unmodified in its own header comment in
 
 Click a thumbnail for the full-size screenshot.
 
-| Game | Author | MCU | License | Saves | Source | Screenshot |
+| Game | Author | MCU | License | Save | Source | Screenshot |
 |---|---|---|---|---|---|---|
 | 2048 | Obono | ATtiny85 | MIT | — | [TinyJoypadWorks](https://github.com/obono/TinyJoypadWorks) | [<img src="metadata/screenshots/2048.png" width="80">](metadata/screenshots/2048.png) |
 | Ardumania | Daniel C | ESP8285 | GPLv3 | ✅ | [Tinyjoypad](https://github.com/phoenixbozo/TinyJoypad/tree/main/TinyJoypad) | [<img src="metadata/screenshots/ARDUMANIA.png" width="80">](metadata/screenshots/ARDUMANIA.png) |
