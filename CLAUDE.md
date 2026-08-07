@@ -9194,6 +9194,149 @@ of its 4x2 grid, 2 free cells remaining) - `THUMBNAIL3_COUNT` bumped
 verification passes that it displays correctly and a spot-checked
 neighbor is untouched.
 
+## DFlight - the second port from `BFlight`, optimizations applied proactively from the start
+
+Picked directly by the user ("port next game in that series") as the
+second of the 3 real games bundled in tonym128's own `BFlight` (after
+Road Rush/`driveGame`) - `bsideFly.cpp`/`.hpp`, the smaller of the two
+remaining candidates (583 vs `mazeRunner`+`mazeGenerator`'s own 729
+lines) and the first mini-game in the original chain (`Game=1`, before
+`driveGame`'s own `Game=2`). `mazeRunner`/`mazeGenerator` (a real
+procedural maze-navigation game) remains the one still-unported game
+left in this bundle.
+
+Menu title "DFLIGHT", the same "read the game's own in-source credit
+text" approach as Road Rush - the intro scroller's own literal
+" -= dFlight =-  " line. Credited "TONY M (TONYM128)", MCU "ESP8266" -
+same repo/author/hardware as Road Rush, not re-derived. A free-flight
+dodging game: steer a ship in all 4 directions through a field of
+scrolling cloud obstacles (upstream's own variable names call them
+"stars" despite the sprite art clearly being clouds), grazing one pushes
+the ship toward the bottom of the screen each tick rather than an
+instant kill - death only happens if that push carries you off the
+bottom edge, or you're already at the bottom when a graze starts - a
+real "you can still escape a graze" mechanic, preserved faithfully.
+
+**Every optimization lesson Road Rush needed a multi-round, occasionally
+blunt debugging saga to arrive at was applied here from the very first
+draft, not retrofitted after a report** - the user's own explicit
+instruction this time ("immediately apply the optimizations once you
+have ported it"). Every draw primitive writes directly into the
+framebuffer via inlined page/bit math (no separate `flySetPixel()` call
+layer in any hot path), `flyDisplayClear()` is a flat 1024-word buffer
+fill, and `flyDrawChar()` inlines its own font-data lookup with a
+hoisted per-row constant and an early return for a space glyph with no
+backfill - all copied forward directly from Road Rush's own final,
+already-proven state rather than re-derived from scratch. This game's
+own render model turned out to need less structural work than Road
+Rush's did in the first place: `drawObject()` only ever sets pixels
+where a sprite is nonzero, never touches the rest of the buffer, so
+there's no equivalent of Road Rush's own "one shape gets almost entirely
+overdrawn by another drawn right after it" pattern to guard against here
+at all.
+
+Same rendering foundation as Road Rush/Gilbert in the Downland/Tiny
+Arena (a real, pixel-addressable `bool[8192]` framebuffer upstream,
+converted to hardware page-bytes only at the very end of a frame by the
+real SSD1306Brzo library) - reproduced with the identical `int[1024]`
+page-byte-laid-out buffer. Font data table reused verbatim from Road
+Rush's own already-byte-diff-verified extraction of the same upstream
+`myfont.hpp` (no cross-game-file sharing mechanism exists in this
+project, so each game keeps its own self-contained copy, but there was
+no reason to re-run the extraction/verification a second time against
+already-proven-correct data).
+
+Not `tinyJoypadShim`/`obonoCoreShim` lineage - the same bespoke ESP8266
+hardware as Road Rush (`SSD1306Brzo` + a 6-discrete-button scheme) -
+needed no new shim. Unlike Road Rush's own backwards brake/accelerate
+mapping, this game's real upstream button wiring
+(`P1_Top/Bottom/Left/Right`) maps directly onto up/down/left/right with
+no remap needed - genuine 4-directional flight has no directional
+ambiguity to get backwards. `P2_Left/Right/Bottom` (kick/punch/jump) are
+read into the input struct but never actually consulted anywhere else in
+the real game logic - confirmed dead by grep, not wired to anything.
+
+A real, if inert-looking, rejection-sampling pattern in every one of
+upstream's own random rolls (`x = max+1; while(x>max) x = 1+rand()%max;`)
+was traced through rather than ported literally: the loop's own first
+(and by construction only ever) iteration already computes a value in
+`[1,max]`, so the `while` can never actually re-trigger - simplified to a
+direct `1 + arand(max)` call, the same "simplify a provably-equivalent
+construct" precedent already used for Wren Rollercoaster's own
+already-integer `floor()` calls.
+
+A genuine upstream oddity, preserved faithfully rather than "fixed":
+winning level 2 (`level` becomes 3) immediately truncates back down to
+`level = 2` and jumps straight to the outro scroller - the real level-3
+stage configuration defined in the scene dispatch (20 obstacles, higher
+velocity, a longer distance target) is dead code, never actually
+reachable through normal play. Kept exactly as upstream has it, matching
+Road Rush's own "Level 3" numbering quirk precedent from the same
+bundle - no clear signal either was ever meant to be reachable rather
+than intentional unused scaffolding. Scene 5 ("Crash") is declared in
+upstream's own scene-dispatch switch but no code path anywhere in the
+file ever actually sets `scene = 5` - confirmed dead by a full-file grep,
+not implemented (an empty case has no observable behavior to port).
+
+Upstream's own `restartFrameCounter` (the post-death wait before an
+automatic restart) is a genuine C++ in-class default member initializer
+(`= 100`), which - per this project's own already-established lesson
+from Tiny Gilbert's own `visible=1` bug - only ever runs once, at the
+point the single global `GameState` is constructed, not on every reset.
+Traced through the real consequence rather than assumed: nothing in
+upstream ever resets `restartFrameCounter` back to 100 on a fresh
+restart, only ever adds to it (`restartFrameCounter += frameCounter` on
+every death) - meaning the wait genuinely grows longer with every death
+across a whole session, never resetting. Ported faithfully: initialized
+once in `gameDFlight_init()`, never touched again anywhere else in the
+file.
+
+A genuine ~30fps whole-tick throttle (`FLY_TICK_DIVISOR = 60/30`) was
+applied from the start rather than discovered via a report, since this
+mini-game shares the exact same outer `game.cpp` loop (and its own real
+`updateMinTime(33)` cap) as Road Rush already proved needed one.
+Upstream's own post-death wait timer was already tick-counted natively
+(a plain integer comparison, no real-millisecond `checkTime()` call
+anywhere in this file at all, unlike Road Rush's own FLAG/LEVEL_SLIDER/
+WIN_LOSE states) - no real-time-to-tick conversion was needed at all for
+this port.
+
+A genuine attract/title screen was added (upstream has none, looping
+forever between intro/outro exactly like Road Rush's own upstream did) -
+matching this project's now-standard convention for every beyond-scope
+port with no native title gate.
+
+**Verified via Puppeteer, with the perf overlay active from the first
+test rather than added only after a report** - matching the user's own
+"immediately apply the optimizations" framing, this included checking
+the numbers, not just that the game ran: attract screen read 53% CPU
+(compared to Road Rush's own pre-optimization 83% on an equivalent
+plain-text screen - a real, direct confirmation the proactive fixes
+worked), the takeoff/level-slider screen read 32-38%, and sustained
+gameplay stayed comfortably low outside of one genuine, bounded,
+event-driven spike: a real screen-invert-plus-noise effect firing on
+obstacle collision (matching upstream's own real `displayNoise`/
+`displayInvert` combo) briefly reads a pegged 100% for that one frame,
+confirmed via the perf overlay's own scrolling history graph to recover
+immediately afterward (not a sustained problem, and the frame itself
+rendered completely, no truncation) - a legitimate, intentional visual
+effect cost rather than wasted overdraw, so left as-is rather than
+further optimized. Cloud spawning/scrolling was independently verified
+across several sampled frames per a direct user question, confirming
+obstacles spawn at the right edge, cross at a range of different speeds,
+and all 3 real size variants (10x4/20x6/30x11) appear correctly. A
+direct follow-up question about the clouds' own genuinely slow crossing
+speed (some taking up to ~85 real seconds to cross the screen at the
+slowest possible randomized velocity) was traced to the exact upstream
+formula and confirmed faithfully ported, not a rate-mismatch bug of the
+same class Tiny Arkanoid once had - the user chose to keep this exactly
+as upstream has it rather than compress the velocity range for a
+snappier feel.
+
+Menu thumbnail added to `assets/thumbnails3.png`'s cell 6 (the 7th cell
+of its 4x2 grid, now down to 1 free cell) - `THUMBNAIL3_COUNT` bumped
+6->7.
+
 ## Licensing
 
 Tiny Invaders v4.2 is GPLv3 (its `tinyJoypadUtils`/driver lineage). Since a
@@ -9315,7 +9458,15 @@ Meteor Storm's own credit) but no license statement anywhere in the
 game's own code or in a README/LICENSE file - the same "known author,
 unstated license" situation as Jump Slime/TinyRoG/TinY Fi/Flappy Bird
 above, credited "IOANNIS LAMPROPOULOS" in the menu and listed as "None
-specified" in the README for licensing purposes only. Four in a Row
+specified" in the README for licensing purposes only. Road Rush and
+DFlight are both a clean GPLv3 case - `tonym128/BFlight`'s own repo
+states GPLv3 directly (a real `LICENSE` file, not just a claim), both
+credited "TONYM128" in the menu (the GitHub handle, matching the
+in-game attract screen's own "BY TONYM128" credit line - the README's
+own fuller "Tony M (tonym128)" author column adds the real name the
+repo's own README also states, the same "menu gets the terse handle,
+README gets the fuller credit" split already used for ATtiny Tetromino's
+own "SUNPAZED" menu credit). Four in a Row
 and Dino
 Game are the two exceptions to every
 license-family grouping above - neither's own source carries an author

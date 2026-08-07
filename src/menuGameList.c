@@ -219,4 +219,7 @@ void addGames()
     // toward wiring it when a game has any indefinite-wait state (here,
     // the added attract screen).
     addGame( "ROAD RUSH", "TONYM128", &gameRoadRush_init, &gameRoadRush_update, &gameRoadRush_forceRedraw );
+    // Same reasoning as Road Rush above - onResume wired defensively
+    // since this game also has an indefinite-wait attract screen.
+    addGame( "DFLIGHT", "TONYM128", &gameDFlight_init, &gameDFlight_update, &gameDFlight_forceRedraw );
 }

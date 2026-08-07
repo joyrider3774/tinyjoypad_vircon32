@@ -84,6 +84,7 @@
 #include "games/gameGilbertDownland.c"
 #include "games/gameArdumania.c"
 #include "games/gameRoadRush.c"
+#include "games/gameDFlight.c"
 
 #include "menuGameList.c"
 
