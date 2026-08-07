@@ -2,7 +2,7 @@
 
 ![Menu screenshot](metadata/menu.png)
 
-A single [Vircon32](https://www.vircon32.com/) cartridge that ports **51
+A single [Vircon32](https://www.vircon32.com/) cartridge that ports **52
 games** originally written for the [TinyJoypad](https://www.tinyjoypad.com/)
 ATtiny85 + SSD1306 128x64 OLED handheld onto Vircon32's 640x360 GPU, behind
 one shared game-select menu. Vircon32's GPU is a texture-region blitter with
@@ -68,6 +68,7 @@ Click a thumbnail for the full-size screenshot.
 | Flappy Bird | Alex Wulff | None specified | — | [Instructables](https://www.instructables.com/Flappy-Bird-on-ATtiny85-and-OLED-Display-SSD1306/) | [<img src="metadata/screenshots/FLAPPY%20BIRD.png" width="160">](metadata/screenshots/FLAPPY%20BIRD.png) |
 | Four in a Row | Unknown | None specified | — | [tiny-handheld](https://github.com/Yevgeniy-Olexandrenko/tiny-handheld) | [<img src="metadata/screenshots/FOUR%20IN%20A%20ROW.png" width="160">](metadata/screenshots/FOUR%20IN%20A%20ROW.png) |
 | Frogger | Andy Jackson (art: @senkunmusashi) | Non-commercial, with attribution | ✅ | [Attiny-Arduino-Games](https://github.com/andyhighnumber/Attiny-Arduino-Games) | [<img src="metadata/screenshots/FROGGER.png" width="160">](metadata/screenshots/FROGGER.png) |
+| Gilbert in the Downland | Daniel C | GPLv3 | ✅ | [phoenixbozo/TinyJoypad](https://github.com/phoenixbozo/TinyJoypad/tree/main/TinyJoypad) | [<img src="metadata/screenshots/GILBERT%20IN%20THE%20DOWNLAND.png" width="160">](metadata/screenshots/GILBERT%20IN%20THE%20DOWNLAND.png) |
 | HollowSeeker | Obono | MIT | — | [TinyJoypadWorks](https://github.com/obono/TinyJoypadWorks) | [<img src="metadata/screenshots/HOLLOWSEEKER.png" width="160">](metadata/screenshots/HOLLOWSEEKER.png) |
 | Jump Slime | Kondolab (近藤さんちの研究室) | None specified | — | [note.com/kondolab](https://note.com/kondolab/n/ndc93ac31e555) | [<img src="metadata/screenshots/JUMP%20SLIME.png" width="160">](metadata/screenshots/JUMP%20SLIME.png) |
 | Laser Pong | Winston Lu | MIT | — | [ATTiny85_Pong](https://github.com/Winston-Lu/ATTiny85_Pong) | [<img src="metadata/screenshots/LASER%20PONG.png" width="160">](metadata/screenshots/LASER%20PONG.png) |

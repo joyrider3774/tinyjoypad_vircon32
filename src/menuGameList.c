@@ -206,4 +206,7 @@ void addGames()
     // No onResume needed - gameNohzdyve_update() calls ndvRenderFrame()
     // unconditionally in every state, same as Pipe Bird above.
     addGame( "NOHZDYVE", "DANIEL C", &gameNohzdyve_init, &gameNohzdyve_update, NULL );
+    // No onResume needed - gameGilbertDownland_update() calls
+    // gitdRenderFrame() unconditionally in every state, same reasoning.
+    addGame( "GILBERT IN THE DOWNLAND", "DANIEL C", &gameGilbertDownland_init, &gameGilbertDownland_update, NULL );
 }

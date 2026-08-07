@@ -44,7 +44,7 @@
 // instead would have silently changed what those checks actually detect.
 // =============================================================================
 
-#define EEPROM_TAG_WORDS 24
+#define EEPROM_TAG_WORDS 32
 #define EEPROM_SLOT_DATA_SIZE 512
 #define EEPROM_MAGIC 0x45455032
 

@@ -145,9 +145,9 @@ future porting pass doesn't need to re-download anything:
   files - the supporting `engineOBJ*.h` files do have classes, including
   a shallow 3-way shared-base inheritance in Gilbert's own
   `engineOBJ_GITD.h` - the same already-solved flatten-to-struct shape as
-  Tiny Missile/Tiny Pipe, not a new blocker. **Nohzdyve has since shipped**
-  (see its own writeup in Status below) - Ardumania and Gilbert in the
-  Downland remain staged-only, not yet ported.
+  Tiny Missile/Tiny Pipe, not a new blocker. **Nohzdyve and Gilbert in the
+  Downland have since shipped** (see each one's own writeup in Status
+  below) - only Ardumania remains staged-only, not yet ported.
 - `sample` - 3 original ATtiny85/Tiny Joypad games by 近藤さんちの研究室
   ("Kondo-san's Laboratory", note.com handle `kondolab`), placed into this
   folder directly by the user (not git-cloned/downloaded by this session) -
@@ -1658,9 +1658,29 @@ blob, since this cartridge holds many games, not one:
     same "preserve behavior, not implementation quirks" precedent already
     established for the byte-truncation/shift-wraparound/signed-sentinel
     bug family.
-  - `nameTag` sized 24 words - comfortably over the longest real menu
-    title (19 characters, "WREN ROLLERCOASTER", confirmed via a full
-    listing of every `addGame()` call).
+  - `nameTag` sized 24 words at the time this shim was first built -
+    comfortably over the longest real menu title then (19 characters,
+    "WREN ROLLERCOASTER", confirmed via a full listing of every
+    `addGame()` call). **Bumped to 32, later in the session, after a
+    direct user question** ("the title of gilbert in the download is not
+    too long for our matching in save data?") caught a real, if not-yet-
+    triggered, latent bug: "Gilbert in the Downland" (23 characters) is
+    exactly 24 words including its null terminator - `strcpy()` in
+    `eepromResetCurrentSlotToFresh()` has no length bound of its own, so
+    that title exactly filled `nameTag[24]` with genuinely zero spare
+    capacity, one character away from silently overflowing into the very
+    next struct field (`magic`). Not yet an active bug (it fit, exactly),
+    but any future title even one character longer would have corrupted
+    its own slot's `magic` word on first selection - fixed proactively by
+    widening `EEPROM_TAG_WORDS` to 32 (8 words of real margin over the
+    current longest title) rather than waiting for an actual overflow to
+    manifest. This changes the on-card slot layout size
+    (`EEPROM_SLOT_WORDS` derives from it), so any high scores saved to a
+    real/virtual card under the old 24-word layout land at different
+    offsets under the new one and read back as "no matching slot" (a
+    fresh, zeroed high score) rather than being corrupted - an acceptable,
+    one-time reset given this project's own dev-time card data, not
+    something worth writing migration code for.
 - Card layout: word 0-19 is a fixed project-wide `game_signature`
   (`"TINYJOYPADVIRCON01"`, distinct text from cglp's own signature so the
   same physical card is never confused between the two projects if ever
@@ -1889,7 +1909,7 @@ control flow.
 ## Status (as of this session)
 
 Shipped and visually verified (WebGL emulator + a Puppeteer screenshot
-harness - see below): the shim architecture, the menu, and 51 full games
+harness - see below): the shim architecture, the menu, and 52 full games
 (NumberPlace, Tiny Invaders, 2048, HollowSeeker, Tiny Pinball, Tiny
 Pacman, Tiny Bomber, Tiny Doc, Tiny Bert, Tiny Tris, Tiny Arkanoid, Tiny
 Trick, Tiny Minez, Tiny Missile, Tiny Bike, Tiny Arena, Tiny Gilbert,
@@ -1899,7 +1919,7 @@ Dungeon, Oroboros, Run Dude Run, Four in a Row, Dino Game, SnakeGame85,
 Jump Slime, TinyRoG, TinY Fi, Breakout, Space Attack, Falling Blocks,
 Tiny Mania, Blocks Gold, Astro Barrier, ATtiny Snake, Meteor Storm,
 Flappy Bird, Tiny Bulls And Cows, ATtiny Tetromino, Laser Pong, Pipe
-Bird, Nohzdyve - both Falling Blocks
+Bird, Nohzdyve, Gilbert in the Downland - both Falling Blocks
 and Blocks Gold's own menu names deliberately avoid naming
 the falling-block puzzle genre they're clones of, a registered trademark
 (see each one's own writeup below for the full naming rationale); Tiny
@@ -8274,6 +8294,193 @@ reuse logic paths already exercised via the debug hooks used to verify
 the two bug fixes above, so risk is low, but worth a direct check if
 anything looks off.
 
+## Gilbert in the Downland - the second port from `more games/MEGAcompilation_ESP/`
+
+Picked directly by the user ("port next game") as the second of the 3
+games staged from Daniel C's ESP8285/ESP8266 "MEGA TinyJoypad"
+compilation, right after Nohzdyve. An 11-room rope-and-chamber climbing
+platformer - climb/swing on ropes, jump between ledges, dodge falling
+acid drops and a chasing balloon enemy, collect items, and find each
+room's own door to descend further into the "Downland" - a genuinely
+different game from the already-shipped "Tiny Gilbert" despite sharing
+the same character name (confirmed via structure at staging time, not
+just the name - see this file's own "beyond the original scope" entry
+above).
+
+**A real, pixel-readable in-memory framebuffer - a genuinely new
+rendering foundation for this project.** Every other port here streams
+sprite-table bytes straight to `md_drawColumn()` with no intermediate
+buffer, since none of them ever need to read a pixel back once it's
+drawn. Gilbert's own upstream draws real vector line-art (Bresenham
+line-drawing for room walls/ropes) with pixel-level collision read-back
+(`getPixel()`, used to detect whether the player is standing on solid
+ground) - something no prior port's draw model could support. Solved
+with `gitdFrameBuffer[1024]`, a plain `int` array using the exact same
+SSD1306 page-byte layout every game's own column data already implies
+(`idx = x + (y>>3)*128`, `bit = 1<<(y&7)`) - every draw primitive
+(`gitdSetPixel`/`gitdDrawVector`/`gitdBlitzGitd`/etc) reads and writes
+this buffer directly, and `gitdRenderFrame()` streams it to
+`md_drawColumn()` once per frame at the very end with no repacking
+needed, since the layout already matches what that function expects.
+
+**Class flattening, the same treatment as every other class-based
+Daniel-C/Sven-B port in this project**: `TIMERGITD` -> `GitdTimer`,
+`StaticSprite_GITD`/`Sprite_GITD` (a shallow one-level inheritance,
+confirmed during staging) -> one combined `GitdPlayer` struct,
+`AcidDrop_GITD` -> `GitdAcidDrop`, `Ballon_GITD` -> `GitdBalloon`,
+`TIMEOUT` -> `GitdTimeout`, each with `gitd`-prefixed free functions
+taking an explicit struct pointer instead of a bound `this`. GCC's
+case-range switch extension (`case -50 ... -30:`, used a few times in
+upstream's own collision-response dispatch) and nested ternary
+expressions were both converted to plain `if`/`else` chains rather than
+trusted on this dialect, matching this project's own standing caution
+around both constructs.
+
+**A genuine upstream `int8_t`-truncation quirk, deliberately preserved
+rather than "fixed"**: `Get_GS()` relies on a value wrapping through a
+real 8-bit signed type to produce a specific small result from a larger
+intermediate calculation - traced through by hand and confirmed this is
+exactly the *intended* upstream behavior (the wraparound is load-bearing,
+not an accident), so it was reproduced with an explicit modulo/sign
+adjustment rather than either porting it as an unguarded plain `int` (
+which would silently change the result on Vircon32's non-truncating
+`int`s) or "fixing" it into some other formula upstream never actually
+used.
+
+**A real acid-drop animation bug, caught by careful re-reading before
+ever compiling, not by a test run**: an early draft of
+`gitdCalculateAcidDrop()`/`gitdDrawAcidDrop()` dropped upstream's own
+alternating tick pattern - real hardware updates+draws an acid drop's
+position on one tick, then merely polls for the fire button's release on
+the next, alternating every frame via a `Flip` toggle. Missing that
+alternation would have made drops fall at twice their intended speed.
+Caught and fixed (`gitdAcidFlip`, toggled each tick, gating which half of
+the pattern runs) before this port's first build attempt.
+
+**Shift-safety and byte-truncation fixes applied proactively from the
+start**, per the user's own direct instruction to "check for 8bit vs
+32bit issues" before considering the port done, rather than waiting for
+a bug report the way several earlier ports in this project needed:
+`gitdRecupeLineY()` branches on sign from day one (the same
+logical-vs-arithmetic-right-shift guard as HollowSeeker's
+`hsDivByColumnW`/Tiny Pipe's `RecupeLineY`/Nohzdyve's own
+`ndvRecupeLineY`, applied here without first needing a live report), and
+the room-transition mask computation (`gitdRoomTransitionStep()`'s own
+`( 0xFF << t ) & 0xFF` derivation) is explicitly masked at each shift
+site rather than trusting AVR's implicit `uint8_t` narrowing to still
+hold.
+
+**The same row-invariant-hoisting CPU optimization already proven in
+Nohzdyve, applied here proactively too, from the same direct "optimize
+per usual thing" instruction**: `gitdBlitzGitd()` originally recomputed
+`wMax`/`picByte`/`recupeLineY`/`spriteYDecalage` fresh on every column
+call - hoisted to compute once per call instead, the same fix shape as
+Nohzdyve's `ndvOrBlit()`/`ndvXorBlit()` and TinY Fi's
+`tfiBlitzSpriteRow()` before it. Measured via the perf overlay across
+every state (splash/title/playing): a stable 70-74% CPU with FPS holding
+at a steady 60 - comfortably under budget, matching the "Tiny Bert-style
+baseline, no further action needed" precedent already established
+elsewhere in this project rather than chasing a lower number for its own
+sake.
+
+**A temporary "god mode" testing aid, added and then fully removed** -
+requested directly ("can you add a temporary god mode so i don't die
+from objects and give unlimited lives") to make manual testing of the
+game's later rooms practical without dying repeatedly along the way.
+Wired as a single guard checked in the 4 places the original game can
+actually kill the player or spend a life (`gitdSubLive()`,
+`gitdGravityUpdate()`, `gitdTimeoutFunction()`, `gitdSpriteColid()`).
+Removed in full once testing was done, confirmed via a project-wide
+`grep -n "gitdGodMode"` returning no matches before the final rebuild.
+
+**A direct user question about the ending, investigated and confirmed
+as faithful upstream behavior, not a bug**: "is there no win screen when
+entering the door on final chamber 8? it seems the game resetted to
+level 1 again." Traced the real room-connection data (`InAndOut_GITD`)
+rather than guessing - room 9's own door 16 leads back to room 0 (the
+same door ID reused as the special `GITD_START_ROOM` teleport target),
+and an exhaustive grep of the entire upstream source turned up no win/
+victory/game-complete screen anywhere at all. The room layout is a
+genuine, intentional loop - reaching the last chamber's door does return
+to room 0, and that's the whole game as originally shipped, not a
+missing feature this port dropped.
+
+**High-score EEPROM persistence, confirmed already correctly wired in
+from the initial port** - a direct mid-session question ("does the game
+have a highscore? does it save/reload it from eeprom, if not add it in")
+turned out to need no code changes: `gitdHiScores` is loaded via
+`eeprom_read_word( 0 )` (with the standard 65535 virgin-slot guard) in
+`gameGilbertDownland_init()`, and saved via `eeprom_write_word( 0,
+gitdHiScores )` the moment a new high score is confirmed at the
+game-over transition in `gitdUpdatePlaying()` - the same simple 2-byte-
+score shape used throughout this project, already in place before this
+question was even asked.
+
+**Two more real bugs found via direct user reports after the port
+otherwise looked finished**, both diagnosed by tracing the exact upstream
+mechanism rather than guessing from the symptom:
+
+1. *"on the attract screen the text '- start game -' is supposed to
+   slightly blink but the black thing only obscures top part of that
+   text"* - the port had replaced upstream's real erase mechanism with a
+   simplified stand-in that turned out to be wrong, not just approximate.
+   Upstream's own `DrawMainScreen()` blinks the text by calling
+   `MEGA82XX.drawErase(t, 45, byte__GITD, 0)` for every column `t` from
+   25 to 83 - a sprite-based erase using `byte__GITD` (a 1x8-raw-pixel,
+   solid-`0xff` sprite), i.e. an 8-pixel-tall solid erase band. This
+   port's own `byte__GITD` table had been judged obsolete during initial
+   porting and dropped in favor of a plain `gitdEraseHLine( 25, 83, 45 )`
+   helper that only clears a single 1-pixel row - wrong, not just
+   simplified: it erased only the very top edge of the 8-pixel-tall text,
+   exactly matching the reported "obscures top part" symptom. **Fixed**
+   by replacing the call with `gitdDrawRecBW( 25, 45, 83, 52, 0 )` (an
+   explicit 8-row-tall black rectangle over the same column range,
+   equivalent to the real sprite-based erase), and removing the now-
+   unused `gitdEraseHLine()` helper entirely. Verified via a Puppeteer
+   poll across the blink cycle: the text now fully appears and fully
+   disappears each cycle, rather than only ever losing its top row.
+2. *"when pressing the action button on the 'download / F' screen it
+   jumps to attract screen but it immediately seems to start the game as
+   well, like a certain button press is acted upon twice"* - a genuine
+   double-fire bug. `gitdUpdateSplash()` and `gitdUpdateTitle()` both
+   checked `isFirePressed()` as a plain level read (matching upstream's
+   own real-hardware polling shape) rather than an edge-detected press.
+   Since a single physical keypress spans several real 60fps frames, and
+   the state dispatcher only calls one state's own update function per
+   frame based on the state entering that frame, the exact frame a
+   transition happens (splash->title) leaves the button still physically
+   held on the very next frame - which the *new* current state
+   (title) then read as its own fresh "start game" press, immediately
+   cascading straight into gameplay from what should have been a single
+   splash-dismissal press. **Fixed** with a shared, edge-detected
+   `gitdFireEdge` (`fire && !gitdPrevFire`), computed once per real frame
+   in `gameGilbertDownland_update()` before dispatching to whichever
+   state is active, replacing the raw `isFirePressed()` reads at both
+   transition points - a held press can now only ever satisfy one state
+   transition's edge, not two in a row. Verified via Puppeteer: the same
+   press sequence that previously cascaded splash -> title -> gameplay in
+   one motion now correctly stops on the title/attract screen, requiring
+   a genuinely separate press to actually start a game.
+
+Menu thumbnail added to `assets/thumbnails3.png`'s cell 3 (fourth cell of
+its 4x2 grid, 4 free cells remaining) - verified via screenshot that it
+displays correctly with "BY DANIEL C" underneath, and that the atlas as a
+whole still renders correctly elsewhere with no corruption from the
+composite.
+
+Verified via Puppeteer throughout: menu registration (alphabetized
+between Frogger and HollowSeeker), the "F DOWNLAND" splash screen, the
+real attract/title screen (including the now-corrected full-line text
+blink), starting a game (room-transition wipe into the first chamber),
+and active gameplay (movement, jumping, room HUD, acid drops) all render
+correctly. Not independently forced this session: reaching room 9's own
+looping exit door in real play (confirmed correct by tracing the level
+data directly instead, per the investigation above) and a genuine
+player-death-to-game-over sequence with a new high score actually saved
+- both reuse logic paths already exercised via the temporary god-mode
+testing and the EEPROM code-path confirmation above, so risk is low, but
+worth a direct check if anything looks off.
+
 ## Licensing
 
 Tiny Invaders v4.2 is GPLv3 (its `tinyJoypadUtils`/driver lineage). Since a
@@ -8290,15 +8497,17 @@ the same way, "SVEN B / LORANDIL"); Tiny
 Invaders, Tiny Pinball, Tiny Pacman, Tiny Bomber, Tiny Doc, Tiny Bert,
 Tiny Tris, Tiny Arkanoid, Tiny Trick, Tiny Minez, Tiny Missile, Tiny Bike,
 Tiny Arena, Tiny Gilbert, Tiny Pipe, Tiny Morpion, Tiny Plaque, Tiny
-SQuest, Tiny DDug, Tiny Lander, Tiny Mania, and Nohzdyve all stay GPLv3
+SQuest, Tiny DDug, Tiny Lander, Tiny Mania, Nohzdyve, and Gilbert in the
+Downland all stay GPLv3
 (Tiny Mania is the newest of the tinyjoypad.com-proper titles, its own
 header crediting "Daniel C 2026" directly - the same author/license
 lineage as most of the rest of this list, credited "DANIEL C" in the menu
-the same way as Tiny Pinball/Pacman/etc above; Nohzdyve is a different
-case again - it's not from tinyjoypad.com at all, but from Daniel C's own
-separate ESP8285/ESP8266 "MEGA TinyJoypad" compilation (see this file's
-own writeup above), individually "relicensed under GPLv3" by Daniel C for
-that specific ESP port, credited "DANIEL C" in the menu the same way;
+the same way as Tiny Pinball/Pacman/etc above; Nohzdyve and Gilbert in
+the Downland are a different case again - neither is from tinyjoypad.com
+at all, both instead come from Daniel C's own separate ESP8285/ESP8266
+"MEGA TinyJoypad" compilation (see this file's own writeup above for
+each), individually "relicensed under GPLv3" by Daniel C for that
+specific ESP port, both credited "DANIEL C" in the menu the same way;
 Tiny Lander's own
 header credits "Roger Buehler" / GitHub handle "tscha70" - a different
 author from every Daniel-C/Sven-B title above, credited separately in
