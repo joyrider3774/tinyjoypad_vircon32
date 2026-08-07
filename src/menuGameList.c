@@ -212,4 +212,11 @@ void addGames()
     // No onResume needed - gameArdumania_update() calls amaniaRenderFrame()
     // unconditionally in every state, same reasoning as the 3 games above.
     addGame( "ARDUMANIA", "DANIEL C", &gameArdumania_init, &gameArdumania_update, NULL );
+    // gameRoadRush_update() already redraws unconditionally every
+    // dispatched tick in every state (same as the 4 games above), so
+    // onResume isn't strictly required - wired anyway as a harmless
+    // defensive extra, matching this project's own precedent of erring
+    // toward wiring it when a game has any indefinite-wait state (here,
+    // the added attract screen).
+    addGame( "ROAD RUSH", "TONYM128", &gameRoadRush_init, &gameRoadRush_update, &gameRoadRush_forceRedraw );
 }

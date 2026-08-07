@@ -516,6 +516,126 @@ describes (discrete-object vs procedural-pixel vs irrelevant-bit-banged-
 timing) and check which driver lineage it's built on (tinyJoypadShim vs
 obonoCoreShim, or a third one if it doesn't match either).
 
+## A sixth beyond-scope discovery pass — ESP8266/ESP8285 OLED handheld games from authors other than Daniel C
+
+Triggered by a direct user request, once Nohzdyve/Gilbert in the
+Downland/Ardumania (all three from Daniel C's own ESP8285/ESP8266 "MEGA
+TinyJoypad" compilation - see that section above) had all shipped: since
+that compilation proved the whole ESP8266/ESP8285 hardware class ports
+just as cleanly as ATtiny85 (the display driver still streams one real
+SSD1306 page-byte at a time regardless of which chip is driving it - see
+each of those 3 games' own writeup for the details), the user asked
+whether *other*, previously-uncatalogued ESP8266/ESP8285 OLED handheld
+games exist from different authors. Dispatched 2 parallel background
+research agents (pure web research, nothing staged/coded directly by
+either) - one covering direct GitHub/code-hosting search, one covering
+community/blog/non-English/Wokwi sources - cross-checking every
+candidate against this project's own full 53-game catalog before
+reporting it as new, not just by genre name.
+
+**Both agents independently converged on the same author and repo
+family** (a good, mutually-reinforcing signal, not two shots at the same
+target by chance) - **tonym128**, whose game framework traces back to
+the BSides Cape Town 2016 CTF badge (`AndrewMohawk/BSidesBadge2016`).
+Two related repos exist: **`tonym128/ESP8266GameOn`** (the older,
+per-branch version - `game-asteroid`, `game-drive`, `game-downdrive`,
+`game-flappy`, `game-fly`, `game-maze`, `game-maze-arduboy`, plus
+procedural-effect demos) and **`tonym128/BFlight`** (a newer,
+consolidated bundle - `bsideFly` a free-flight/combat game, `driveGame` a
+driving/dodging game, `mazeRunner`+`mazeGenerator` a real procedurally-
+generated maze-navigation game, plus the same effect demos) - likely the
+same "stage the superset, not the earlier redundant version" situation
+as this project's own Jump Slime `jump6`-over-`jump5` precedent, though
+not yet confirmed by an actual diff the way that precedent was. Real
+ESP8266 (Wemos D1 Mini / ESP8266-12E) + SSD1306 128x64 I2C hardware, a
+6-discrete-button scheme (`P1_Left/Top/Right/Bottom` + 2 more, read via
+analog "touch" pins or a shift register) directly analogous in shape to
+TinyJoypad's own button layout, GPLv3 (confirmed via each repo's own real
+`LICENSE` file). The `plasma`/`rotoZoomer`/`voxel` effect demos in both
+repos are out of scope per this project's own GPU model (procedural
+per-pixel, not discrete objects) - same call as every prior procedural-
+render exclusion here (TinyDungeon's own disabled raycast branch aside).
+
+The two research agents disagreed on one point, not yet resolved by an
+actual code read: whether `game-asteroid` (free-rotate/thrust/shoot, no
+genre-duplicate anywhere in this project's own catalog - Space Attack/
+Tiny Invaders are fixed-lane, Tiny Missile is Missile-Command-style) is
+still present/meaningfully distinct in `BFlight`'s own newer game list,
+or whether it's specifically an `ESP8266GameOn`-only branch that didn't
+carry forward - worth settling with a direct diff before committing
+porting effort to it specifically, the same "verify before dismissing
+*or* committing on genre alone" discipline already established
+repeatedly in this file. `driveGame` and `mazeRunner`/`mazeGenerator`
+were confirmed by both agents as genuinely new genres with no existing
+duplicate in this project's own catalog (Tiny Bike is a structurally
+different side-scrolling motocross game, not a top-down driving/dodging
+one) - the two strongest, least-ambiguous candidates in this whole batch.
+
+A secondary find, **`hoangminh5210119/Esp8266OledGame`** (a Vietnamese-
+language repo, reached via a generic search rather than deliberate
+Vietnamese-language querying - the non-English search itself otherwise
+came up empty across Japanese/Chinese/Korean/French/German/Italian/
+Russian, matching this project's own prior ATtiny85-search experience
+almost exactly) - real ESP8266 + a 1.3" OLED (likely SH1106, 128x64) + 3
+discrete buttons, no license stated anywhere. Bundles 4 games
+(`CarRaceGame`/`FlappyBirdGame`/`PongGame`/`TRexGame`) - 3 of the 4 are
+almost certainly genre-duplicates of already-shipped titles (Flappy
+Bird/Pipe Bird, Bat Bonanza/Laser Pong, Dino Game) by genre alone, not
+yet individually diffed to confirm; only `CarRaceGame` (a distinct
+codebase from a different author than `BFlight`'s own `driveGame`) looks
+like it might be worth a look, and only as a secondary option if a
+second driving-game candidate is ever wanted alongside `driveGame`
+itself.
+
+A weaker, explicitly unconfirmed find: a "Helicopter" cave-dodge game
+from **`innif/Arduino-Game-System`** (ESP8266 + SSD1306, 4 discrete
+buttons, GPLv3 per its own `LICENSE.md`) - mechanically close enough to
+the already-shipped HollowSeeker (Obono's own cave/tunnel dodge) and
+UFO's own hold-to-fly gap-weaving that it's likely a genre triplicate,
+but wasn't code-diffed against either the way this project's own
+"verify via real diff before dismissing" precedent would ideally want
+before ruling it out for real - staged anyway so that diff can happen
+directly against the real source rather than from memory/genre-name
+alone.
+
+**Ruled out** (checked directly by at least one agent, not just by
+title, before being dismissed): several "MEGAcompilation" repos
+(`ESPboy-edu/ESPboy_MEGAcompilation160mhz`, `vannt97/
+MEGAcompilation160mhz`, `tscha70/MegaGamesCompilation` + its
+`PicoAdafruit` sibling) confirmed as straight re-bundles/retargets of
+Daniel C's own already-fully-ported MEGA TinyJoypad compilation, not new
+content; `corax89/esp8266_game_engine` ("ESP-LGE", the base for the
+whole ESPboy ecosystem and its ~34-game library) confirmed to drive a
+color ILI9341/ST7735 **TFT** display via SPI, not a monochrome SSD1306/
+SH1106 - wrong hardware/rendering shape entirely regardless of how many
+novel-sounding titles it has; `cheungbx/game8266-micropython` and its
+successor `gameESP-micropython` (the same Billy Cheung already credited
+in this project for Wren/Frogger/Bat Bonanza/Stacker/UFO) - real
+matching hardware but MicroPython, not C/C++ (breaks this project's
+whole source-translation methodology), and every game in it is a genre
+duplicate anyway; an AI-generated itch.io bundle
+(`koja-games.itch.io/esp8266-game-console`) and a handful of plain
+tutorial-grade Snake/Breakout single-game repos (`Empitrix/oled-snake`,
+`brychanthomas/ESP8266-OLED-breakout`) - trivial genre duplicates with no
+distinguishing mechanic; several Hackaday.io projects (`GamerGorl` -
+Simon, already excluded by this project's own long-standing tinyjoypad.com-
+adjacent precedent; Daniel Johnson's "ESP8266 Game" #8756 - only an
+unfinished, author-described-as-"cluttered" Pong prototype ever
+documented) that didn't clear the "real, finished, distinct game" bar.
+
+Staged into `more games/` (git-cloned, `--depth 1`, matching every other
+GitHub-hosted source in this folder): `Arduino-Game-System/` (Helicopter),
+`Esp8266OledGame/` (CarRaceGame, plus 3 likely-duplicate games in the
+same repo), `ESP8266GameOn/`, and `BFlight/` - not yet triaged/ported,
+staged for a future porting pass the same way every other discovery
+batch in this file has been. Before porting anything from this batch:
+resolve the `game-asteroid`/`BFlight` overlap question above via a real
+diff, and code-diff (not just genre-compare) `driveGame`/`mazeRunner`/
+Helicopter against their suspected near-duplicates before committing
+effort, matching this project's own established discipline for every
+prior "looks like a genre duplicate but hasn't actually been read"
+candidate.
+
 ## Target platform facts (Vircon32) — verified against vircon32.com
 
 - 15 MHz CPU, 32-bit, floating point support, 16 MB RAM
@@ -8904,6 +9024,175 @@ plus the missing confirm-click sound on each change. Verified via
 Puppeteer with a sequence of quick (100ms) taps: Right -> ghost, Right
 -> cherry, Left -> ghost - each tap now advances exactly one step,
 matching the user's own expected behavior.
+
+## Road Rush - the first port from the sixth discovery pass's `BFlight` bundle
+
+Picked directly by the user ("port the next game") as the strongest,
+most clearly non-duplicate candidate from the sixth beyond-scope
+discovery pass's own `BFlight` bundle (see that section above for how it
+was found) - both research agents independently flagged `driveGame`
+(a top-down perspective driving/dodging game, distinct from Tiny Bike's
+own side-scrolling motocross mechanic) as the clearest new-genre win of
+the whole batch. `bsideFly` (free-flight/combat) and `mazeRunner`/
+`mazeGenerator` (real procedural maze navigation) remain staged and
+un-ported - `BFlight` bundles 3 genuinely distinct games in one upstream
+source, and this project's own established precedent (Obono's
+`TinyJoypadWorks` becoming 3 separate entries, `UFO_Stacker_Attiny`
+becoming 2, `UFO_Breakout_Arduino` becoming 1) is to split a bundle into
+separate cartridge entries and port them one at a time, not merge them
+- confirmed directly with the user mid-session after they asked why only
+part of the bundle was ported.
+
+Menu title "ROAD RUSH", lifted directly from the game's own in-source
+credit text (the intro scroller's own " -= Road Rush =-" line) rather
+than the generic `driveGame` filename, the same "read the game's own
+on-screen text for its real name" approach already used for Bat
+Bonanza/Falling Blocks. Credited "TONY M (TONYM128)" - confirmed via the
+BFlight repo's own README, which names both the real name and the GitHub
+handle. MCU credited as plain **ESP8266** (not ESP8285, unlike the 3
+Daniel-C MEGA-compilation games) - confirmed directly via
+`platform_audio_esp8266.cpp`/`.h`'s own real hardware target, a genuinely
+different chip than every other ESP-based game in this cartridge.
+
+**A genuinely different rendering foundation, but the same fix already
+proven for Gilbert in the Downland/Tiny Arena**: upstream's own
+`ScreenBuff.consoleBuffer[8192]` is a full, real, per-pixel-addressable
+`bool` framebuffer (not a page-byte stream) - every draw primitive in
+`gameCommon.cpp` sets individual pixels directly, with the real
+SSD1306Brzo Arduino library only converting that into hardware page-bytes
+internally at the very end of each frame. Reproduced with the same
+`int[1024]` page-byte-laid-out framebuffer + `drvSetPixel`/`drvGetPixel`
+bit-op helpers already established - see the file's own header comment
+for the full architecture writeup (font extraction/indexing, the
+`drawObjectFill` silhouette-with-highlights sprite technique, the
+`drawScroller` bug preserved faithfully rather than "fixed", the added
+attract screen since upstream has none, and why `fixpoint.h` was never
+needed).
+
+**Two real bugs and one design correction, all found via direct, often
+blunt live user feedback rather than this session's own testing catching
+them first** - a good reminder that headless screenshot sampling, even
+soak-tested, can miss things a real playthrough catches immediately:
+
+1. **Controls felt backwards**: upstream's real button wiring is
+   `P1_Top`=brake, `P1_Bottom`=accelerate (an arbitrary hardware pin
+   assignment on the original BSides badge, not a deliberate design
+   choice) - ported faithfully at first as Up=brake/Down=accelerate,
+   which reads backwards on a real gamepad. Swapped to the conventional
+   Up=accelerate/Down=brake mapping instead, the same kind of intuitive-
+   over-literal remap already applied to Tiny Arkanoid's paddle axis and
+   Tiny Lander's thrust controls.
+
+2. **A "Level 3" starting point that briefly got "fixed" then reverted**:
+   upstream's own level-slider text is literally `"Level " + (level+2)` -
+   not a porting mistake, a real leftover from the full `BFlight` chain
+   this driving game was one stage of (reached as stage 3, after 2 stages
+   of the `bsideFly` mini-game preceding it there). Once the user asked
+   "is it normal the actual racing starts on level 3", it was first
+   changed to drop the `+2` (showing the real level number directly,
+   reasoning that a standalone port of just this one stage shouldn't
+   carry a numbering offset from stages that don't exist here) - the user
+   then asked directly to restore the literal upstream value, since this
+   game is understood to remain part of that same `BFlight` series
+   (`bsideFly`/`mazeRunner` are still staged for a future port from the
+   same bundle) and its own level numbering should stay consistent with
+   that wider context rather than being renumbered in isolation. Reverted
+   back to `level+2`.
+
+3. **CPU pegged at 100% during real gameplay, with visible flickering** -
+   the most involved fix of the three, needing multiple rounds and one
+   genuine correctness regression along the way:
+   - Round 1 (found via the perf overlay before the user ever reported
+     anything): every draw primitive routed through a single-pixel
+     `drvSetPixel()` call - inlined the page/bit math directly into
+     every primitive instead, and replaced `drvDisplayClear()`'s own
+     8192-call-per-frame loop with a flat 1024-word buffer fill.
+   - Round 2: even the plain 3-line attract screen still read 83% -
+     traced to `drvDrawChar()` calling a separate `drvGetFontPixel()`
+     function once per pixel (64 calls/character), each redundantly
+     recomputing the glyph's own row/column offset - inlined that lookup
+     too, computing the offset once per character. Dropped attract to
+     62%, driving gameplay (a single sampled frame) to 18%.
+   - **That 18% turned out to be a misleadingly optimistic single-frame
+     sample**, not representative of sustained play - a direct, blunt
+     user report of real flickering ("i still have 100% cpu dumbass twat
+     your screenshots probably don't show it or you don't look at
+     complete graph") led to an extended soak test that caught an
+     actually-truncated frame (only one road stripe drawn, HUD cut off
+     mid-row) - this project's own well-documented "CPU exceeded budget,
+     execution stopped mid-instruction-stream" signature, not just an
+     unflattering percentage. The user was right on both counts: a
+     single screenshot can't prove a sustained problem is fixed, and the
+     perf overlay's own scrolling history *graph* (not just the
+     instantaneous number) is the thing to actually look at - a cropped,
+     upscaled capture of it showed a solid, unbroken row of red bars
+     across the entire sampled window, confirming genuinely sustained
+     100%, not a momentary spike.
+   - Root-caused via the same "disable one candidate loop, re-run the
+     identical soak test" technique already established elsewhere in
+     this project: the road's own "side of the road" checkered-
+     background loop draws a full 128-wide strip for ~30 rows every
+     frame, unconditionally, even though the road-scanning loop right
+     after it completely overdraws the center portion of nearly every
+     one of those same rows. A **first attempt at narrowing it introduced
+     a real, separate bug**, caught immediately by the user ("its also
+     drawing the sides of the road wrong during a turn"): it approximated
+     the road's position using a fixed margin bounded against the
+     *range* the road loop's own turnOffset could occupy that frame -
+     correct in that it never drew *into* the road, but it routinely
+     stopped short of the road's *real* per-row position (the road
+     loop's own local turnOffset decays toward 0 as y increases, down to
+     roughly 11% of its starting value by the bottom row, purely as a
+     within-frame visual effect) - leaving a genuine strip of screen
+     between the approximated margin and the real road edge that nothing
+     drew that frame. **Fixed properly**, not by reverting: merged the
+     background-shoulder drawing into the *same* per-row loop that
+     already computes the road's real (non-approximated) position for
+     that exact row, via a small precomputed `drvRowColourLocal[64]`
+     array replicating the original band-stepping/height-growth logic
+     per-row instead of per-band - the two can now never disagree, since
+     they read the exact same real value, not an estimate. Verified
+     against the exact same forced-hard-turn scenario (a temporary debug
+     hook setting `drvTurnOffset=47` directly, removed after) that had
+     reproduced the gap, confirmed clean on both a forced and a real,
+     organically-triggered in-game turn.
+   - A second, smaller real waste was found and fixed in the same pass
+     (re-checking the exact pixel overlap after the user's pushback,
+     rather than trusting an earlier "only 4px" dismissal): the
+     off-road background block is inset only 2px from each edge of the
+     solid-white road block drawn immediately after it, meaning the
+     road's own draw overdraws almost the *entire* off-road span, not a
+     small edge - fixed to only draw the two real 2px edge strips that
+     actually stay visible.
+   - A further round applied the same "measure a simple screen, not just
+     the busiest one" lesson to text drawing specifically, per a direct
+     follow-up request: a space character with no backfill is
+     *provably* a complete no-op (all 64 of its cells are guaranteed
+     blank) - added an early return skipping the whole 64-iteration scan
+     for that common case, plus hoisted two more per-row-constant
+     computations (`(line+row)*128+gcol`, `(py>>3)*128+x`) out of
+     `drvDrawChar()`'s own inner column loop, where they were being
+     redone on every one of 8 columns despite being constant for the
+     whole row.
+   - Verified via the perf overlay's own history graph (cropped and
+     upscaled 5x for readability, not just read as a single instantaneous
+     number) after the final round: visibly more green mixed through the
+     *entire* sampled window, not just the throttle-skip frames at one
+     edge - a real, measured improvement in sustained load, though CPU
+     still frequently reads at the clamped 100% ceiling during dense
+     scenes (multiple cars, mid-turn). Documented honestly rather than
+     claimed fully resolved: further reduction would need restructuring
+     the whole road scene into a per-page composite (matching the
+     technique already used for several other CPU-heavy games in this
+     project), a bigger and riskier change than this session's own
+     time budget allowed for - flagged as a real, understood, open item
+     rather than left unmentioned.
+
+Menu thumbnail added to `assets/thumbnails3.png`'s cell 5 (the 6th cell
+of its 4x2 grid, 2 free cells remaining) - `THUMBNAIL3_COUNT` bumped
+5->6. Verified via screenshot alongside the rest of this file's own
+verification passes that it displays correctly and a spot-checked
+neighbor is untouched.
 
 ## Licensing
 

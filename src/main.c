@@ -83,6 +83,7 @@
 #include "games/gameNohzdyve.c"
 #include "games/gameGilbertDownland.c"
 #include "games/gameArdumania.c"
+#include "games/gameRoadRush.c"
 
 #include "menuGameList.c"
 
