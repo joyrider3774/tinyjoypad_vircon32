@@ -80,6 +80,7 @@
 #include "games/gameAttinyTetromino.c"
 #include "games/gameLaserPong.c"
 #include "games/gamePipeBird.c"
+#include "games/gameNohzdyve.c"
 
 #include "menuGameList.c"
 

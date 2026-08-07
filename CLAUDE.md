@@ -105,13 +105,49 @@ future porting pass doesn't need to re-download anything:
     baked into the original ROM's own decorative logo/text data, not
     something this project chose to display), and Breakout - are now in
     scope; see Status below for their own writeups as each is ported.
-- Deliberately **not** fetched: tinyjoypad.com's separate Arduboy and
-  ESP8285 platform pages, which mostly re-list the same games above but
-  also include 3 Arduboy-exclusive titles (`Ardumania`, `Nohzdyve`,
-  `Gilbert in the Downland`) not ported here - same 128x64 OLED, but
-  originally written for Arduboy's beefier hardware (real buttons, more
-  RAM/flash) rather than ATtiny85's analog-ladder input and 512B RAM, so
-  out of scope for this pass. Revisit only if asked.
+- tinyjoypad.com's separate Arduboy and ESP8285 platform pages mostly
+  re-list the same games above, but also include 3 Arduboy-exclusive
+  titles (`Ardumania`, `Nohzdyve`, `Gilbert in the Downland`) originally
+  written for Arduboy's beefier hardware (real buttons, more RAM/flash)
+  rather than ATtiny85's analog-ladder input and 512B RAM - this file
+  previously called these out of scope for that reason and left them
+  unfetched. **Corrected, 2026-08-07, after the user linked a Google-
+  Drive-hosted `MEGAcompilation160mhz.zip`** (Daniel C's own combined
+  cartridge for the *third* TinyJoypad hardware target, ESP8285/ESP8266 -
+  never fetched before this) and asked specifically about these 3 titles:
+  that compilation bundles ESP-ported versions of nearly every already-
+  shipped Daniel-C game **plus these 3 Arduboy-exclusive ones**, all
+  routed through a shared `DATA/MEGA_LIB/ESPKIT.h` compatibility shim -
+  Daniel C himself already adapted them off raw Arduboy2 hardware calls
+  onto a plain PROGMEM/framebuffer model with a `[width,height]`-header
+  sprite-table format and a `MEGA_Sound()`/`MEGA_PLAY_MUSIC()` using the
+  *exact same* tone formula as `ELECTROLIB.h`'s own shared `Sound()`, and
+  input reduced to simple digital-pin macros literally named
+  `TINYJOYPAD_LEFT/RIGHT/UP/DOWN`/`BUTTON_DOWN`/`BUTTON_UP` - a near-
+  direct match for this project's own `isLeftPressed()`-style shim rather
+  than anything ESP-specific. All 3 target files are plain C-style (zero
+  C++ classes, just structs) with goto/while(1) counts (4-10 each) in the
+  same range as several already-shipped Tier-2 games, and each carries
+  its own "relicensed under GPLv3" header from Daniel C specifically for
+  this ESP port. **No longer out of scope** - staged into `more games/
+  MEGAcompilation_ESP/` (just the 3 target games' own folders + the
+  shared `MEGA_LIB/ESPKIT.h` + `COPYING.txt`, not the whole compilation's
+  duplicate copies of already-shipped games) for a future porting pass.
+  Confirmed distinct from anything already shipped: Ardumania is an
+  isometric-scrolling Pac-Man-style maze chase (ghosts, fruit, camera-
+  grid scroll); Nohzdyve is a descent/dive arcade game; Gilbert in the
+  Downland is an 11-room rope-and-chamber climbing platformer with acid-
+  drop hazards - a different game from the already-shipped "Tiny
+  Gilbert" despite the shared character name (confirmed via structure,
+  not just the name). A follow-up deep-read audit (checking all 3 games'
+  own supporting engine/sprite files, not just their top-level `*-ESP.h`)
+  found the "zero C++ classes" claim above only held for those top-level
+  files - the supporting `engineOBJ*.h` files do have classes, including
+  a shallow 3-way shared-base inheritance in Gilbert's own
+  `engineOBJ_GITD.h` - the same already-solved flatten-to-struct shape as
+  Tiny Missile/Tiny Pipe, not a new blocker. **Nohzdyve has since shipped**
+  (see its own writeup in Status below) - Ardumania and Gilbert in the
+  Downland remain staged-only, not yet ported.
 - `sample` - 3 original ATtiny85/Tiny Joypad games by 近藤さんちの研究室
   ("Kondo-san's Laboratory", note.com handle `kondolab`), placed into this
   folder directly by the user (not git-cloned/downloaded by this session) -
@@ -1853,7 +1889,7 @@ control flow.
 ## Status (as of this session)
 
 Shipped and visually verified (WebGL emulator + a Puppeteer screenshot
-harness - see below): the shim architecture, the menu, and 50 full games
+harness - see below): the shim architecture, the menu, and 51 full games
 (NumberPlace, Tiny Invaders, 2048, HollowSeeker, Tiny Pinball, Tiny
 Pacman, Tiny Bomber, Tiny Doc, Tiny Bert, Tiny Tris, Tiny Arkanoid, Tiny
 Trick, Tiny Minez, Tiny Missile, Tiny Bike, Tiny Arena, Tiny Gilbert,
@@ -1863,7 +1899,7 @@ Dungeon, Oroboros, Run Dude Run, Four in a Row, Dino Game, SnakeGame85,
 Jump Slime, TinyRoG, TinY Fi, Breakout, Space Attack, Falling Blocks,
 Tiny Mania, Blocks Gold, Astro Barrier, ATtiny Snake, Meteor Storm,
 Flappy Bird, Tiny Bulls And Cows, ATtiny Tetromino, Laser Pong, Pipe
-Bird - both Falling Blocks
+Bird, Nohzdyve - both Falling Blocks
 and Blocks Gold's own menu names deliberately avoid naming
 the falling-block puzzle genre they're clones of, a registered trademark
 (see each one's own writeup below for the full naming rationale); Tiny
@@ -8039,6 +8075,205 @@ cell 1 (second cell of its 4x2 grid, right after Laser Pong's own cell 0)
 discovery batch entirely - all 4 staged candidates (Tiny Bulls And Cows,
 ATtiny Tetromino, Laser Pong, Pipe Bird) have now shipped.
 
+## Nohzdyve - the first port from `more games/MEGAcompilation_ESP/`
+
+Picked directly by the user ("trying porting the dyve one") as the first
+of the 3 games staged from Daniel C's ESP8285/ESP8266 "MEGA TinyJoypad"
+compilation (see this file's own "beyond the original scope" entry above
+for how that compilation was found and why it changed the earlier
+"out of scope, beefier Arduboy hardware" call on these 3 titles). A
+vertical dive/descent game - steer left/right while diving down an
+endlessly-scrolling shaft, dodging wall-mounted climbing pegs and
+carnivorous flowers plus a chasing "jaw" enemy, while touching a
+bouncing "glob" target scores +10 points; 3 lives per game. The name and
+"© TUCKERSOFT" branding on its own real title screen are a direct homage
+to the fictional in-universe game from Netflix's *Black Mirror:
+Bandersnatch* (2018), "developed" by the fictional Tuckersoft studio in
+that film.
+
+**Confirmed genuinely portable in the earlier audit, and it held up**:
+plain C-style top-level file (`Nohzdyve-ESP.h`), with classes confined to
+the supporting `engineOBJ.h` (`TUNES`/`TIMERND`/`Sprite_ND`, no
+inheritance) - flattened to `NdvSprite`/`NdvTimer` structs + `ndv`-
+prefixed functions, the same treatment already proven for every other
+class-based Daniel-C/Sven-B port in this project. `TUNES::tone()` turned
+out not to be a real Arduboy dependency at all - it's a thin wrapper
+around `Sound_TTRICK()`, which (traced through the full un-staged
+compilation) is a byte-for-byte copy of the same `255-freq` bit-bang
+tone formula `ELECTROLIB.h`'s own `Sound()` already uses - ported as a
+direct call to the shared `Sound()`. Every one of upstream's own
+`tunes.tone()` calls is already individually gated by its own `TIMERND`
+trigger (one real tick apart at minimum), so - unlike the burst-collapse
+bug family found in several other Daniel-C ports - there was no risk of
+multiple `Sound()` calls colliding into one audible tone here; none
+needed a sequencer.
+
+**A genuinely different sprite-table height convention from this
+project's own established `blitzSprite` family** - the single most
+important structural finding of this port, caught by hand-verifying the
+math against real extracted byte counts (e.g. `StartGameND`'s own
+declared header "43,5" only makes sense as 43 wide x 5 *raw pixels* tall,
+not 5 pages) rather than assumed identical to Tiny Bert's own already-
+proven `bertBlitzSprite`. Every other `blitzSprite`-family port in this
+project (Tiny Bert, Tiny Doc, Jump Slime, etc) has upstream tables
+storing *page count* directly at index 1, needing no conversion. This
+ESP-compilation's own tables instead store *raw pixel height*, with the
+real page count computed by the caller as `(height>>3) + (1 if height%8
+else 0)` - a genuine partial-page-rounding case none of this project's
+existing sprite tables needed. `ndvBlitzSprite()` is therefore a fresh,
+direct translation of ESPKIT.h's own `ESP_blitzSprite()`/
+`ESP_RecupeLineY()`/`ESP_RecupeDecalageY()`, not a reuse of
+`bertBlitzSprite()` - reusing the existing helper unchanged on this
+game's own data would have silently mis-sized every sprite.
+
+**Three different compositing modes were needed simultaneously for the
+first time in this project** - previous ports have almost always used
+plain OR. Sprites and side walls use OR (`drawSelfMasked` upstream); the
+*entire* HUD (score/lives labels and digits) uses XOR (`drawInvertPixel`
+- upstream's own "stays visible regardless of background" trick, safe to
+apply in any order since XOR accumulation is commutative); the attract
+screen's fade-out uses AND-NOT against a growing dither mask
+(`drawErase`); a one-off bonus screen (dropped, see below) would have
+needed a background-clear-then-stamp (`drawOverwrite`).
+
+**The splash/attract intro was deliberately simplified**, the same
+"effort/fidelity tradeoff for a purely decorative, non-gameplay sequence"
+precedent already used elsewhere (e.g. Space Attack's own simplified
+attract slide-in) - upstream's real sequence is a 10-step animated
+crossfade between 5 full-screen pictures, a 50-iteration loading-flicker
+with a beep each, a 65-frame "choose your handedness" screen, and an
+optional bonus "video code" screen, collapsed here to a plain sequential
+hold of the same 4 splash pictures. The "choose your handedness" screen
+specifically was dropped outright rather than simplified, for a reason
+stronger than effort: reading `SelectND()` directly confirms the chosen
+value is a local variable only ever used to decide whether to show the
+bonus video-code screen afterward - it has zero actual gameplay effect
+even on real hardware, so there was nothing to preserve. Real gameplay
+(`PlayGameND`) and the per-life window-opening reveal (`ExitWindowND`,
+which slides open to show the real "NOHZDYVE / TUCKERSOFT" title card
+before every life) are both ported at full fidelity.
+
+**A genuinely new dialect finding for this project**: an anonymous
+`enum { ... };` (matching upstream's own bare-enum style exactly)
+compiled with `error: expected identifier` - this dialect requires a
+named `enum TypeName { ... };`, confirmed against `VIRCON32_C_DIALECT.md`
+§17.1's own documented rejection of anonymous `typedef enum`. Only 3
+already-shipped games in this whole project (NumberPlace/2048/
+HollowSeeker) had ever used a real `enum` before this one, and all 3
+happened to already use the named form - this port is the first to hit
+the anonymous-enum rejection directly. Fixed by naming all 3 enums
+(`NdvSpriteSlot`/`NdvPicId`/`NdvState`).
+
+**Declaration-order note, not a bug**: `VIRCON32_C_DIALECT.md` §11
+confirms forward declarations *are* actually supported ("allowed for
+ordering") - contrary to this file's own earlier, overly-broad "no
+forward declarations" framing from the HollowSeeker-era work. This port
+still used the more conservative option (physically relocating the 3
+mutually-cross-called "begin state" functions - `ndvBeginAttract`/
+`ndvBeginWindowOpen`/`ndvBeginPlaying` - to a shared block ahead of every
+caller, confirmed via `gameTinyPipe.c`'s own already-shipped forward-
+declaration usage that either approach would have worked) rather than
+rely on forward declarations, since the physical-reorder option is
+strictly safer and was already most of the way done.
+
+**A real bug found via a direct user report right after shipping**
+("the walls on the side get removed too early from the top and in the
+beginning of the gameplay walls are not being drawn as well near top").
+Diagnosed by tracing the exact mechanism rather than guessing: `ndvYScroll`
+(driving the side walls' own scroll position) goes negative almost
+immediately once gameplay starts (`ndvScrollDown(1)` decrements it every
+single real tick while playing), and `ndvRecupeLineY( int valeur ){
+return valeur >> 3; }` - a plain, unguarded right shift - is exactly the
+same "logical vs arithmetic shift" bug class already found and fixed
+multiple times in this project (HollowSeeker's `hsDivByColumnW`, Tiny
+Pipe's `RecupeLineY`, TinY Fi's own proactive fix): Vircon32's `>>` is a
+documented *logical* (zero-fill) shift, so a negative `yPos` produced
+garbage instead of the correct negative floor-division result, corrupting
+the wall's own page-visibility bounds check. **Fixed** the same way as
+every prior instance - branch on sign, only ever shift a non-negative
+operand (`-((-valeur+7)>>3)` for negatives) - and `ndvRecupeDecalageY()`
+rewritten to call the now-safe `ndvRecupeLineY()` internally rather than
+doing its own separate raw shift. Verified via a temporary debug hook
+(bypassing the splash/attract/window-open sequence to reach real gameplay
+instantly) showing the wall texture now continuous from the top of the
+screen both at rest and while actively scrolling, where it had
+previously shown only a truncated cap segment near page 0.
+
+**A real, severe CPU spike, found via a second direct user report**
+("do fucking optimzations, when game reaches 'washing lines' it gets to
+100% cpu") - "washing lines" is `NDV_LINE`, upstream's own `LineND`
+decorative streamer sprite, and a good description of its actual art (a
+hanging clothesline with laundry-like shapes). Root-caused and fixed in
+two rounds, both measured via the perf overlay with the sprite force-
+activated via a temporary debug hook (its own real spawn condition is a
+25% chance per tick only when the scroll cycle completes, too rare to
+reliably hit by chance in a short verification pass):
+1. `ndvDrawSprites()` called every active sprite's own blit unconditionally
+   on all 8 pages, regardless of the sprite's real vertical footprint -
+   the by-now-familiar "self-gated call still costs a full call every
+   time it's invoked" lesson (Arkanoid/Bert/Tris/Trick/Morpion etc), just
+   never applied to this port's own sprite loop at ship time. Ordinarily
+   low-impact for a narrow sprite, but `LineND` is 104 of 128 columns
+   wide - the widest sprite this whole project has ever ported - so the
+   wasted-call cost here was far larger than the usual case. Fixed with a
+   call-site page-range gate (`if( page < firstPage || page > firstPage +
+   pages ) continue;`), a literal duplicate of `ndvBlitzSprite()`'s own
+   internal bounds check, so it cannot change what renders.
+2. Even after that fix, CPU stayed pegged at 100% - `ndvBlitzSprite()`
+   recomputes several values that never actually depend on which column
+   is being read (`wMax`/`picByte`/`recupeLineY`/`spriteYLine`/
+   `spriteYDecalage`) fresh on *every single column call* - for a 104-
+   column-wide sprite that's ~103 redundant recomputations of the same 5
+   values per relevant page, every frame it's active. The same "hoist
+   row-invariant work out of the per-column loop" lesson already used in
+   TinY Fi's own `tfiBlitzSpriteRow()`. Fixed by rewriting `ndvOrBlit()`/
+   `ndvXorBlit()` to compute those values once per call and only do the
+   genuinely per-column work (`scanA`/`scanB`/`outByte`) inside the loop
+   - `ndvBlitzSprite()` itself is now only called from
+   `ndvComposeAttractFade()`'s own small, bounded erase-grid loop, not
+   from the two general-purpose blit helpers anymore. Measured: CPU with
+   the sprite continuously forced active dropped from a pegged 100% (red)
+   to a steady 53% (green) - verified via screenshot that rendering
+   stayed pixel-identical (a proper clothesline-with-hanging-shapes
+   graphic, correctly XOR-composited) before and after.
+   Real (non-forced) steady-state gameplay CPU, measured separately, is a
+   comfortable 50% (73% for the single very first frame, which includes
+   one-time setup cost) - every render function here was already built
+   with per-object narrow-column gating from the start, so no further
+   O(pixels x objects) hot spot was found once these two fixes landed.
+
+**EEPROM high-score persistence added on direct user request**
+("add eeprom saving /loading calls for high score"), after this port's
+own header comment had originally noted upstream has zero real EEPROM
+usage anywhere (confirmed by direct grep at port time) - the same
+"genuine extension beyond what upstream itself ever did" situation as
+Tiny Bert's own high-score save earlier this session, not a restoration.
+A plain 2-byte score fits comfortably (`ndvScores` only ever grows by 10
+per glob eaten, nowhere near the 65535 ceiling in a realistic
+playthrough), so this uses the same `eeprom_read_word`/`eeprom_write_word`
+shape - and the same established virgin-slot guard - as the majority
+"simple 2-byte score" games in this project. Loaded once in
+`gameNohzdyve_init()`; saved in `ndvBeginAttract()` at the exact point it
+already updates `ndvHiScores` in memory (once all 3 lives are spent and
+the game returns to the attract screen).
+
+Menu thumbnail added to `assets/thumbnails3.png`'s cell 2 (third cell of
+its 4x2 grid, 5 free cells remaining) - verified via screenshot that it
+displays correctly with "BY DANIEL C" underneath, and a spot-checked
+neighbor (Meteor Storm) is untouched.
+
+Verified via Puppeteer throughout: menu registration (alphabetized
+between Meteor Storm and NumberPlace), the splash sequence, the real
+attract screen (the "NOHZDYVE / TUCKERSOFT" title card), the per-life
+window-opening reveal, and active gameplay (steering, wall scrolling,
+glob-eating/scoring, the jaw/climbing-peg/flower hazards, HUD) all render
+correctly. Not independently forced this session: a full player-death
+sequence through to game-over/new-attract-return, and the optional
+"washing lines" streamer's own real (non-forced) spawn condition - both
+reuse logic paths already exercised via the debug hooks used to verify
+the two bug fixes above, so risk is low, but worth a direct check if
+anything looks off.
+
 ## Licensing
 
 Tiny Invaders v4.2 is GPLv3 (its `tinyJoypadUtils`/driver lineage). Since a
@@ -8055,11 +8290,16 @@ the same way, "SVEN B / LORANDIL"); Tiny
 Invaders, Tiny Pinball, Tiny Pacman, Tiny Bomber, Tiny Doc, Tiny Bert,
 Tiny Tris, Tiny Arkanoid, Tiny Trick, Tiny Minez, Tiny Missile, Tiny Bike,
 Tiny Arena, Tiny Gilbert, Tiny Pipe, Tiny Morpion, Tiny Plaque, Tiny
-SQuest, Tiny DDug, Tiny Lander, and Tiny Mania all stay GPLv3 (Tiny Mania
-is the newest of these, its own header crediting "Daniel C 2026" directly
-- the same author/license/driver lineage as most of the rest of this
-list, credited "DANIEL C" in the menu the same way as Tiny Pinball/
-Pacman/etc above; Tiny Lander's own
+SQuest, Tiny DDug, Tiny Lander, Tiny Mania, and Nohzdyve all stay GPLv3
+(Tiny Mania is the newest of the tinyjoypad.com-proper titles, its own
+header crediting "Daniel C 2026" directly - the same author/license
+lineage as most of the rest of this list, credited "DANIEL C" in the menu
+the same way as Tiny Pinball/Pacman/etc above; Nohzdyve is a different
+case again - it's not from tinyjoypad.com at all, but from Daniel C's own
+separate ESP8285/ESP8266 "MEGA TinyJoypad" compilation (see this file's
+own writeup above), individually "relicensed under GPLv3" by Daniel C for
+that specific ESP port, credited "DANIEL C" in the menu the same way;
+Tiny Lander's own
 header credits "Roger Buehler" / GitHub handle "tscha70" - a different
 author from every Daniel-C/Sven-B title above, credited separately in
 the menu as "ROGER BUEHLER"). Wren Rollercoaster, Frogger, Bat Bonanza,

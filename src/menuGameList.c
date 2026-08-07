@@ -203,4 +203,7 @@ void addGames()
     // No onResume needed - gamePipeBird_update() calls pipbRenderFrame()
     // unconditionally in every state, confirmed correct not an oversight.
     addGame( "PIPE BIRD", "IOANNIS LAMPROPOULOS", &gamePipeBird_init, &gamePipeBird_update, NULL );
+    // No onResume needed - gameNohzdyve_update() calls ndvRenderFrame()
+    // unconditionally in every state, same as Pipe Bird above.
+    addGame( "NOHZDYVE", "DANIEL C", &gameNohzdyve_init, &gameNohzdyve_update, NULL );
 }
