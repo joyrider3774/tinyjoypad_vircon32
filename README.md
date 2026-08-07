@@ -2,7 +2,7 @@
 
 ![Menu screenshot](metadata/menu.png)
 
-A single [Vircon32](https://www.vircon32.com/) cartridge that ports **52
+A single [Vircon32](https://www.vircon32.com/) cartridge that ports **53
 games** originally written for the [TinyJoypad](https://www.tinyjoypad.com/)
 ATtiny85 + SSD1306 128x64 OLED handheld onto Vircon32's 640x360 GPU, behind
 one shared game-select menu. Vircon32's GPU is a texture-region blitter with
@@ -57,6 +57,7 @@ Click a thumbnail for the full-size screenshot.
 | Game (in-cartridge title) | Original Author | License | High Score Saved | Source | Screenshot |
 |---|---|---|---|---|---|
 | 2048 | Obono | MIT | — | [TinyJoypadWorks](https://github.com/obono/TinyJoypadWorks) | [<img src="metadata/screenshots/2048.png" width="160">](metadata/screenshots/2048.png) |
+| Ardumania | Daniel C | GPLv3 | ✅ | [phoenixbozo/TinyJoypad](https://github.com/phoenixbozo/TinyJoypad/tree/main/TinyJoypad) | [<img src="metadata/screenshots/ARDUMANIA.png" width="160">](metadata/screenshots/ARDUMANIA.png) |
 | Astro Barrier | Sean Price | GPLv3 | ✅ | [attiny-astro-barrier](https://github.com/SeanP2001/attiny-astro-barrier) | [<img src="metadata/screenshots/ASTRO%20BARRIER.png" width="160">](metadata/screenshots/ASTRO%20BARRIER.png) |
 | ATtiny Snake | Sean Price | GPLv3 | ✅ | [attiny-snake](https://github.com/SeanP2001/attiny-snake) | [<img src="metadata/screenshots/ATTINY%20SNAKE.png" width="160">](metadata/screenshots/ATTINY%20SNAKE.png) |
 | ATtiny Tetromino | Sunpazed | GPLv3 | ✅ | [attiny-tetromino](https://github.com/sunpazed/attiny-tetromino) | [<img src="metadata/screenshots/ATTINY%20TETROMINO.png" width="160">](metadata/screenshots/ATTINY%20TETROMINO.png) |

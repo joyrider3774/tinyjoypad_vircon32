@@ -145,9 +145,10 @@ future porting pass doesn't need to re-download anything:
   files - the supporting `engineOBJ*.h` files do have classes, including
   a shallow 3-way shared-base inheritance in Gilbert's own
   `engineOBJ_GITD.h` - the same already-solved flatten-to-struct shape as
-  Tiny Missile/Tiny Pipe, not a new blocker. **Nohzdyve and Gilbert in the
-  Downland have since shipped** (see each one's own writeup in Status
-  below) - only Ardumania remains staged-only, not yet ported.
+  Tiny Missile/Tiny Pipe, not a new blocker. **All 3 titles have since
+  shipped** (Nohzdyve and Gilbert in the Downland first, Ardumania last -
+  see each one's own writeup in Status below) - this staged folder's own
+  porting pass is now fully closed out, with no remaining candidates.
 - `sample` - 3 original ATtiny85/Tiny Joypad games by 近藤さんちの研究室
   ("Kondo-san's Laboratory", note.com handle `kondolab`), placed into this
   folder directly by the user (not git-cloned/downloaded by this session) -
@@ -1909,7 +1910,7 @@ control flow.
 ## Status (as of this session)
 
 Shipped and visually verified (WebGL emulator + a Puppeteer screenshot
-harness - see below): the shim architecture, the menu, and 52 full games
+harness - see below): the shim architecture, the menu, and 53 full games
 (NumberPlace, Tiny Invaders, 2048, HollowSeeker, Tiny Pinball, Tiny
 Pacman, Tiny Bomber, Tiny Doc, Tiny Bert, Tiny Tris, Tiny Arkanoid, Tiny
 Trick, Tiny Minez, Tiny Missile, Tiny Bike, Tiny Arena, Tiny Gilbert,
@@ -1919,7 +1920,7 @@ Dungeon, Oroboros, Run Dude Run, Four in a Row, Dino Game, SnakeGame85,
 Jump Slime, TinyRoG, TinY Fi, Breakout, Space Attack, Falling Blocks,
 Tiny Mania, Blocks Gold, Astro Barrier, ATtiny Snake, Meteor Storm,
 Flappy Bird, Tiny Bulls And Cows, ATtiny Tetromino, Laser Pong, Pipe
-Bird, Nohzdyve, Gilbert in the Downland - both Falling Blocks
+Bird, Nohzdyve, Gilbert in the Downland, Ardumania - both Falling Blocks
 and Blocks Gold's own menu names deliberately avoid naming
 the falling-block puzzle genre they're clones of, a registered trademark
 (see each one's own writeup below for the full naming rationale); Tiny
@@ -8481,6 +8482,429 @@ player-death-to-game-over sequence with a new high score actually saved
 testing and the EEPROM code-path confirmation above, so risk is low, but
 worth a direct check if anything looks off.
 
+## Ardumania - the third and last port from `more games/MEGAcompilation_ESP/`
+
+Picked directly by the user as the third and final game staged from
+Daniel C's ESP8285/ESP8266 "MEGA TinyJoypad" compilation, completing that
+whole discovery batch (Nohzdyve and Gilbert in the Downland shipped
+earlier). An isometric-scrolling Pac-Man-style maze chase: steer through
+a diamond-tiled maze eating dots and big dots, dodge up to 7 ghosts
+(frightened/eaten modes triggered by big dots), collect a periodic bonus
+fruit, across 9 levels (5 distinct layouts, the last 4 reusing the first
+4 at rising ghost count/speed via a real `ArduMap()`-style linear
+interpolation). 3 lives per game, a real persisted top-3 high-score
+leaderboard with a selectable avatar (Ardumania/Ghost/Fruit).
+
+**By far the largest single port this project has done** - 100 upstream
+functions, 56 real data tables (a `TIMER`/`SpriteAmania` class pair, the
+latter with genuine per-instance movement logic, not just a data-holder
+like Nohzdyve's own sprite struct), goto=10/while1=7, comparable in raw
+scope to several Tier-2 Daniel-C games combined. Same
+`ESPCOMPATIBILITY`/`ESPKIT.h` shim lineage as Nohzdyve/Gilbert - the same
+`[width, raw_pixel_height, ...]` sprite header convention, the same
+`255-freq` tone formula, the same `TINYJOYPAD_LEFT/RIGHT/UP/DOWN`/
+`BUTTON_DOWN`(held)/`BUTTON_UP`(released) input macros mapping directly
+onto `isLeftPressed()`/etc and `isFirePressed()`.
+
+**A real persistent pixel framebuffer, matching Gilbert in the Downland's
+own architecture rather than Nohzdyve's per-page-buffer one** - the same
+architectural choice made for the same reason: `ESPKIT.h`'s own
+`drawSelfMasked`/`drawErase`/`drawOverwrite` all accumulate into one
+persistent `Disp_1->buffer[1024]`, called in an intricate, order-
+dependent sequence scattered through a large nested per-tile isometric
+render loop (background walls/dots/gate, fruit, each ghost, the player -
+several OR/AND-NOT/clear-then-stamp calls per grid cell, in a specific
+temporal order matching upstream's own draw priority). Unlike Nohzdyve's
+simpler sprite list (cleanly restructurable into "for each page,
+composite once"), this game's isometric per-tile scan has no such clean
+decomposition - reusing Gilbert's own full 1024-word buffer
+(`amaniaFrameBuffer`) was the lower-risk choice, letting every draw call
+just walk its own real column/page footprint and combine into the buffer
+exactly once, in the same order upstream does, with no restructuring
+needed to get composition order right.
+
+**Class flattening**: `TIMER` -> `AmaniaTimer` (a trivial data holder,
+same shape as Nohzdyve's own `NdvTimer`), `SpriteAmania` -> `AmaniaSprite`
+struct + `amania`-prefixed free functions taking an explicit pointer -
+but unlike every prior class-based port in this project, `SpriteAmania`'s
+own methods (`AdjustControl`/`CheckPriorityX/Y`/`RefreshMove`/`GoUp/Down/
+Left/Right`) carry real per-instance movement/collision logic, not just
+field accessors - the flattening here is closer in spirit to Gilbert's
+own `GitdPlayer` struct than to Nohzdyve's simpler sprite-slot model.
+
+**Two genuine, proactively-fixed logical-vs-arithmetic-right-shift
+risks** (Vircon32's `>>` is documented *logical*, not arithmetic - the
+same bug family already found in HollowSeeker/Tiny Pipe/Nohzdyve/TinY Fi/
+Gilbert): `SpriteAmania::GoUp()`/`GoDown()`'s own `DecX = -(DecY >> 1)`
+shifts `DecY` while it's still genuinely negative (its own real range is
+[-7, 0]) - fixed with a shared sign-safe `amaniaShiftR1()` halving
+helper. `Center_Screen()`'s own `IsoScrollY >> 1` was checked too and
+confirmed always safe (`IsoScrollY = -DecY` is always >= 0 given `DecY`'s
+own range), so left as a plain shift there - the same "audit every shift,
+don't assume they're all equally risky" discipline already established.
+
+**A genuine out-of-bounds-Y gap in upstream's own `ExploreMap()`, found by
+inspection before ever compiling, not a report**: `Read2Bits()`/
+`Define2Bits()`/`Initialize2Bits()` all explicitly guard `y_ < 0 || y_ >
+H-1` before indexing, but `ExploreMap()` (the real wall-collision check,
+called via `ExploreMapChose()` from every `CheckPriorityX/Y()`/`GoUp/
+Down/Left/Right()` call with a raw `GridY +/- 1`, reachable at `GridY ==
+0`) has no such guard - harmless on real AVR flash (an adjacent-PROGMEM-
+byte read), a genuine out-of-bounds global read here. Fixed by adding the
+same bounds guard `Read2Bits()` already has (return 1/"wall", matching
+what a border row would represent) directly in `amaniaExploreMap()`, safe
+by construction rather than guessed.
+
+**Deliberate simplifications, dropping several real blocking
+`My_delay_ms()` pauses rather than converting each into its own explicit
+wait-state**, matching this project's own "effort/fidelity tradeoff for a
+purely decorative pause" precedent used elsewhere (Nohzdyve's own dropped
+splash sequence, Space Attack's attract slide-in): upstream's own boot
+sequence (`FakeLoad()`/`Fail()` - an elaborate LED-flash/beep-cadence
+animation with a random 10% "loading failure" easter egg, zero gameplay
+effect) collapsed to a single static boot-logo screen (fill white, erase-
+composite the real `BOOTINTRO` art, press Fire to continue); `collision()`'s
+own real `My_delay_ms(250)` pause right after the ghost-eaten sound
+(before awarding points) and `ProgramExitMode()`'s own leading
+`My_delay_ms(400)` (before the fade-out even begins animating) are both
+dropped outright - the sound/score/mode-switch and the fade sequence
+itself all still happen on the correct frame, just without the extra
+real-time freeze. The avatar-select `Menu()` and the 3-slot `ScoreMenu()`
+leaderboard are both real, functional screens (not decorative) and are
+ported at full fidelity, just converted from a blocking `while(1)` to
+explicit per-frame state dispatch like every other port in this project.
+
+**AnimLvlChange() - initially simplified to a plain black hold, then
+restored to the real animation at direct user request**: the player
+walks off the left edge of the screen (`D=0`), then reverses and walks
+back across trailing the level's own ghost count behind them (`D=1`),
+against a scrolling border and a row of decorative "Plate" platforms -
+ported as an explicit `AMANIA_STATE_LEVEL_TRANSITION` state advancing the
+walk position/animation frame/border-scroll offset once per real frame,
+the usual "blocking loop -> explicit resumable state" treatment. Needed
+re-adding two data tables (`amaniaPlate`/`amaniaBlack`) that had been
+judged dead and removed during the initial simplified-transition pass.
+
+**A real, previously-uncredited melody, found only because the user
+insisted "normally there is music playing" during this animation and
+asked me to re-check rather than accept my own first assumption**:
+upstream's own `AnimLvlChange()` wraps a `MEGA_PLAY_MUSIC(&score[0])`
+call in a literal `/* */` comment block, gated behind a `FirstLoad` flag
+- my first pass read this as "the original author disabled it" and
+dropped both the call and the `score[]` table entirely as dead code, the
+same reasoning already applied (correctly) to Tiny Bomber's own dead
+`Music[]`-table off-by-one elsewhere in this project. That reasoning
+turned out to be wrong here: after being pushed to re-verify, tracing the
+table's own real content (`score[]`, 59 freq/dur pairs, several genuine
+freq=0 rests mixed with real tones - clearly a composed tune, not
+filler) confirmed this is real, intentional content simply left disabled
+in this one archived copy of the source, not evidence the melody was
+never meant to play. Restored in full: re-added the `score[]` table
+(now `amaniascore`) and queued all 59 note-pairs into the shared frame-
+stepped sequencer (resized from 24 to 64 slots specifically to hold it -
+every other cue in this file uses well under 24 notes) when the
+transition begins, playing alongside (not replacing) the two direct
+confirm-tone calls `AnimLvlChange()` also fires unconditionally at that
+same moment. **Generalizable lesson**: a commented-out call sitting next
+to real, well-formed data is worth a second look before concluding it's
+genuinely dead - "the code doesn't run" and "the content was never
+intended to be heard" are two different claims, and this project's own
+usual "confirm dead code via grep before dropping it" discipline should
+extend to checking *why* it's dead, not just *that* it is, when the
+data being skipped looks intentional rather than vestigial.
+
+**A real audio bug in that same restoration, found via direct user
+report** ("i hear a seemingly small blip... it may be collapsing all the
+sounds into 1"): an early attempt routed the two confirm tones
+(`Snd(100,255);Snd(60,255);`) through the same frame-stepped sequencer
+used for burst-collapse-prone cues elsewhere in this project, reasoning
+(incorrectly) that Vircon32's audio channel still had no queue - but
+`md_playTone()` became genuinely multi-voice project-wide in an earlier
+session (see this file's own "`md_playTone()` became genuinely
+multi-voice" section above), specifically *because* a single shared
+channel was the wrong model - two back-to-back `Sound()` calls each
+claim their own free SPU channel and can't step on each other anymore.
+Applying the old single-voice-era wait-frame-pacing fix here was
+solving a problem that no longer exists on this engine, and interacted
+badly with `amaniaBeginLevel()`'s own preceding `amaniaSoundSystem(5)`
+confirm-click call (also freshly re-clearing the shared sequencer state)
+to genuinely suppress audible output. **Fixed** by reverting to a direct,
+literal translation of upstream's own two calls
+(`Sound(100,255);Sound(60,255);`), matching upstream's own simplicity now
+that the collision concern doesn't apply, and restoring the confirm
+click uniformly across all three menu actions (Start Game/High Score/
+Sound toggle) rather than special-casing Start Game to avoid a collision
+that was never real to begin with.
+
+**A separate, genuine duration-quantization fix to the shared sequencer
+itself**, found while investigating the above (not fully superseded by
+reverting the transition's own two tones to direct calls - the shared
+`amaniaAdvanceSfx()` fix stayed, since the 59-note melody genuinely does
+need it): the sequencer previously fired exactly one note per real frame
+regardless of that note's own true duration, computed from the same
+`freq/dur -> real-seconds` formula every ELECTROLIB.h-lineage game in
+this project already uses. For every *other* burst in this file (fruit/
+ghost-eaten/dot/dead sweeps, all built from short `dur` values ~1-10)
+that real duration already rounds to under one frame, so immediate
+advance was already correct there and stayed unchanged - but the
+melody's own real note durations (tens of milliseconds each) need actual
+multi-frame waits between notes to be audible as a real tune rather than
+a blur. Fixed by having `amaniaAdvanceSfx()` compute each note's own real
+duration in frames and hold before advancing to the next one.
+
+**CPU optimization, applied in five real, individually-measured rounds
+after the user pushed hard on this specifically** - GPU stayed a steady
+5-15% throughout (confirming this was never a fillrate/pixel-count
+problem), CPU was the real constraint:
+1. `amaniaMAIN` (the Menu screen's own full 116x64 background artwork -
+   by far the widest/tallest sprite in this whole port, ~928 real inner-
+   loop iterations per call) was being fully recomputed via the general
+   sprite-blit path every single frame despite never changing - cached
+   into `amaniaMainCache[1024]` exactly once (the first time the menu is
+   ever shown) and merged with a plain OR loop thereafter, the same
+   "cache what doesn't change every frame" lesson as Tiny Doc's own
+   row-scoped dirty tracking, just for a permanently-static asset.
+   Measured: Menu screen CPU dropped from a pegged, visibly truncated
+   100% to a clean, fully-rendered 71%.
+2. That same cache-merge was itself doing a redundant *second* full-
+   1024-cell pass on top of `amaniaClearBuffer()`'s own zero-fill (clear,
+   then separately OR the cache in) - collapsed into one direct-copy pass
+   that does both jobs at once, at direct user prompt ("do the 1024
+   pixel stuff optimizations").
+3. Every wall/dot/fruit/ghost/player draw in the gameplay render loop
+   pairs an `amaniaDrawErase()` (mask) with an `amaniaDrawSelfMasked()`
+   (real sprite) call at the *same* position - since every such pair
+   shares an identical `[width,height]` header (confirmed for all 7 real
+   pairs in this file), a new combined `amaniaDrawEraseThenMask()`
+   computes the shared row-invariant setup once and runs one column loop
+   for both halves instead of two separate general-purpose calls each
+   redoing that setup and re-walking the same footprint.
+4. All three blit primitives (`amaniaDrawSelfMasked`/`amaniaDrawErase`/
+   the new combined function) had their own per-column sprite-byte
+   computation fully inlined, removing the `amaniaSpriteByte()`/
+   `amaniaSplitDecalageY()` function-call layer from the hottest loop in
+   the file - without v32opt's own inlining pass (this project's own
+   standing test builds run with `SKIP_V32OPT=1`, and the user was
+   explicit that v32opt itself is not an acceptable fix here), raw
+   per-call overhead in a loop this hot is a real, measurable cost on its
+   own, the same finding already made for Tiny Arkanoid/Run Dude Run/Tiny
+   Arena's own `arVBuf()`.
+5. Two off-screen-skip checks, one per axis: `SCREEN_BLOCK_W` (13 cols x
+   `XSTEP` 14 = 182px) deliberately overscans past the real 128px screen
+   width for smooth camera scrolling, so a per-cell check skips any
+   column whose sprite footprint can't possibly be visible before ever
+   calling a draw function for it; separately, `SCREEN_BLOCK_H`'s own
+   `scanY=8` (the loop's last row) was found, by direct derivation, to
+   *always* compute a `tpy >= 64` (already past the last valid page)
+   regardless of camera position - an unconditional, guaranteed waste of
+   up to 13 cells' worth of work every single frame, skipped with one
+   whole-row check before ever entering that row's own inner column loop.
+   Both skips were verified safe from a gameplay standpoint: only the
+   player's own grid cell carries real side effects (dot pickup/scoring),
+   and `Center_Screen()` always keeps the camera centered on the player,
+   so that one cell is never among the ones either skip removes.
+
+**A second round, requested directly after the first landed**, found
+three more real, if smaller, levers:
+6. `amaniaPannel()` (the HUD score/lives panel, drawn every single
+   gameplay frame) calls `amaniaDrawOverwrite()` twice for its own
+   "Digital"/"Dlive" icons - the one blit primitive that had been missed
+   by round 4's inlining pass. Inlined the same way as the other three.
+7. The per-cell off-screen column check (item 5 above) originally ran
+   *after* `amaniaLoopScreen()`/`amaniaRead2Bits()`/`amaniaOutCheck()` had
+   already done their own work for that cell - moved earlier, computing
+   just `tpx` first and skipping the grid-lookup work too for columns
+   that can't possibly be visible, not only their draw calls.
+8. The per-cell ghost-position check (`for each of up to 7 ghosts, does
+   this cell match their position`) ran for *every* one of the ~130
+   scanned cells every frame - a real O(cells x ghosts) shape (up to
+   ~900 comparisons/frame), the exact same pattern already found and
+   fixed once before in this project, in Tiny Mania's own render loop
+   (`tmnGhostCellHead`/`tmnGhostCellNext`). Applied the identical bucket-
+   linked-list technique here at direct user request ("do the ghost
+   position look up fix as well same as in tiny mania"): a small
+   `amaniaGhostCellHead[143]`/`amaniaGhostCellNext[8]` index built once
+   per frame in O(ghosts) by inverting the scan loop's own forward
+   scanX/scanY -> camScanX/camScanY mapping (camScanY has no wraparound,
+   so it inverts directly; camScanX wraps by at most one level-width in
+   either direction, so of the 3 candidate un-wraps at most one ever
+   lands inside the real 13-cell scan window), then queried in O(1) per
+   cell instead of looping every ghost.
+
+Measured outcome, via repeated real-gameplay perf-overlay checks
+(including deliberately scrolling into map corners, a genuinely dense
+level-1 starting room, and, via a temporary debug jump, level 4
+specifically): the *visible truncation* failure mode (a real frame cut
+off mid-render, missing content - this project's own documented over-
+budget failure signature) is gone in every tested scene, including that
+dense level-1 starting room and level 4's own `InvertBlock` mode (which
+draws the full block sprite on every *non-wall* cell instead of just
+walls - confirmed via the debug jump to cover almost the entire visible
+screen with real texture, a fundamentally denser scene by the original
+game's own design, not an artifact of this port). The raw CPU% reading
+itself still pegs at a clamped 100% in these same dense scenes even
+after all eight fixes above - the meter's own 0-100 clamp can't show
+whether later rounds actually lowered the real number while it was
+already at the ceiling, the same measurement limitation this project's
+own Tiny Mania throttle investigation already documented. Getting
+further below the ceiling specifically in these dense scenes would need
+a genuinely different rendering algorithm (for `InvertBlock` levels:
+fill the visible area with the checkered pattern once, then punch black
+holes for the sparse wall corridors, inverting which case is the
+expensive per-cell one; for dense normal rooms: restructuring away from
+this port's own full-framebuffer model toward a per-page composite,
+Nohzdyve's own architecture) rather than another incremental tweak -
+flagged as a known, understood, and deliberately not-yet-attempted
+ceiling (the same "inherent cost of dense visual style, not a fixable
+inefficiency in the compositing logic itself" conclusion this project
+already reached for Tiny Bert), rather than risking a structural rewrite
+of the render loop in an already very large, freshly-written file.
+
+**EEPROM**: upstream's own 3-slot leaderboard (`{avatar, score}` per
+slot, a marker byte to detect a virgin card) is restored through this
+project's own `eepromShim.h` - the marker-byte trick is dropped entirely
+since the shim's own magic/checksum system already serves that exact
+purpose; each slot is just `eeprom_read_byte`(avatar) +
+`eeprom_read_word`(score) at a fixed 3-word stride, with the standard
+65535 virgin-word guard already established project-wide. Confirmed
+wired correctly: loaded once in `gameArdumania_init()`, saved via
+`amaniaCheckNewHighScore()` (classement + persist all 3 slots) at both
+real game-over paths (out of lives, and clearing the final level).
+
+`rand()%n`/`rand()%7` routed through the shared `arand()` helper; the
+fixed 24-entry `rndmove[]` cycling table (`RandVar()`, upstream's own
+*deterministic* pseudo-random source, not a real RNG call) is kept as a
+literal translation, not replaced. `switch`/ternary avoided proactively
+throughout (every one of upstream's many `switch` blocks and `?:`
+expressions rewritten as `if`/`else` chains, matching this dialect's own
+well-documented lack of support); binary literals (`0b11`) rewritten as
+decimal.
+
+Data tables byte-diff-extracted via a small Python script (parsing the
+real PROGMEM array literals directly out of `SpriteAMania.h`, not hand-
+transcribed) - all 56 tables (plus the later-restored `score[]`, for 57
+total), matching this project's own established anti-Bomber-dropped-byte
+discipline.
+
+Menu thumbnail added to `assets/thumbnails3.png`'s cell 4 (the first cell
+of a new second row - the grid grew from 4x1 to 4x2 to fit) - verified
+via screenshot that it displays correctly with "BY DANIEL C" underneath.
+
+Verified via Puppeteer throughout: menu registration (alphabetized
+directly after "2048"), the splash screen, the avatar-select menu
+(cursor navigation, avatar switching, the Start Game/High Score/Sound
+items), the 3-slot score menu (correctly showing all-zero on a fresh
+card), the restored walk-transition animation (player walking off-
+screen, reversing, ghosts trailing), and active gameplay (movement, dot-
+eating with score climbing 0->75->135 across a real play session, camera
+following the player, ghost rendering) all render and function
+correctly. Not independently forced this session: a real ghost
+collision/death sequence, eating a big dot to frighten ghosts, catching
+a bonus fruit, and a full level-clear - all reuse logic paths that are
+otherwise direct, unmodified translations of upstream's own already-
+traced control flow, so risk is low, but worth a direct check if
+anything looks off.
+
+**A split-rate throttle, added afterward at direct user request and then
+refined twice more** ("apply 30 fps lock", then "set fps lock during
+gameplay to 60 and fps lock in menu to 30", then "actually can the 60 be
+50 like upstream ?"). Checking for the first request surfaced a real gap
+in the initial port: unlike the "no timing model whatsoever upstream"
+category several other ports in this project fall into (which this port
+had been wrongly assumed to match), Ardumania actually has a genuine
+real-time dual-rate throttle - `MEGA82XX.SetFPS()`/`FPS_Temper()`, called
+with `SetFPS(30)` specifically for `Menu()`/`ScoreMenu()` and `SetFPS(50)`
+for everything else (`BootIntro`, the level-transition walk animation, and
+real gameplay) - never ported at all, since the initial pass never checked
+for it. A uniform 30fps lock was tried first (matching this project's own
+"just lock it to the requested rate" precedent rather than reproducing the
+dual split precisely), but the user asked for the real split instead: Menu/
+ScoreMenu throttled to exactly 30fps via a plain integer divisor
+(`AMANIA_TICK_DIVISOR = 60/30`, an exact division), every other state
+(Splash/LevelTransition/Playing) throttled to 50fps via a Bresenham-style
+accumulator (`amaniaPlayTickAccum += 50; if >= 60 then -= 60 and run one
+tick` - the same technique already established for Tiny Gilbert's own
+40fps target, needed here too since 60 doesn't divide evenly by 50) rather
+than left fully unthrottled at the engine's native 60fps. Both throttle
+mechanisms gate the entire `gameArdumania_update()` body including the
+fire-edge computation (`amaniaFireEdge`/`amaniaPrevFire` only update on
+ticks that actually run, avoiding a missed-press risk that a raw per-real-
+frame edge check combined with a skipped dispatch could otherwise cause),
+matching the majority "gate the whole tick, not just movement" shape
+already used for NumberPlace/HollowSeeker/t2048/Doc/Pacman/Pipe/Tiny
+Mania/Jump Slime/TinyRoG/TinY Fi in this project. Every existing frame-
+counted timer in the file (the "Player 1 Ready" banner, the transition
+animation's own walk position, the sfx sequencer's own wait-frames, every
+`GhostTimer`/`HighSpeedTimer`-style real-time counter) was deliberately
+left unrescaled, matching this project's standing "one divisor, no dual
+bookkeeping" practice - they simply now take longer in real time,
+proportional to whichever real rate their own state runs at (2x for
+Menu/ScoreMenu, 1.2x for everything else). Verified via Puppeteer: the
+menu still renders/navigates correctly at its own throttled rate, and the
+full walk-transition animation into real gameplay (movement, dot-eating,
+score climbing to 60, camera scroll) all function correctly at the
+gameplay rate. The perf overlay's own already-documented Tiny Mania
+throttle finding still applies here too - this reduces *average* load by
+alternating cheap (skipped) and full-cost (real) frames, not the *peak*
+per-tick cost of the frames that still run full render logic, which stays
+exactly what the eight optimization rounds above already established it
+to be.
+
+**A real bug found via direct user report right after the FPS work**
+("does the sound on/off menu option make use of EEPROM ? because if i set
+it to off sound is still on"). Two separate questions, two separate
+answers: `amaniaAudio` is **not** EEPROM-backed at all (it's a plain
+session-local flag, reset to `1` every `gameArdumania_init()` - only the
+3-slot high-score leaderboard is persisted for this game, matching the
+plan this port was always scoped to). But the second half was a genuine,
+real bug: `amaniaAudio` had only ever been wired to the speaker-icon
+draw (`if( amaniaAudio ) amaniaDrawSelfMasked( 77, 51, amaniaaudio, 0 );`,
+the "sound waves" overlay on the base speaker glyph) and the toggle
+itself - it was never actually checked by anything that calls `Sound()`,
+so switching it off changed the icon but genuinely left every sound
+effect playing. **Fixed** by gating all 4 real `Sound()` call sites in
+the file behind `amaniaAudio` (found via a grep for every `Sound(` call,
+not just the obvious ones): `amaniaSoundSystem()` (covers cases 0-5,
+i.e. every ghost-eaten/level-clear/dot/dead/confirm-click cue routed
+through it), `amaniaAdvanceSfx()` (the shared frame-stepped sequencer
+that actually plays queued notes - gated here too, not just at the
+enqueue site, so toggling off mid-melody immediately silences it rather
+than letting an already-queued sequence finish), the dead-mania descent
+tone in `amaniaAnimateDeadMania()`, and the two direct confirm tones in
+`amaniaBeginLevel()`. Rebuilt clean; verified via Puppeteer that the icon
+still toggles correctly (the sound-wave overlay appearing/disappearing,
+unchanged from before this fix) - actual audio silence isn't verifiable
+via screenshot, matching this project's own standing caveat for every
+other audio-correctness fix in this file.
+
+**A second real bug, found the same way** (a direct user question - "can
+you check if i press right i don't get option for the ghost but
+immediatly see cherry" - followed by their own correct hunch, "it may not
+have a debounce or something"): the Start-Game row's own avatar picker
+(Left/Right cycling the icon shown next to "Start Game" between the
+Ardumania face/ghost/cherry-fruit, purely cosmetic - see the earlier
+Q&A in this file's own session history for what it actually does) read
+`isLeftPressed()`/`isRightPressed()` as a plain level check with no
+debounce at all - since Menu is now throttled to 30fps (see the FPS work
+above), even a quick physical tap easily spans more than one tick, so the
+avatar silently advanced twice per tap, skipping the middle choice
+entirely. Checking upstream's real `Menu()` (`Ardumania-ESP.h`) confirmed
+this is a genuine regression, not a faithful port: upstream gates the
+exact same check with a real one-shot latch, its own local `OneClick2`
+(consumed the instant a press is read, only re-armed once *both*
+directions read released) - and also plays a `SoundSystem(5)` confirm
+click on every avatar change, which the port was missing too. The
+project's own earlier warning-cleanup pass had removed a same-shaped
+`amaniaMenuOneClick2` global as apparently-unused, when it should have
+been wired up instead - a case of a debounce flag looking dead only
+because nothing used it yet, not because nothing needed it. **Fixed**
+with a persistent `amaniaAvatarOneClick` flag (initialized `1` in
+`gameArdumania_init()`) reproducing upstream's exact arm/disarm shape,
+plus the missing confirm-click sound on each change. Verified via
+Puppeteer with a sequence of quick (100ms) taps: Right -> ghost, Right
+-> cherry, Left -> ghost - each tap now advances exactly one step,
+matching the user's own expected behavior.
+
 ## Licensing
 
 Tiny Invaders v4.2 is GPLv3 (its `tinyJoypadUtils`/driver lineage). Since a
@@ -8497,17 +8921,21 @@ the same way, "SVEN B / LORANDIL"); Tiny
 Invaders, Tiny Pinball, Tiny Pacman, Tiny Bomber, Tiny Doc, Tiny Bert,
 Tiny Tris, Tiny Arkanoid, Tiny Trick, Tiny Minez, Tiny Missile, Tiny Bike,
 Tiny Arena, Tiny Gilbert, Tiny Pipe, Tiny Morpion, Tiny Plaque, Tiny
-SQuest, Tiny DDug, Tiny Lander, Tiny Mania, Nohzdyve, and Gilbert in the
-Downland all stay GPLv3
+SQuest, Tiny DDug, Tiny Lander, Tiny Mania, Nohzdyve, Gilbert in the
+Downland, and Ardumania all stay GPLv3
 (Tiny Mania is the newest of the tinyjoypad.com-proper titles, its own
 header crediting "Daniel C 2026" directly - the same author/license
 lineage as most of the rest of this list, credited "DANIEL C" in the menu
-the same way as Tiny Pinball/Pacman/etc above; Nohzdyve and Gilbert in
-the Downland are a different case again - neither is from tinyjoypad.com
-at all, both instead come from Daniel C's own separate ESP8285/ESP8266
-"MEGA TinyJoypad" compilation (see this file's own writeup above for
-each), individually "relicensed under GPLv3" by Daniel C for that
-specific ESP port, both credited "DANIEL C" in the menu the same way;
+the same way as Tiny Pinball/Pacman/etc above; Nohzdyve, Gilbert in
+the Downland, and Ardumania are a different case again - none of the
+three is from tinyjoypad.com at all, all three instead come from Daniel
+C's own separate ESP8285/ESP8266 "MEGA TinyJoypad" compilation (see this
+file's own writeup above for each - Ardumania's own header additionally
+notes it's based on the original Arduboy version, itself MIT-licensed,
+but this ESP port carries its own distinct GPLv3 relicense header just
+like its two siblings), individually "relicensed under GPLv3" by Daniel C
+for that specific ESP port, all three credited "DANIEL C" in the menu the
+same way;
 Tiny Lander's own
 header credits "Roger Buehler" / GitHub handle "tscha70" - a different
 author from every Daniel-C/Sven-B title above, credited separately in

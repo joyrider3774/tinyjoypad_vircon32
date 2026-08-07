@@ -82,6 +82,7 @@
 #include "games/gamePipeBird.c"
 #include "games/gameNohzdyve.c"
 #include "games/gameGilbertDownland.c"
+#include "games/gameArdumania.c"
 
 #include "menuGameList.c"
 

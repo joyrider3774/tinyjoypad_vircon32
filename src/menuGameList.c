@@ -209,4 +209,7 @@ void addGames()
     // No onResume needed - gameGilbertDownland_update() calls
     // gitdRenderFrame() unconditionally in every state, same reasoning.
     addGame( "GILBERT IN THE DOWNLAND", "DANIEL C", &gameGilbertDownland_init, &gameGilbertDownland_update, NULL );
+    // No onResume needed - gameArdumania_update() calls amaniaRenderFrame()
+    // unconditionally in every state, same reasoning as the 3 games above.
+    addGame( "ARDUMANIA", "DANIEL C", &gameArdumania_init, &gameArdumania_update, NULL );
 }
