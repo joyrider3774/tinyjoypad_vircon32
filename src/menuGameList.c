@@ -228,4 +228,7 @@ void addGames()
     // its own attract screen has a real, indefinite "press a button"
     // wait state, same onResume reasoning as every other tonym128 port.
     addGame( "ASTEROID", "TONYM128", &gameAsteroid_init, &gameAsteroid_update, &gameAsteroid_forceRedraw );
+    // Arduino-Game-System (Finn Harms) - a real, indefinite attract-
+    // screen wait state, same onResume reasoning as above.
+    addGame( "HELICOPTER", "FINN HARMS", &gameHelicopter_init, &gameHelicopter_update, &gameHelicopter_forceRedraw );
 }

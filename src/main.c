@@ -87,6 +87,7 @@
 #include "games/gameDFlight.c"
 #include "games/gameMazeRunner.c"
 #include "games/gameAsteroid.c"
+#include "games/gameHelicopter.c"
 
 #include "menuGameList.c"
 

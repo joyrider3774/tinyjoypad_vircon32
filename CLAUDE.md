@@ -627,16 +627,16 @@ Staged into `more games/` (git-cloned, `--depth 1`, matching every other
 GitHub-hosted source in this folder): `Arduino-Game-System/` (Helicopter),
 `Esp8266OledGame/` (CarRaceGame, plus 3 likely-duplicate games in the
 same repo), `ESP8266GameOn/`, and `BFlight/`. **Update: `BFlight`
-(Road Rush/DFlight/MRunnr) and `ESP8266GameOn`'s own Asteroid have since
-all shipped** - see each one's own writeup further below. Still
-unported/untriaged from this batch: `Arduino-Game-System`'s own
-Helicopter (still needs a real code-diff against HollowSeeker/UFO before
-committing effort, not just a genre-similarity guess) and
-`Esp8266OledGame`'s own CarRaceGame (only a secondary option, if a
-second driving-game candidate is ever wanted alongside `driveGame`/Road
-Rush) - matching this project's own established discipline for every
-prior "looks like a genre duplicate but hasn't actually been read"
-candidate.
+(Road Rush/DFlight/MRunnr), `ESP8266GameOn`'s own Asteroid, and
+`Arduino-Game-System`'s own Helicopter have since all shipped** - see
+each one's own writeup further below (Helicopter's own real code-diff
+against HollowSeeker/UFO, confirming it's genuinely distinct from both
+rather than a genre triplicate, is documented in its own writeup). Still
+unported/untriaged from this batch: `Esp8266OledGame`'s own CarRaceGame
+(only a secondary option, if a second driving-game candidate is ever
+wanted alongside `driveGame`/Road Rush) - matching this project's own
+established discipline for every prior "looks like a genre duplicate but
+hasn't actually been read" candidate.
 
 ## Target platform facts (Vircon32) — verified against vircon32.com
 
@@ -2032,7 +2032,7 @@ control flow.
 ## Status (as of this session)
 
 Shipped and visually verified (WebGL emulator + a Puppeteer screenshot
-harness - see below): the shim architecture, the menu, and 57 full games
+harness - see below): the shim architecture, the menu, and 58 full games
 (NumberPlace, Tiny Invaders, 2048, HollowSeeker, Tiny Pinball, Tiny
 Pacman, Tiny Bomber, Tiny Doc, Tiny Bert, Tiny Tris, Tiny Arkanoid, Tiny
 Trick, Tiny Minez, Tiny Missile, Tiny Bike, Tiny Arena, Tiny Gilbert,
@@ -2043,7 +2043,7 @@ Jump Slime, TinyRoG, TinY Fi, Breakout, Space Attack, Falling Blocks,
 Tiny Mania, Blocks Gold, Astro Barrier, ATtiny Snake, Meteor Storm,
 Flappy Bird, Tiny Bulls And Cows, ATtiny Tetromino, Laser Pong, Pipe
 Bird, Nohzdyve, Gilbert in the Downland, Ardumania, Road Rush, DFlight,
-MRunnr, Asteroid - both Falling Blocks
+MRunnr, Asteroid, Helicopter - both Falling Blocks
 and Blocks Gold's own menu names deliberately avoid naming
 the falling-block puzzle genre they're clones of, a registered trademark
 (see each one's own writeup below for the full naming rationale); Tiny
@@ -9698,6 +9698,169 @@ TONYM128" credit) occupies cell 0; 7 cells of headroom remain. Verified
 via screenshot that it displays correctly and a spot-checked neighbor
 (Astro Barrier) is untouched.
 
+## Helicopter - the other real beyond-scope survivor, resolving its own open question
+
+Ported from `more games/Arduino-Game-System/GameSystem/helicopter.cpp`/
+`.h` - Finn Harms' own "Mini Arcade Gaming System" (a real ESP8266 D1
+Mini + 128x64 SSD1306 handheld with 8 built-in games, only one of which,
+Helicopter, was ever flagged as a genuinely new find rather than a
+duplicate of an already-shipped title). A classic "hold to fly" cave-
+dodging game - hold Up (or Right) to thrust upward against constant
+gravity, weaving through a smoothly, randomly varying cave silhouette.
+This resolves the last real open question left over from the sixth
+beyond-scope discovery pass (see that section above) - Helicopter had
+been flagged as "a weaker, unconfirmed find... likely a genre triplicate"
+of HollowSeeker/UFO, needing a real code-diff before committing either
+way, never done until now.
+
+**Confirmed genuinely distinct from both HollowSeeker and UFO by direct
+reading, not genre-name comparison** - see this game's own file header
+comment for the full argument: HollowSeeker moves its player by hopping
+between fixed ledge heights (never continuous gravity physics at all);
+UFO does use continuous hold-to-fly gravity physics, but its obstacles
+are discrete walls with a gap, separated by open clear space, not a
+continuous top-and-bottom cave boundary present at every x position the
+way Helicopter's own 32-segment cave array is. Helicopter is a real
+hybrid of the two shapes, with its own genuinely different smooth-random-
+walk cave-generation algorithm - a real, distinct codebase.
+
+Not `tinyJoypadShim`/`obonoCoreShim`/tonym128-family lineage - a THIRD
+wholly separate ESP8266 driver lineage for this project, using real
+`Adafruit_GFX`/`Adafruit_SSD1306` draw calls (`fillRect`/`drawLine`/
+`drawPixel`/`print`) rather than a raw byte-per-page stream or a
+`ScreenBuff`-style pixel array - all mapped directly onto this project's
+own already-proven inlined framebuffer primitives; no general Bresenham
+line algorithm was needed since the one real line this game ever draws
+(the rotor) is always horizontal. Font data reused verbatim from the
+already-verified myfont-family extraction (Road Rush/DFlight/MRunnr/
+Asteroid) - upstream itself has no bitmap font in source form at all
+(`Adafruit_GFX`'s own built-in font is compiled into the library, not
+present anywhere in this repo), so there was nothing font-specific to
+extract even if wanted.
+
+Credited "FINN HARMS" (the real name behind the GitHub handle "innif",
+confirmed via the repo's own git commit author rather than guessed from
+the handle), GPLv3 (confirmed via the repo's own real `LICENSE` file).
+
+**Real EEPROM high-score persistence restored** - confirmed via direct
+reading that `highscore.cpp`/`.h` genuinely wires each game's own score
+(keyed by a `GameID` enum) into a real magic-number-and-checksum-guarded
+EEPROM read/write, not dead scaffolding, matching this project's own
+established precedent of restoring genuinely-live upstream persistence.
+A plain 2-byte score via `eeprom_read_word`/`eeprom_write_word` at
+address 0, the same shape already used for 9+ other games.
+
+**Two real bugs found via direct, live user reports, both fixed**:
+1. A colon character (`:`) in the ported "Score: N"/"Best: N"/"FIRE:
+   Restart" UI text silently rendered as `!` instead - this project's own
+   shared myfont-family font-index table (reused across Road Rush/
+   DFlight/MRunnr/Asteroid/Helicopter) has no glyph mapped for `:` at
+   all, and this was the first port to ever actually try one in its own
+   UI text - every character index outside the mapped ranges falls back
+   to `!`'s own glyph. **Fixed** by dropping the colon from this game's
+   own UI text entirely ("Score N"/"Best N"/"FIRE TO RESTART") rather
+   than trying to locate and wire up an unused glyph slot in the shared
+   table - a plain, safe, cosmetic choice this port fully controls,
+   with no need to touch the shared font table other games already
+   depend on.
+2. *"during gameplay 100% cpu is reached"* - found and fixed in two
+   real rounds. First, a structural mistake in how this port initially
+   modeled upstream's own dual-rate timing: upstream's real ~33fps
+   internal physics gate is decoupled from the outer game-manager's own
+   faster ~60fps loop, which keeps redrawing every outer-loop iteration
+   regardless - a real, deliberate choice on real AVR-class hardware,
+   where redraw cost is comparatively cheap. This port's first draft
+   copied that shape literally (a "movement-only throttle, redraw at
+   native rate" pattern, matching Tiny Trick/Invaders/Pinball/Bert) -
+   but Helicopter has nothing that needs to keep animating smoothly
+   between throttled ticks the way those other games do (no independent
+   cosmetic counter of any kind - the cave offset, helicopter position,
+   and score are ALL only ever touched inside the one throttled step),
+   so the whole scene is provably identical on every "skipped" real
+   frame, making that shape pure waste here specifically. **Fixed** by
+   moving the tick-divisor gate to the top of `gameHelicopter_update()`
+   itself, so input, physics, *and* the redraw are all skipped together
+   on off-ticks - the same "gate everything, skip the whole tick" shape
+   used by the majority of throttled games in this project. Second, a
+   real structural rewrite of `heliFillRect()` itself: `heliDrawCave()`'s
+   own up to 64 `fillRect()` calls (32 segments x 2 walls each) can
+   together touch up to ~10,000 pixels in a single frame when the cave's
+   random walk produces a narrow gap (tall top+bottom walls) - genuinely
+   more raw pixel-writes than this project's own other dense scenes
+   (Asteroid's worst-case rotation load, MRunnr's own close-wall
+   raycaster case). The original per-row loop set each pixel's own bit
+   individually; rewritten to compute one bitmask per (column, hardware
+   page) instead - since these walls are tall, solid, single-color
+   rectangles, at most 8 masked-OR operations per column now produce the
+   exact same final bit pattern that used to take up to ~40 individual
+   per-row bit-sets. Verified via the perf overlay: CPU dropped from the
+   reported 100% to a 78% reading (itself likely still reflecting a
+   moving-average/history smoothing of the game's own genuinely busy
+   recent frames rather than a true instantaneous cost, matching this
+   project's own repeated finding that a `Game Over` screen showing a
+   residual high reading right after a busy scene isn't itself expensive).
+
+**A live-testing investigation that turned out not to be a bug at all**:
+early automated Puppeteer captures consistently died after just one
+scoring tick regardless of input timing (held from frame one, gentle
+taps, aggressive taps), which initially looked suspicious enough to
+suspect a deterministic RNG-seed bug (a bad cave layout that's
+unavoidable on literally every fresh game). Directly investigated by
+testing several consecutive in-session restarts rather than only fresh
+page loads - scores of 8 and 9 were reached on later attempts within the
+*same* browser session, proving the game's own difficulty genuinely
+varies run-to-run (consistent with `arand()`'s own global state
+advancing across restarts, not stuck on one fixed unlucky seed) - the
+automated test harness's own imprecise keyboard-timing simply isn't a
+reliable way to play a game this reflex-dependent, confirmed directly by
+the user's own live play ("the game runs fine now... it's not a bug...
+requires immediate gentle up taps to keep the helicopter afloat"). No
+code change resulted from this investigation - a real "verify before
+assuming a bug" case, the same discipline this project applies in the
+opposite direction (verifying before dismissing a real bug as
+intentional).
+
+Verified via Puppeteer throughout: menu registration (page 2, alphabetized
+between Gilbert in the Downland and HollowSeeker), the attract screen, and
+active gameplay across several sampled runs (cave scrolling, the
+helicopter's own rect+rotor+tail sprite, thrust/gravity physics, the
+score HUD, and the Game Over screen's Score/Best/"NEW HIGHSCORE!"/restart
+prompt) all render correctly. A genuine sustained multi-minute survival
+run (to visually confirm the cave's own random-walk generation stays
+well-formed far beyond the ~10-30-tick range this session's own testing
+reached) was not attempted - worth a direct check if anything looks off
+at a much later point in a long run.
+
+**A genuine gameplay improvement, added on direct user request rather
+than found as a bug**: entering `HELI_STATE_PLAY` now holds the very
+first gameplay frame (the freshly-generated starting cave layout, the
+helicopter at rest in its centered starting position) for a full real
+second (`HELI_READY_TICKS = 30`, matching the throttled ~30fps tick
+rate already established above) before gravity/physics/collision
+actually begin - `heliUpdatePlay()` renders-only and returns early while
+`heliReadyTicks > 0`, only calling `heliUpdatePlaying()` once that
+countdown reaches zero. Upstream has no equivalent - this is a pure,
+deliberate addition, not a fidelity restoration - giving the player a
+moment to see the starting layout before the (frequently punishing,
+tap-precision-dependent) descent begins, rather than falling immediately
+on the very first tick after leaving the attract screen. Verified via a
+timed Puppeteer screenshot sequence (100ms/500ms/1000ms/1300ms after
+starting play) confirming the frame stays visually static through the
+first ~1 second before physics visibly begins, and confirmed directly
+by the user's own live play.
+
+Menu thumbnail added to `assets/thumbnails4.png`'s cell 1 (right after
+Asteroid's own cell 0). A live in-flight gameplay screenshot proved
+impractical to capture reliably via this project's own automated
+Puppeteer input (the same reflex-dependent-timing issue documented
+above) - the user supplied a real capture from their own live play
+instead (via the native desktop emulator's own `Screenshots/` folder,
+not the WebGL harness), showing the cave silhouette and the helicopter
+sprite mid-flight, used for both the thumbnail and the README/metadata
+screenshot. Verified via screenshot that it displays correctly and a
+spot-checked neighbor thumbnail (a different atlas entirely, Gilbert in
+the Downland) is untouched.
+
 ## Licensing
 
 Tiny Invaders v4.2 is GPLv3 (its `tinyJoypadUtils`/driver lineage). Since a
@@ -9829,7 +9992,11 @@ screen "BY TONYM128" credit line - the README's own fuller "Tony M
 (tonym128)" author column adds the real name each repo's own README also
 states, the same "menu gets the terse handle, README gets the fuller
 credit" split already used for ATtiny Tetromino's own "SUNPAZED" menu
-credit). Four in a Row
+credit). Helicopter is a clean GPLv3 case again, from a wholly different
+author/repo - `innif/Arduino-Game-System`'s own real `LICENSE` file
+states GPLv3 directly, credited "FINN HARMS" in the menu (the real name
+behind the GitHub handle "innif", confirmed via the repo's own git
+commit author rather than guessed). Four in a Row
 and Dino
 Game are the two exceptions to every
 license-family grouping above - neither's own source carries an author

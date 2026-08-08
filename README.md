@@ -2,7 +2,7 @@
 
 ![Menu screenshot](metadata/menu.png)
 
-A single [Vircon32](https://www.vircon32.com/) cartridge that ports **57
+A single [Vircon32](https://www.vircon32.com/) cartridge that ports **58
 games** onto Vircon32's 640x360 GPU, behind one shared game-select menu.
 Most originally targeted the [TinyJoypad](https://www.tinyjoypad.com/)
 itself (an ATtiny85 driving a 128x64 SSD1306 monochrome OLED); the rest
@@ -76,6 +76,7 @@ Click a thumbnail for the full-size screenshot.
 | Four in a Row | Unknown | ATtiny85 | None specified | — | [tiny handheld](https://github.com/Yevgeniy-Olexandrenko/tiny-handheld) | [<img src="metadata/screenshots/FOUR%20IN%20A%20ROW.png" width="80">](metadata/screenshots/FOUR%20IN%20A%20ROW.png) |
 | Frogger | Andy Jackson (art: @senkunmusashi) | ATtiny85 | Non-commercial, with attribution | ✅ | [Attiny Arduino Games](https://github.com/andyhighnumber/Attiny-Arduino-Games) | [<img src="metadata/screenshots/FROGGER.png" width="80">](metadata/screenshots/FROGGER.png) |
 | Gilbert in the Downland | Daniel C | ESP8285 | GPLv3 | ✅ | [Tinyjoypad](https://github.com/phoenixbozo/TinyJoypad/tree/main/TinyJoypad) | [<img src="metadata/screenshots/GILBERT%20IN%20THE%20DOWNLAND.png" width="80">](metadata/screenshots/GILBERT%20IN%20THE%20DOWNLAND.png) |
+| Helicopter | Finn Harms (innif) | ESP8266 | GPLv3 | ✅ | [Arduino Game System](https://github.com/innif/Arduino-Game-System) | [<img src="metadata/screenshots/HELICOPTER.png" width="80">](metadata/screenshots/HELICOPTER.png) |
 | HollowSeeker | Obono | ATtiny85 | MIT | — | [TinyJoypadWorks](https://github.com/obono/TinyJoypadWorks) | [<img src="metadata/screenshots/HOLLOWSEEKER.png" width="80">](metadata/screenshots/HOLLOWSEEKER.png) |
 | Jump Slime | Kondolab (近藤さんちの研究室) | ATtiny85 | None specified | — | [kondolab](https://note.com/kondolab/n/ndc93ac31e555) | [<img src="metadata/screenshots/JUMP%20SLIME.png" width="80">](metadata/screenshots/JUMP%20SLIME.png) |
 | Laser Pong | Winston Lu | ATtiny85 | MIT | — | [ATTiny85 Pong](https://github.com/Winston-Lu/ATTiny85_Pong) | [<img src="metadata/screenshots/LASER%20PONG.png" width="80">](metadata/screenshots/LASER%20PONG.png) |
